@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Work Journal Summarizer - Phase 6: Output Management System
+Work Journal Summarizer - Phase 8: Configuration Management & API Fallback
 
 A Python program that generates weekly and monthly summaries of daily work journal
 text files using LLM APIs. This module implements the command-line interface with
 comprehensive argument validation, robust file discovery, content processing,
-intelligent summary generation, and professional markdown output generation.
+intelligent summary generation, professional markdown output generation,
+production-grade error handling with comprehensive logging, and complete
+configuration management with API fallback support.
 
 Author: Work Journal Summarizer Project
-Version: Phase 6 - Output Management System
+Version: Phase 8 - Configuration Management & API Fallback
 """
 
 import argparse
@@ -23,14 +25,23 @@ from file_discovery import FileDiscovery, FileDiscoveryResult
 # Import Phase 3 components
 from content_processor import ContentProcessor, ProcessedContent, ProcessingStats
 
-# Import Phase 4 components
-from llm_client import LLMClient, AnalysisResult, APIStats
+# Import Phase 4 components (updated for Phase 8)
+from bedrock_client import BedrockClient, AnalysisResult, APIStats
 
 # Import Phase 5 components
 from summary_generator import SummaryGenerator, PeriodSummary, SummaryStats
 
 # Import Phase 6 components
 from output_manager import OutputManager, OutputResult, ProcessingMetadata
+
+# Import Phase 7 components
+from logger import (
+    JournalSummarizerLogger, LogConfig, LogLevel, ErrorCategory,
+    create_logger_with_config
+)
+
+# Import Phase 8 components
+from config_manager import ConfigManager, AppConfig
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -51,6 +62,7 @@ Examples:
   %(prog)s --start-date 2024-04-01 --end-date 2024-04-30 --summary-type weekly
   %(prog)s --start-date 2024-01-01 --end-date 2024-12-31 --summary-type monthly
   %(prog)s --start-date 2024-12-01 --end-date 2025-01-31 --summary-type weekly
+  %(prog)s --start-date 2024-04-01 --end-date 2024-04-30 --summary-type weekly --log-level DEBUG
 
 Date Format:
   All dates must be in YYYY-MM-DD format (e.g., 2024-04-01)
@@ -59,27 +71,29 @@ Date Format:
 Summary Types:
   weekly  - Generate weekly summaries grouped by calendar weeks
   monthly - Generate monthly summaries grouped by calendar months
+
+Logging:
+  --log-level controls verbosity: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  --log-dir specifies custom directory for log files
+  --no-console disables console output (file logging only)
         """
     )
     
     parser.add_argument(
         '--start-date',
         type=str,
-        required=True,
         help='Start date in YYYY-MM-DD format (inclusive)'
     )
     
     parser.add_argument(
         '--end-date',
         type=str,
-        required=True,
         help='End date in YYYY-MM-DD format (inclusive)'
     )
     
     parser.add_argument(
         '--summary-type',
         type=str,
-        required=True,
         choices=['weekly', 'monthly'],
         help='Type of summary to generate: weekly or monthly'
     )
@@ -91,8 +105,66 @@ Summary Types:
         help='Base directory path for journal files (default: ~/Desktop/worklogs/)'
     )
     
+    # Phase 7: Logging and error handling options
+    parser.add_argument(
+        '--log-level',
+        type=str,
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        default='INFO',
+        help='Set logging level (default: INFO)'
+    )
+    
+    parser.add_argument(
+        '--log-dir',
+        type=str,
+        help='Custom directory for log files (default: ~/Desktop/worklogs/summaries/error_logs/)'
+    )
+    
+    parser.add_argument(
+        '--no-console',
+        action='store_true',
+        help='Disable console output (log to file only)'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Validate configuration and show processing plan without execution'
+    )
+    
+    # Phase 8: Configuration management options
+    parser.add_argument(
+        '--config',
+        type=str,
+        help='Path to configuration file (YAML or JSON)'
+    )
+    
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        help='Override output directory from configuration'
+    )
+    
+    parser.add_argument(
+        '--save-example-config',
+        type=str,
+        help='Save an example configuration file to the specified path and exit'
+    )
+    
     # Parse arguments
     args = parser.parse_args()
+    
+    # If saving example config, skip other validations
+    if args.save_example_config:
+        return args
+    
+    # Check required arguments for normal operation
+    if not args.start_date:
+        parser.error("--start-date is required")
+    if not args.end_date:
+        parser.error("--end-date is required")
+    if not args.summary_type:
+        parser.error("--summary-type is required")
     
     # Validate and convert date strings to date objects
     try:
@@ -162,69 +234,277 @@ def validate_date_range(start_date: datetime.date, end_date: datetime.date) -> N
         )
 
 
+def _perform_dry_run(args: argparse.Namespace, config: AppConfig, logger: JournalSummarizerLogger) -> None:
+    """
+    Perform a dry run to validate configuration without executing the full pipeline.
+    
+    Args:
+        args: Parsed command line arguments
+        config: Application configuration
+        logger: Logger instance for reporting
+    """
+    print("🔍 DRY RUN MODE - Configuration Validation")
+    print("=" * 50)
+    
+    # Validate date range
+    total_days = (args.end_date - args.start_date).days + 1
+    print(f"✅ Date range valid: {args.start_date} to {args.end_date} ({total_days} days)")
+    
+    # Check base path from configuration
+    base_path = Path(config.processing.base_path).expanduser()
+    if base_path.exists():
+        print(f"✅ Base path accessible: {base_path}")
+    else:
+        print(f"❌ Base path not found: {base_path}")
+        logger.log_error_with_category(
+            ErrorCategory.FILE_SYSTEM,
+            f"Base path not accessible: {base_path}",
+            recovery_action="Create the directory or check the path"
+        )
+    
+    # Check output path from configuration
+    output_path = Path(config.processing.output_path).expanduser()
+    try:
+        output_path.mkdir(parents=True, exist_ok=True)
+        print(f"✅ Output path accessible: {output_path}")
+    except Exception as e:
+        print(f"❌ Output path not accessible: {output_path}")
+        logger.log_error_with_category(
+            ErrorCategory.FILE_SYSTEM,
+            f"Output path not accessible: {output_path} - {e}",
+            recovery_action="Check permissions or create the directory manually"
+        )
+    
+    # Estimate processing scope
+    if args.summary_type == 'weekly':
+        estimated_periods = (total_days + 6) // 7
+        print(f"📊 Estimated weekly summaries: {estimated_periods}")
+    else:
+        start_month = args.start_date.replace(day=1)
+        end_month = args.end_date.replace(day=1)
+        months = (end_month.year - start_month.year) * 12 + (end_month.month - start_month.month) + 1
+        print(f"📊 Estimated monthly summaries: {months}")
+    
+    # Check AWS credentials using configuration
+    import os
+    aws_key = os.getenv(config.bedrock.aws_access_key_env)
+    aws_secret = os.getenv(config.bedrock.aws_secret_key_env)
+    
+    if aws_key and aws_secret:
+        print("✅ AWS credentials found in environment")
+        
+        # Test Bedrock connection
+        try:
+            bedrock_client = BedrockClient(config.bedrock)
+            if bedrock_client.test_connection():
+                print("✅ Bedrock API connection successful")
+            else:
+                print("❌ Bedrock API connection failed")
+        except Exception as e:
+            print(f"❌ Bedrock API connection error: {e}")
+    else:
+        print("❌ AWS credentials not found")
+        logger.log_error_with_category(
+            ErrorCategory.CONFIGURATION_ERROR,
+            f"AWS credentials not configured: {config.bedrock.aws_access_key_env}, {config.bedrock.aws_secret_key_env}",
+            recovery_action=f"Set {config.bedrock.aws_access_key_env} and {config.bedrock.aws_secret_key_env} environment variables"
+        )
+    
+    # Configuration summary
+    print(f"📝 AWS Region: {config.bedrock.region}")
+    print(f"🤖 Model ID: {config.bedrock.model_id}")
+    print(f"📁 Max file size: {config.processing.max_file_size_mb} MB")
+    print(f"📝 Log level: {config.logging.level.value}")
+    print(f"📁 Log directory: {logger.log_file_path.parent}")
+    print(f"📄 Log file: {logger.log_file_path.name}")
+    
+    print("\n🎯 Dry run complete - configuration validated")
+    
+    # Show any errors found
+    if logger.error_reports:
+        print(f"\n⚠️  Found {len(logger.error_reports)} configuration issues:")
+        for report in logger.error_reports:
+            print(f"  - {report.message}")
+            if report.recovery_action:
+                print(f"    Recovery: {report.recovery_action}")
+
+
 def main() -> None:
     """
     Main entry point for the Work Journal Summarizer.
     
-    This function handles the complete workflow:
+    This function handles the complete workflow with comprehensive error handling:
     1. Parse and validate command line arguments
-    2. Discover journal files in the specified date range
-    3. Process and validate file content with encoding detection
-    4. Analyze content using LLM API for entity extraction
-    5. Extract projects, participants, tasks, and themes
-    6. Display comprehensive analysis statistics and results
+    2. Initialize configuration management system
+    3. Initialize logging system with progress tracking
+    4. Discover journal files in the specified date range
+    5. Process and validate file content with encoding detection
+    6. Analyze content using LLM API for entity extraction
+    7. Generate intelligent summaries with graceful error handling
+    8. Create professional markdown output with error reporting
+    9. Provide comprehensive processing statistics and error analysis
     """
+    logger = None
+    config = None
     try:
         # Parse and validate arguments
         args = parse_arguments()
         
+        # Handle save example config option
+        if args.save_example_config:
+            try:
+                config_manager = ConfigManager()
+                config_path = Path(args.save_example_config)
+                config_manager.save_example_config(config_path)
+                print(f"✅ Example configuration saved to: {config_path}")
+                return
+            except Exception as e:
+                print(f"❌ Failed to save example config: {e}")
+                sys.exit(1)
+        
+        # Initialize configuration management
+        try:
+            config_path = Path(args.config) if args.config else None
+            config_manager = ConfigManager(config_path)
+            config = config_manager.get_config()
+            
+            # Apply command-line overrides
+            if args.base_path:
+                config.processing.base_path = args.base_path
+            if args.output_dir:
+                config.processing.output_path = args.output_dir
+            if args.log_level:
+                config.logging.level = LogLevel(args.log_level)
+            if args.log_dir:
+                config.logging.log_dir = args.log_dir
+            if args.no_console:
+                config.logging.console_output = False
+                
+        except Exception as e:
+            print(f"❌ Configuration Error: {e}")
+            print("\nTroubleshooting:")
+            print("- Check configuration file syntax (YAML/JSON)")
+            print("- Verify environment variables are set correctly")
+            print("- Use --save-example-config to create a template")
+            sys.exit(1)
+        
+        # Initialize comprehensive logging system using configuration
+        logger = create_logger_with_config(
+            log_level=config.logging.level.value,
+            log_dir=config.logging.log_dir,
+            console_output=config.logging.console_output,
+            file_output=config.logging.file_output
+        )
+        
+        logger.start_phase("Initialization")
+        logger.logger.info("Work Journal Summarizer - Phase 8: Configuration Management & API Fallback")
+        
+        # Display configuration summary
+        if not args.dry_run:
+            config_manager.print_config_summary()
+        
+        # Handle dry run mode
+        if args.dry_run:
+            logger.logger.info("DRY RUN MODE - Validating configuration without execution")
+            _perform_dry_run(args, config, logger)
+            return
+        
         # Display successful validation message
-        print("✅ Work Journal Summarizer - Phase 6")
+        print("✅ Work Journal Summarizer - Phase 8")
         print("=" * 50)
         print(f"Start Date: {args.start_date}")
         print(f"End Date: {args.end_date}")
         print(f"Summary Type: {args.summary_type}")
-        print(f"Base Path: {args.base_path}")
+        print(f"Base Path: {config.processing.base_path}")
+        print(f"Output Path: {config.processing.output_path}")
         print(f"Date Range: {(args.end_date - args.start_date).days + 1} days")
+        print(f"AWS Region: {config.bedrock.region}")
+        print(f"Model: {config.bedrock.model_id}")
         print()
+        
+        logger.update_progress("Initialization", 1.0)
+        logger.complete_phase("Initialization")
         
         # Phase 2: File Discovery
+        logger.start_phase("File Discovery")
         print("🔍 Phase 2: Discovering journal files...")
-        file_discovery = FileDiscovery(base_path=args.base_path)
-        discovery_result = file_discovery.discover_files(args.start_date, args.end_date)
         
-        # Display discovery statistics
-        print("📊 File Discovery Results:")
-        print("-" * 30)
-        print(f"Total files expected: {discovery_result.total_expected}")
-        print(f"Files found: {len(discovery_result.found_files)}")
-        print(f"Files missing: {len(discovery_result.missing_files)}")
-        print(f"Discovery success rate: {len(discovery_result.found_files)/discovery_result.total_expected*100:.1f}%")
-        print(f"Processing time: {discovery_result.processing_time:.3f} seconds")
-        print()
-        
-        # Display found files (first 5 for brevity)
-        if discovery_result.found_files:
-            print("📁 Found Files (showing first 5):")
-            for i, file_path in enumerate(discovery_result.found_files[:5]):
-                print(f"  {i+1}. {file_path}")
-            if len(discovery_result.found_files) > 5:
-                print(f"  ... and {len(discovery_result.found_files) - 5} more files")
+        try:
+            file_discovery = FileDiscovery(base_path=config.processing.base_path)
+            discovery_result = file_discovery.discover_files(args.start_date, args.end_date)
+            
+            logger.update_progress("File Discovery", 0.8, 0, discovery_result.total_expected)
+            
+            # Log missing files as warnings
+            if discovery_result.missing_files:
+                for missing_file in discovery_result.missing_files:
+                    logger.log_warning_with_category(
+                        ErrorCategory.FILE_SYSTEM,
+                        f"Expected journal file not found: {missing_file.name}",
+                        file_path=missing_file
+                    )
+            
+            # Display discovery statistics
+            print("📊 File Discovery Results:")
+            print("-" * 30)
+            print(f"Total files expected: {discovery_result.total_expected}")
+            print(f"Files found: {len(discovery_result.found_files)}")
+            print(f"Files missing: {len(discovery_result.missing_files)}")
+            
+            if discovery_result.total_expected > 0:
+                success_rate = len(discovery_result.found_files)/discovery_result.total_expected*100
+                print(f"Discovery success rate: {success_rate:.1f}%")
+                
+                # Log low success rate as warning
+                if success_rate < 50:
+                    logger.log_warning_with_category(
+                        ErrorCategory.FILE_SYSTEM,
+                        f"Low file discovery success rate: {success_rate:.1f}%",
+                    )
+            
+            print(f"Processing time: {discovery_result.processing_time:.3f} seconds")
             print()
-        
-        # Display missing files (first 5 for brevity)
-        if discovery_result.missing_files:
-            print("❌ Missing Files (showing first 5):")
-            for i, file_path in enumerate(discovery_result.missing_files[:5]):
-                print(f"  {i+1}. {file_path}")
-            if len(discovery_result.missing_files) > 5:
-                print(f"  ... and {len(discovery_result.missing_files) - 5} more missing files")
-            print()
+            
+            # Display found files (first 5 for brevity)
+            if discovery_result.found_files:
+                print("📁 Found Files (showing first 5):")
+                for i, file_path in enumerate(discovery_result.found_files[:5]):
+                    print(f"  {i+1}. {file_path}")
+                if len(discovery_result.found_files) > 5:
+                    print(f"  ... and {len(discovery_result.found_files) - 5} more files")
+                print()
+            
+            # Display missing files (first 5 for brevity)
+            if discovery_result.missing_files:
+                print("❌ Missing Files (showing first 5):")
+                for i, file_path in enumerate(discovery_result.missing_files[:5]):
+                    print(f"  {i+1}. {file_path}")
+                if len(discovery_result.missing_files) > 5:
+                    print(f"  ... and {len(discovery_result.missing_files) - 5} more missing files")
+                print()
+            
+            logger.update_progress("File Discovery", 1.0, 0, discovery_result.total_expected)
+            logger.complete_phase("File Discovery")
+            
+        except Exception as e:
+            logger.log_error_with_category(
+                ErrorCategory.FILE_SYSTEM,
+                f"File discovery failed: {str(e)}",
+                exception=e,
+                recovery_action="Check base path exists and is accessible"
+            )
+            
+            if not logger.should_continue_processing():
+                print("❌ Critical file discovery error - stopping processing")
+                return
+            
+            # Create empty result for graceful degradation
+            discovery_result = FileDiscoveryResult([], [], 0, (args.start_date, args.end_date), 0.0)
         
         # Phase 3: Content Processing
         if len(discovery_result.found_files) > 0:
             print("📝 Phase 3: Processing file content...")
-            content_processor = ContentProcessor(max_file_size_mb=50)
+            content_processor = ContentProcessor(max_file_size_mb=config.processing.max_file_size_mb)
             
             # Process all found files
             processed_content, processing_stats = content_processor.process_files(discovery_result.found_files)
@@ -280,8 +560,8 @@ def main() -> None:
             # Phase 4: LLM API Integration
             print("🤖 Phase 4: Analyzing content with LLM API...")
             try:
-                # Initialize LLM client
-                llm_client = LLMClient()
+                # Initialize Bedrock client with configuration
+                llm_client = BedrockClient(config.bedrock)
                 
                 # Process content through LLM for entity extraction
                 analysis_results = []
@@ -469,8 +749,8 @@ def main() -> None:
                                                    summary_stats.total_generation_time)
                             )
                             
-                            # Initialize output manager
-                            output_manager = OutputManager()
+                            # Initialize output manager with configuration
+                            output_manager = OutputManager(output_dir=config.processing.output_path)
                             
                             # Generate output file
                             output_result = output_manager.generate_output(

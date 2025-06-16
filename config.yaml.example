@@ -1,0 +1,82 @@
+# Work Journal Summarizer Configuration File
+# Phase 8: Configuration Management & API Fallback
+#
+# This is an example configuration file showing all available options.
+# Copy this file to config.yaml and customize as needed.
+
+# AWS Bedrock Configuration
+bedrock:
+  # AWS region for Bedrock service
+  region: us-east-2
+  
+  # Claude model ID on Bedrock
+  model_id: anthropic.claude-sonnet-4-20250514-v1:0
+  
+  # Environment variable names for AWS credentials
+  aws_access_key_env: AWS_ACCESS_KEY_ID
+  aws_secret_key_env: AWS_SECRET_ACCESS_KEY
+  
+  # API timeout in seconds
+  timeout: 30
+  
+  # Maximum number of retry attempts for failed API calls
+  max_retries: 3
+  
+  # Delay between rate-limited requests (seconds)
+  rate_limit_delay: 1.0
+
+# File Processing Configuration
+processing:
+  # Base directory for journal files
+  base_path: ~/Desktop/worklogs/
+  
+  # Output directory for generated summaries
+  output_path: ~/Desktop/worklogs/summaries/
+  
+  # Maximum file size to process (MB)
+  max_file_size_mb: 50
+  
+  # Number of files to process in each batch
+  batch_size: 10
+  
+  # Delay between processing batches (seconds)
+  rate_limit_delay: 1.0
+
+# Logging Configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: INFO
+  
+  # Enable console output
+  console_output: true
+  
+  # Enable file logging
+  file_output: true
+  
+  # Directory for log files
+  log_dir: ~/Desktop/worklogs/summaries/error_logs/
+  
+  # Include timestamps in log messages
+  include_timestamps: true
+  
+  # Include module names in log messages
+  include_module_names: true
+  
+  # Maximum log file size (MB) before rotation
+  max_file_size_mb: 10
+  
+  # Number of backup log files to keep
+  backup_count: 5
+
+# Environment Variable Overrides
+# You can override any configuration value using environment variables:
+#
+# WJS_BEDROCK_REGION=us-west-2
+# WJS_BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
+# WJS_BASE_PATH=/custom/journal/path
+# WJS_OUTPUT_PATH=/custom/output/path
+# WJS_MAX_FILE_SIZE_MB=100
+# WJS_LOG_LEVEL=DEBUG
+# WJS_LOG_DIR=/custom/log/path
+#
+# Environment variables take precedence over configuration file values.
