@@ -54,7 +54,7 @@ TECHNICAL REQUIREMENTS:
 1. Project Structure:
    - Main module: `work_journal_summarizer.py`
    - Test directory: `tests/` with `test_cli.py`
-   - `requirements.txt` with: argparse, datetime, pathlib, pytest
+   - `requirements.txt` with: argparse, datetime, pathlib, pytest, boto3
    - `README.md` with setup and usage instructions
    - `.gitignore` for Python projects
 
@@ -395,17 +395,17 @@ EXPECTED OUTPUT:
 TASK: Implement robust LLM API integration for content analysis and entity extraction
 
 TECHNICAL REQUIREMENTS:
-1. LLMClient Class Design (Choose CBORG for MVP):
+1. LLMClient Class Design (Choose AWS Bedrock Claude for MVP):
 ```python
 # llm_client.py
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
-import requests
+import boto3
+from botocore.exceptions import ClientError, BotoCoreError
 import json
 import time
 import logging
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+import os
 
 @dataclass
 class AnalysisResult:
@@ -428,44 +428,45 @@ class APIStats:
     rate_limit_hits: int
 
 class LLMClient:
-    def __init__(self, api_key: str, base_url: str = "https://cborg.lbl.gov/api"):
-        self.api_key = api_key
-        self.base_url = base_url
-        self.session = self._create_session()
+    def __init__(self, region: str = "us-west-2",
+                 model_id: str = "anthropic.claude-sonnet-4-20250514-v1:0"):
+        self.region = region
+        self.model_id = model_id
+        self.client = self._create_bedrock_client()
         self.logger = logging.getLogger(__name__)
         
-    def _create_session(self) -> requests.Session:
-        """Create requests session with retry strategy."""
-        session = requests.Session()
-        retry_strategy = Retry(
-            total=3,
-            backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
+    def _create_bedrock_client(self):
+        """Create Bedrock client with proper credentials."""
+        return boto3.client(
+            'bedrock-runtime',
+            region_name=self.region,
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
         )
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
-        return session
         
     def analyze_content(self, content: str, file_path: Path) -> AnalysisResult:
-        """Analyze journal content and extract entities."""
+        """Analyze journal content and extract entities using Claude on Bedrock."""
         
     def _create_analysis_prompt(self, content: str) -> str:
         """Create structured prompt for entity extraction."""
         
-    def _parse_response(self, response_text: str) -> Dict[str, List[str]]:
-        """Parse JSON response and validate structure."""
+    def _format_bedrock_request(self, prompt: str) -> Dict[str, Any]:
+        """Format request for Bedrock API."""
+        
+    def _parse_bedrock_response(self, response: Dict[str, Any]) -> Dict[str, List[str]]:
+        """Parse Bedrock response and validate structure."""
         
     def _deduplicate_entities(self, entities: Dict[str, List[str]]) -> Dict[str, List[str]]:
         """Remove duplicates and normalize entity names."""
 ```
 
-2. CBORG API Integration:
-   - Endpoint: https://cborg.lbl.gov/api/chat/completions
-   - Authentication: Bearer token in headers
-   - Request format: OpenAI-compatible JSON
-   - Response parsing: JSON with structured data
-   - Rate limiting: 60 requests per minute
+2. AWS Bedrock Claude Integration:
+   - Service: Amazon Bedrock Runtime
+   - Model: anthropic.claude-sonnet-4-20250514-v1:0
+   - Authentication: AWS credentials (Access Key ID + Secret Access Key)
+   - Request format: Bedrock-specific JSON with messages array
+   - Response parsing: JSON with structured data extraction
+   - Rate limiting: Bedrock service limits (varies by region/model)
 
 3. Entity Extraction Prompt Template:
 ```python
@@ -509,27 +510,31 @@ import json
 from llm_client import LLMClient, AnalysisResult
 
 class TestLLMClient:
-    @patch('requests.Session.post')
-    def test_successful_api_call(self, mock_post):
-        # Test successful API response parsing
+    @patch('boto3.client')
+    def test_successful_api_call(self, mock_boto):
+        # Test successful Bedrock API response parsing
         
-    @patch('requests.Session.post')
-    def test_api_timeout_handling(self, mock_post):
-        # Test timeout and retry logic
+    @patch('boto3.client')
+    def test_api_timeout_handling(self, mock_boto):
+        # Test timeout and retry logic with Bedrock
         
-    @patch('requests.Session.post')
-    def test_malformed_response_handling(self, mock_post):
-        # Test handling of invalid JSON responses
+    @patch('boto3.client')
+    def test_malformed_response_handling(self, mock_boto):
+        # Test handling of invalid Bedrock responses
         
     def test_entity_deduplication(self):
         # Test removal of duplicate entities
         
     def test_prompt_generation(self):
-        # Test prompt template formatting
+        # Test prompt template formatting for Claude
         
-    @patch('requests.Session.post')
-    def test_rate_limiting(self, mock_post):
-        # Test rate limiting and backoff
+    @patch('boto3.client')
+    def test_bedrock_rate_limiting(self, mock_boto):
+        # Test Bedrock rate limiting and backoff
+        
+    @patch('boto3.client')
+    def test_aws_credential_handling(self, mock_boto):
+        # Test AWS credential validation and error handling
 ```
 
 INTEGRATION REQUIREMENTS:
@@ -552,7 +557,7 @@ SECURITY CONSIDERATIONS:
 - Log API interactions without exposing sensitive data
 
 SUCCESS CRITERIA:
-- Successful integration with CBORG API
+- Successful integration with AWS Bedrock Claude API
 - Robust entity extraction from journal content
 - Comprehensive error handling and retry logic
 - Accurate deduplication of extracted entities
@@ -1313,7 +1318,7 @@ FINAL INTEGRATION:
 SUCCESS CRITERIA:
 - Complete configuration management system
 - Robust API fallback with circuit breaker
-- Both CBORG and Bedrock APIs fully integrated
+- Both Bedrock and CBORG APIs fully integrated (Bedrock primary)
 - Comprehensive end-to-end testing
 - Production-ready error handling and logging
 - Professional documentation and examples

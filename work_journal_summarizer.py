@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Work Journal Summarizer - Phase 2: Foundation & File Discovery
+Work Journal Summarizer - Phase 3: Content Processing System
 
 A Python program that generates weekly and monthly summaries of daily work journal
 text files using LLM APIs. This module implements the command-line interface with
-comprehensive argument validation and robust file discovery.
+comprehensive argument validation, robust file discovery, and content processing.
 
 Author: Work Journal Summarizer Project
-Version: Phase 2 - File Discovery Engine
+Version: Phase 3 - Content Processing System
 """
 
 import argparse
@@ -18,6 +18,9 @@ from typing import Tuple
 
 # Import Phase 2 components
 from file_discovery import FileDiscovery, FileDiscoveryResult
+
+# Import Phase 3 components
+from content_processor import ContentProcessor, ProcessedContent, ProcessingStats
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -156,15 +159,16 @@ def main() -> None:
     This function handles the complete workflow:
     1. Parse and validate command line arguments
     2. Discover journal files in the specified date range
-    3. Display discovery statistics
-    4. Prepare for future phase integration
+    3. Process and validate file content with encoding detection
+    4. Display comprehensive processing statistics
+    5. Prepare processed content for future LLM analysis
     """
     try:
         # Parse and validate arguments
         args = parse_arguments()
         
         # Display successful validation message
-        print("✅ Work Journal Summarizer - Phase 2")
+        print("✅ Work Journal Summarizer - Phase 3")
         print("=" * 50)
         print(f"Start Date: {args.start_date}")
         print(f"End Date: {args.end_date}")
@@ -173,11 +177,9 @@ def main() -> None:
         print(f"Date Range: {(args.end_date - args.start_date).days + 1} days")
         print()
         
-        # Initialize file discovery system
-        print("🔍 Discovering journal files...")
+        # Phase 2: File Discovery
+        print("🔍 Phase 2: Discovering journal files...")
         file_discovery = FileDiscovery(base_path=args.base_path)
-        
-        # Discover files in the specified date range
         discovery_result = file_discovery.discover_files(args.start_date, args.end_date)
         
         # Display discovery statistics
@@ -208,29 +210,90 @@ def main() -> None:
                 print(f"  ... and {len(discovery_result.missing_files) - 5} more missing files")
             print()
         
-        # Calculate summary estimates
-        total_days = (args.end_date - args.start_date).days + 1
-        if args.summary_type == 'weekly':
-            estimated_weeks = (total_days + 6) // 7  # Round up
-            print(f"📈 Estimated weekly summaries: {estimated_weeks}")
-        else:  # monthly
-            start_month = args.start_date.replace(day=1)
-            end_month = args.end_date.replace(day=1)
-            months = (end_month.year - start_month.year) * 12 + (end_month.month - start_month.month) + 1
-            print(f"📈 Estimated monthly summaries: {months}")
-        
-        print()
+        # Phase 3: Content Processing
         if len(discovery_result.found_files) > 0:
-            print("✅ Phase 2 Complete - File discovery successful!")
-            print("📋 Ready for Phase 3: Content Processing System")
+            print("📝 Phase 3: Processing file content...")
+            content_processor = ContentProcessor(max_file_size_mb=50)
+            
+            # Process all found files
+            processed_content, processing_stats = content_processor.process_files(discovery_result.found_files)
+            
+            # Display processing statistics
+            print("📊 Content Processing Results:")
+            print("-" * 30)
+            print(f"Files processed: {processing_stats.total_files}")
+            print(f"Successfully processed: {processing_stats.successful}")
+            print(f"Failed to process: {processing_stats.failed}")
+            print(f"Success rate: {processing_stats.successful/processing_stats.total_files*100:.1f}%")
+            print(f"Total content size: {processing_stats.total_size_bytes:,} bytes")
+            print(f"Total words extracted: {processing_stats.total_words:,}")
+            print(f"Processing time: {processing_stats.processing_time:.3f} seconds")
+            print(f"Average processing speed: {processing_stats.total_files/processing_stats.processing_time:.1f} files/second")
+            print()
+            
+            # Display sample processed content
+            if processed_content:
+                print("📄 Sample Processed Content (first file):")
+                print("-" * 40)
+                sample = processed_content[0]
+                print(f"File: {sample.file_path.name}")
+                print(f"Date: {sample.date}")
+                print(f"Encoding: {sample.encoding}")
+                print(f"Word count: {sample.word_count}")
+                print(f"Line count: {sample.line_count}")
+                print(f"Processing time: {sample.processing_time:.3f}s")
+                
+                # Show first 200 characters of content
+                content_preview = sample.content[:200]
+                if len(sample.content) > 200:
+                    content_preview += "..."
+                print(f"Content preview: {content_preview}")
+                
+                if sample.errors:
+                    print(f"Errors: {', '.join(sample.errors)}")
+                print()
+            
+            # Calculate summary estimates
+            total_days = (args.end_date - args.start_date).days + 1
+            if args.summary_type == 'weekly':
+                estimated_weeks = (total_days + 6) // 7  # Round up
+                print(f"📈 Estimated weekly summaries: {estimated_weeks}")
+            else:  # monthly
+                start_month = args.start_date.replace(day=1)
+                end_month = args.end_date.replace(day=1)
+                months = (end_month.year - start_month.year) * 12 + (end_month.month - start_month.month) + 1
+                print(f"📈 Estimated monthly summaries: {months}")
+            
+            print()
+            print("✅ Phase 3 Complete - Content processing successful!")
+            print("📋 Ready for Phase 4: LLM API Integration")
             print()
             print("Next steps:")
-            print("- Process and validate file content")
-            print("- Implement encoding detection")
-            print("- Add content sanitization")
-            print("- Integrate LLM API for analysis")
+            print("- Integrate with LLM API for entity extraction")
+            print("- Extract projects, participants, tasks, and themes")
+            print("- Implement API error handling and retry logic")
+            print("- Prepare for summary generation")
+            
+            # Display processing quality metrics
+            if processed_content:
+                avg_words_per_file = sum(c.word_count for c in processed_content) / len(processed_content)
+                avg_lines_per_file = sum(c.line_count for c in processed_content) / len(processed_content)
+                print()
+                print("📈 Content Quality Metrics:")
+                print(f"Average words per file: {avg_words_per_file:.1f}")
+                print(f"Average lines per file: {avg_lines_per_file:.1f}")
+                
+                # Check for encoding diversity
+                encodings = set(c.encoding for c in processed_content)
+                print(f"Encodings detected: {', '.join(encodings)}")
+                
+                # Check for files with errors
+                files_with_errors = [c for c in processed_content if c.errors]
+                if files_with_errors:
+                    print(f"Files with processing warnings: {len(files_with_errors)}")
+        
         else:
-            print("⚠️  Phase 2 Complete - No files found!")
+            print("⚠️  No files found for processing!")
             print("📋 Please check your base path and date range")
             print()
             print("Troubleshooting:")
