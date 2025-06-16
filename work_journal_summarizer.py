@@ -7,7 +7,7 @@ text files using LLM APIs. This module implements the command-line interface wit
 comprehensive argument validation, robust file discovery, and content processing.
 
 Author: Work Journal Summarizer Project
-Version: Phase 3 - Content Processing System
+Version: Phase 4 - LLM API Integration
 """
 
 import argparse
@@ -21,6 +21,9 @@ from file_discovery import FileDiscovery, FileDiscoveryResult
 
 # Import Phase 3 components
 from content_processor import ContentProcessor, ProcessedContent, ProcessingStats
+
+# Import Phase 4 components
+from llm_client import LLMClient, AnalysisResult, APIStats
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -160,15 +163,16 @@ def main() -> None:
     1. Parse and validate command line arguments
     2. Discover journal files in the specified date range
     3. Process and validate file content with encoding detection
-    4. Display comprehensive processing statistics
-    5. Prepare processed content for future LLM analysis
+    4. Analyze content using LLM API for entity extraction
+    5. Extract projects, participants, tasks, and themes
+    6. Display comprehensive analysis statistics and results
     """
     try:
         # Parse and validate arguments
         args = parse_arguments()
         
         # Display successful validation message
-        print("✅ Work Journal Summarizer - Phase 3")
+        print("✅ Work Journal Summarizer - Phase 4")
         print("=" * 50)
         print(f"Start Date: {args.start_date}")
         print(f"End Date: {args.end_date}")
@@ -265,14 +269,118 @@ def main() -> None:
                 print(f"📈 Estimated monthly summaries: {months}")
             
             print()
-            print("✅ Phase 3 Complete - Content processing successful!")
-            print("📋 Ready for Phase 4: LLM API Integration")
-            print()
-            print("Next steps:")
-            print("- Integrate with LLM API for entity extraction")
-            print("- Extract projects, participants, tasks, and themes")
-            print("- Implement API error handling and retry logic")
-            print("- Prepare for summary generation")
+            
+            # Phase 4: LLM API Integration
+            print("🤖 Phase 4: Analyzing content with LLM API...")
+            try:
+                # Initialize LLM client
+                llm_client = LLMClient()
+                
+                # Process content through LLM for entity extraction
+                analysis_results = []
+                total_files = len(processed_content)
+                
+                print(f"📊 Analyzing {total_files} files for entity extraction...")
+                
+                for i, content in enumerate(processed_content, 1):
+                    print(f"  Processing file {i}/{total_files}: {content.file_path.name}")
+                    
+                    # Analyze content with LLM
+                    analysis_result = llm_client.analyze_content(content.content, content.file_path)
+                    analysis_results.append(analysis_result)
+                    
+                    # Show progress for every 10 files or last file
+                    if i % 10 == 0 or i == total_files:
+                        print(f"    Progress: {i}/{total_files} files analyzed")
+                
+                # Display LLM analysis statistics
+                api_stats = llm_client.get_stats()
+                print()
+                print("📊 LLM API Analysis Results:")
+                print("-" * 30)
+                print(f"Total API calls: {api_stats.total_calls}")
+                print(f"Successful calls: {api_stats.successful_calls}")
+                print(f"Failed calls: {api_stats.failed_calls}")
+                print(f"Success rate: {api_stats.successful_calls/api_stats.total_calls*100:.1f}%")
+                print(f"Total API time: {api_stats.total_time:.3f} seconds")
+                print(f"Average response time: {api_stats.average_response_time:.3f} seconds")
+                if api_stats.rate_limit_hits > 0:
+                    print(f"Rate limit hits: {api_stats.rate_limit_hits}")
+                print()
+                
+                # Aggregate extracted entities across all files
+                all_projects = set()
+                all_participants = set()
+                all_tasks = set()
+                all_themes = set()
+                
+                for result in analysis_results:
+                    all_projects.update(result.projects)
+                    all_participants.update(result.participants)
+                    all_tasks.update(result.tasks)
+                    all_themes.update(result.themes)
+                
+                # Display aggregated entity extraction results
+                print("🎯 Entity Extraction Summary:")
+                print("-" * 30)
+                print(f"Unique projects identified: {len(all_projects)}")
+                print(f"Unique participants identified: {len(all_participants)}")
+                print(f"Total tasks extracted: {len(all_tasks)}")
+                print(f"Major themes identified: {len(all_themes)}")
+                print()
+                
+                # Display sample entities (first 5 of each type)
+                if all_projects:
+                    projects_list = sorted(list(all_projects))
+                    print("📋 Sample Projects (showing first 5):")
+                    for i, project in enumerate(projects_list[:5]):
+                        print(f"  {i+1}. {project}")
+                    if len(projects_list) > 5:
+                        print(f"  ... and {len(projects_list) - 5} more projects")
+                    print()
+                
+                if all_participants:
+                    participants_list = sorted(list(all_participants))
+                    print("👥 Sample Participants (showing first 5):")
+                    for i, participant in enumerate(participants_list[:5]):
+                        print(f"  {i+1}. {participant}")
+                    if len(participants_list) > 5:
+                        print(f"  ... and {len(participants_list) - 5} more participants")
+                    print()
+                
+                if all_themes:
+                    themes_list = sorted(list(all_themes))
+                    print("🎨 Sample Themes (showing first 5):")
+                    for i, theme in enumerate(themes_list[:5]):
+                        print(f"  {i+1}. {theme}")
+                    if len(themes_list) > 5:
+                        print(f"  ... and {len(themes_list) - 5} more themes")
+                    print()
+                
+                print("✅ Phase 4 Complete - LLM API integration successful!")
+                print("📋 Ready for Phase 5: Summary Generation")
+                print()
+                print("Next steps:")
+                print("- Group analysis results by time periods")
+                print("- Generate weekly or monthly summaries")
+                print("- Create narrative summaries using extracted entities")
+                print("- Prepare for markdown output generation")
+                
+            except ValueError as e:
+                print(f"❌ LLM API Configuration Error: {e}")
+                print()
+                print("Please ensure AWS credentials are properly configured:")
+                print("- Set AWS_ACCESS_KEY_ID environment variable")
+                print("- Set AWS_SECRET_ACCESS_KEY environment variable")
+                print("- Verify AWS Bedrock access permissions")
+                print()
+                print("Continuing with content processing results only...")
+                
+            except Exception as e:
+                print(f"❌ LLM API Integration Error: {e}")
+                print()
+                print("LLM analysis failed, but content processing was successful.")
+                print("You can still proceed with manual summary generation.")
             
             # Display processing quality metrics
             if processed_content:

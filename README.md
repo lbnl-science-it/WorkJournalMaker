@@ -2,7 +2,7 @@
 
 A Python program that generates weekly and monthly summaries of daily work journal text files using LLM APIs. The program processes free-form journal entries, automatically identifies projects and participants, and creates consolidated markdown summaries.
 
-## Current Status: Phase 3 Complete ✅
+## Current Status: Phase 4 Complete ✅
 
 **Phase 1: Foundation & CLI Interface** - ✅ Complete
 - Robust command-line interface with comprehensive validation
@@ -32,11 +32,23 @@ A Python program that generates weekly and monthly summaries of daily work journ
 - Word and line count analysis
 - Full test coverage with 21 additional tests
 
+**Phase 4: LLM API Integration** - ✅ Complete
+- AWS Bedrock Claude API integration with proper authentication
+- Robust entity extraction (projects, participants, tasks, themes)
+- Comprehensive error handling and retry logic with exponential backoff
+- Rate limiting and circuit breaker patterns
+- JSON response parsing with markdown code block support
+- Entity deduplication and normalization
+- API usage statistics and performance tracking
+- Full test coverage with 13 additional tests
+- Graceful fallback on API failures
+
 ## Installation
 
 ### Prerequisites
 - Python 3.8 or higher
 - pip (Python package installer)
+- AWS credentials for Bedrock API access
 
 ### Setup
 1. Clone or download this repository
@@ -45,6 +57,12 @@ A Python program that generates weekly and monthly summaries of daily work journ
    ```bash
    pip install -r requirements.txt
    ```
+4. Set up AWS credentials for Bedrock API:
+   ```bash
+   export AWS_ACCESS_KEY_ID="your-aws-access-key"
+   export AWS_SECRET_ACCESS_KEY="your-aws-secret-key"
+   ```
+   Or add them to your shell profile (`.bashrc`, `.zshrc`, etc.)
 
 ## Usage
 
@@ -83,10 +101,10 @@ python work_journal_summarizer.py --start-date 2024-12-30 --end-date 2025-01-03 
 python work_journal_summarizer.py --help
 ```
 
-### Sample Output (Phase 3)
+### Sample Output (Phase 4)
 
 ```
-✅ Work Journal Summarizer - Phase 3
+✅ Work Journal Summarizer - Phase 4
 ==================================================
 Start Date: 2024-04-01
 End Date: 2024-04-03
@@ -115,18 +133,45 @@ Total words extracted: 345
 Processing time: 0.002 seconds
 Average processing speed: 1214.2 files/second
 
-📄 Sample Processed Content (first file):
-----------------------------------------
-File: worklog_2024-04-01.txt
-Date: 2024-04-01
-Encoding: ascii
-Word count: 89
-Line count: 17
-Processing time: 0.002s
-Content preview: # Work Journal - April 1, 2024...
+🤖 Phase 4: Analyzing content with LLM API...
+📊 Analyzing 3 files for entity extraction...
+  Processing file 1/3: worklog_2024-04-01.txt
+  Processing file 2/3: worklog_2024-04-02.txt
+  Processing file 3/3: worklog_2024-04-03.txt
+    Progress: 3/3 files analyzed
 
-✅ Phase 3 Complete - Content processing successful!
-📋 Ready for Phase 4: LLM API Integration
+📊 LLM API Analysis Results:
+------------------------------
+Total API calls: 3
+Successful calls: 3
+Failed calls: 0
+Success rate: 100.0%
+Total API time: 4.567 seconds
+Average response time: 1.522 seconds
+
+🎯 Entity Extraction Summary:
+------------------------------
+Unique projects identified: 5
+Unique participants identified: 8
+Total tasks extracted: 12
+Major themes identified: 6
+
+📋 Sample Projects (showing first 5):
+  1. DataPipeline Optimization
+  2. Database Migration
+  3. API Integration
+  4. Performance Testing
+  5. Documentation Update
+
+👥 Sample Participants (showing first 5):
+  1. Sarah Johnson
+  2. Mike Chen
+  3. Alex Rodriguez
+  4. Emily Davis
+  5. Tom Wilson
+
+✅ Phase 4 Complete - LLM API integration successful!
+📋 Ready for Phase 5: Summary Generation
 ```
 
 ## Validation Rules
@@ -213,10 +258,12 @@ JournalSummarizer/
 ├── work_journal_summarizer.py    # Main CLI module
 ├── file_discovery.py             # File discovery engine (Phase 2)
 ├── content_processor.py          # Content processing system (Phase 3)
+├── llm_client.py                 # LLM API integration (Phase 4)
 ├── tests/                        # Test directory
 │   ├── test_cli.py              # CLI tests (Phase 1)
 │   ├── test_file_discovery.py   # File discovery tests (Phase 2)
-│   └── test_content_processor.py # Content processing tests (Phase 3)
+│   ├── test_content_processor.py # Content processing tests (Phase 3)
+│   └── test_llm_client.py       # LLM API tests (Phase 4)
 ├── requirements.txt             # Project dependencies
 ├── README.md                    # This file
 ├── .gitignore                   # Python gitignore
@@ -244,11 +291,15 @@ JournalSummarizer/
 - ✅ Chronological file ordering
 - ✅ Word and line count analysis
 
-### Phase 4: LLM API Integration (Planned)
-- AWS Bedrock API integration
-- Entity extraction (projects, participants, tasks, themes)
-- Robust error handling and retry logic
-- API response validation
+### Phase 4: LLM API Integration ✅ Complete
+- ✅ AWS Bedrock Claude API integration with proper authentication
+- ✅ Entity extraction (projects, participants, tasks, themes)
+- ✅ Robust error handling and retry logic with exponential backoff
+- ✅ Rate limiting and circuit breaker patterns
+- ✅ JSON response parsing with markdown code block support
+- ✅ Entity deduplication and normalization
+- ✅ API usage statistics and performance tracking
+- ✅ Graceful fallback on API failures
 
 ### Phase 5: Summary Generation System (Planned)
 - Time period grouping (weekly/monthly)
@@ -331,6 +382,6 @@ This project is part of the Work Journal Summarizer implementation following the
 
 ---
 
-**Current Phase**: 3/8 Complete ✅
-**Next Phase**: LLM API Integration (Phase 4)
-**Status**: Ready for Phase 4 implementation
+**Current Phase**: 4/8 Complete ✅
+**Next Phase**: Summary Generation System (Phase 5)
+**Status**: Ready for Phase 5 implementation
