@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Work Journal Summarizer - Phase 1: Foundation & CLI Interface
+Work Journal Summarizer - Phase 2: Foundation & File Discovery
 
-A Python program that generates weekly and monthly summaries of daily work journal 
-text files using LLM APIs. This module implements the command-line interface with 
-comprehensive argument validation.
+A Python program that generates weekly and monthly summaries of daily work journal
+text files using LLM APIs. This module implements the command-line interface with
+comprehensive argument validation and robust file discovery.
 
 Author: Work Journal Summarizer Project
-Version: Phase 1 - Foundation
+Version: Phase 2 - File Discovery Engine
 """
 
 import argparse
@@ -15,6 +15,9 @@ import datetime
 import sys
 from pathlib import Path
 from typing import Tuple
+
+# Import Phase 2 components
+from file_discovery import FileDiscovery, FileDiscoveryResult
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -66,6 +69,13 @@ Summary Types:
         required=True,
         choices=['weekly', 'monthly'],
         help='Type of summary to generate: weekly or monthly'
+    )
+    
+    parser.add_argument(
+        '--base-path',
+        type=str,
+        default="~/Desktop/worklogs/",
+        help='Base directory path for journal files (default: ~/Desktop/worklogs/)'
     )
     
     # Parse arguments
@@ -145,43 +155,88 @@ def main() -> None:
     
     This function handles the complete workflow:
     1. Parse and validate command line arguments
-    2. Display processing information
-    3. Prepare for future phase integration
+    2. Discover journal files in the specified date range
+    3. Display discovery statistics
+    4. Prepare for future phase integration
     """
     try:
         # Parse and validate arguments
         args = parse_arguments()
         
         # Display successful validation message
-        print("✅ Work Journal Summarizer - Phase 1")
+        print("✅ Work Journal Summarizer - Phase 2")
         print("=" * 50)
         print(f"Start Date: {args.start_date}")
         print(f"End Date: {args.end_date}")
         print(f"Summary Type: {args.summary_type}")
+        print(f"Base Path: {args.base_path}")
         print(f"Date Range: {(args.end_date - args.start_date).days + 1} days")
         print()
         
-        # Calculate some basic statistics
+        # Initialize file discovery system
+        print("🔍 Discovering journal files...")
+        file_discovery = FileDiscovery(base_path=args.base_path)
+        
+        # Discover files in the specified date range
+        discovery_result = file_discovery.discover_files(args.start_date, args.end_date)
+        
+        # Display discovery statistics
+        print("📊 File Discovery Results:")
+        print("-" * 30)
+        print(f"Total files expected: {discovery_result.total_expected}")
+        print(f"Files found: {len(discovery_result.found_files)}")
+        print(f"Files missing: {len(discovery_result.missing_files)}")
+        print(f"Discovery success rate: {len(discovery_result.found_files)/discovery_result.total_expected*100:.1f}%")
+        print(f"Processing time: {discovery_result.processing_time:.3f} seconds")
+        print()
+        
+        # Display found files (first 5 for brevity)
+        if discovery_result.found_files:
+            print("📁 Found Files (showing first 5):")
+            for i, file_path in enumerate(discovery_result.found_files[:5]):
+                print(f"  {i+1}. {file_path}")
+            if len(discovery_result.found_files) > 5:
+                print(f"  ... and {len(discovery_result.found_files) - 5} more files")
+            print()
+        
+        # Display missing files (first 5 for brevity)
+        if discovery_result.missing_files:
+            print("❌ Missing Files (showing first 5):")
+            for i, file_path in enumerate(discovery_result.missing_files[:5]):
+                print(f"  {i+1}. {file_path}")
+            if len(discovery_result.missing_files) > 5:
+                print(f"  ... and {len(discovery_result.missing_files) - 5} more missing files")
+            print()
+        
+        # Calculate summary estimates
         total_days = (args.end_date - args.start_date).days + 1
         if args.summary_type == 'weekly':
             estimated_weeks = (total_days + 6) // 7  # Round up
-            print(f"Estimated weekly summaries: {estimated_weeks}")
+            print(f"📈 Estimated weekly summaries: {estimated_weeks}")
         else:  # monthly
-            # Rough estimate - more accurate calculation would be in Phase 2
             start_month = args.start_date.replace(day=1)
             end_month = args.end_date.replace(day=1)
             months = (end_month.year - start_month.year) * 12 + (end_month.month - start_month.month) + 1
-            print(f"Estimated monthly summaries: {months}")
+            print(f"📈 Estimated monthly summaries: {months}")
         
         print()
-        print("🚧 Phase 1 Complete - CLI validation successful!")
-        print("📋 Ready for Phase 2: File Discovery Engine")
-        print()
-        print("Next steps:")
-        print("- Implement file discovery system")
-        print("- Add content processing capabilities")
-        print("- Integrate LLM API for analysis")
-        print("- Generate markdown summaries")
+        if len(discovery_result.found_files) > 0:
+            print("✅ Phase 2 Complete - File discovery successful!")
+            print("📋 Ready for Phase 3: Content Processing System")
+            print()
+            print("Next steps:")
+            print("- Process and validate file content")
+            print("- Implement encoding detection")
+            print("- Add content sanitization")
+            print("- Integrate LLM API for analysis")
+        else:
+            print("⚠️  Phase 2 Complete - No files found!")
+            print("📋 Please check your base path and date range")
+            print()
+            print("Troubleshooting:")
+            print(f"- Verify files exist in: {args.base_path}")
+            print("- Check directory structure matches expected format")
+            print("- Ensure date range covers existing journal entries")
         
     except KeyboardInterrupt:
         print("\n❌ Operation cancelled by user")

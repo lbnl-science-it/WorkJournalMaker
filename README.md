@@ -2,7 +2,7 @@
 
 A Python program that generates weekly and monthly summaries of daily work journal text files using LLM APIs. The program processes free-form journal entries, automatically identifies projects and participants, and creates consolidated markdown summaries.
 
-## Current Status: Phase 1 Complete ✅
+## Current Status: Phase 2 Complete ✅
 
 **Phase 1: Foundation & CLI Interface** - ✅ Complete
 - Robust command-line interface with comprehensive validation
@@ -10,6 +10,16 @@ A Python program that generates weekly and monthly summaries of daily work journ
 - Summary type validation
 - Comprehensive test suite with 100% coverage
 - Professional error handling and user feedback
+
+**Phase 2: File Discovery Engine** - ✅ Complete
+- Robust file discovery system for complex directory structures
+- Work-period-based week ending directories (uses end date of your work period)
+- Cross-year file discovery with proper directory navigation
+- Missing file tracking without processing failure
+- Comprehensive discovery statistics and reporting
+- Configurable base path with `--base-path` argument
+- Performance optimized for large date ranges
+- Full test coverage with 26 additional tests
 
 ## Installation
 
@@ -30,7 +40,7 @@ A Python program that generates weekly and monthly summaries of daily work journ
 ### Command Line Interface
 
 ```bash
-python work_journal_summarizer.py --start-date YYYY-MM-DD --end-date YYYY-MM-DD --summary-type TYPE
+python work_journal_summarizer.py --start-date YYYY-MM-DD --end-date YYYY-MM-DD --summary-type TYPE [--base-path PATH]
 ```
 
 ### Required Arguments
@@ -39,17 +49,21 @@ python work_journal_summarizer.py --start-date YYYY-MM-DD --end-date YYYY-MM-DD 
 - `--end-date`: End date in YYYY-MM-DD format (inclusive)
 - `--summary-type`: Either "weekly" or "monthly"
 
+### Optional Arguments
+
+- `--base-path`: Base directory path for journal files (default: `~/Desktop/worklogs/`)
+
 ### Examples
 
 ```bash
-# Generate weekly summaries for April 2024
-python work_journal_summarizer.py --start-date 2024-04-01 --end-date 2024-04-30 --summary-type weekly
+# Generate weekly summaries for April 2024 (default base path)
+python work_journal_summarizer.py --start-date 2024-04-15 --end-date 2024-04-19 --summary-type weekly
 
-# Generate monthly summaries for entire year 2024
-python work_journal_summarizer.py --start-date 2024-01-01 --end-date 2024-12-31 --summary-type monthly
+# Generate monthly summaries with custom base path
+python work_journal_summarizer.py --start-date 2024-01-01 --end-date 2024-12-31 --summary-type monthly --base-path /custom/path/
 
 # Generate weekly summaries across year boundary
-python work_journal_summarizer.py --start-date 2024-12-01 --end-date 2025-01-31 --summary-type weekly
+python work_journal_summarizer.py --start-date 2024-12-30 --end-date 2025-01-03 --summary-type weekly
 ```
 
 ### Help
@@ -140,8 +154,10 @@ The project maintains 100% test coverage with comprehensive test suites covering
 ```
 JournalSummarizer/
 ├── work_journal_summarizer.py    # Main CLI module
+├── file_discovery.py             # File discovery engine (Phase 2)
 ├── tests/                        # Test directory
-│   └── test_cli.py              # Comprehensive CLI tests
+│   ├── test_cli.py              # CLI tests (Phase 1)
+│   └── test_file_discovery.py   # File discovery tests (Phase 2)
 ├── requirements.txt             # Project dependencies
 ├── README.md                    # This file
 ├── .gitignore                   # Python gitignore
@@ -150,11 +166,14 @@ JournalSummarizer/
 
 ## Future Phases
 
-### Phase 2: File Discovery Engine (Planned)
-- Implement robust file discovery system
-- Navigate complex directory structure
-- Handle missing files gracefully
-- Cross-year date range support
+### Phase 2: File Discovery Engine ✅ Complete
+- ✅ Robust file discovery system for complex directory structures
+- ✅ Work-period-based week ending directories
+- ✅ Cross-year file discovery with proper directory navigation
+- ✅ Missing file tracking without processing failure
+- ✅ Comprehensive discovery statistics and reporting
+- ✅ Configurable base path support
+- ✅ Performance optimized for large date ranges
 
 ### Phase 3: Content Processing System (Planned)
 - Encoding detection and handling
@@ -163,7 +182,7 @@ JournalSummarizer/
 - Memory-efficient processing
 
 ### Phase 4: LLM API Integration (Planned)
-- CBORG API integration
+- AWS Bedrock API integration
 - Entity extraction (projects, participants, tasks, themes)
 - Robust error handling and retry logic
 - API response validation
@@ -192,20 +211,36 @@ JournalSummarizer/
 - Circuit breaker pattern
 - Environment-based configuration
 
-## Expected Input Structure (Future Phases)
+## Directory Structure (Phase 2 Implementation)
 
+The system expects journal files in this structure:
 ```
 ~/Desktop/worklogs/
 ├── worklogs_2024/
-│   ├── worklogs_2024-01/
-│   │   ├── week_ending_2024-01-07/
-│   │   │   ├── worklog_2024-01-01.txt
-│   │   │   ├── worklog_2024-01-02.txt
-│   │   │   └── ...
-│   │   └── week_ending_2024-01-14/
-│   └── worklogs_2024-02/
+│   ├── worklogs_2024-04/
+│   │   └── week_ending_2024-04-19/        # End date of work period
+│   │       ├── worklog_2024-04-15.txt
+│   │       ├── worklog_2024-04-16.txt
+│   │       ├── worklog_2024-04-17.txt
+│   │       ├── worklog_2024-04-18.txt
+│   │       └── worklog_2024-04-19.txt
+│   └── worklogs_2024-12/
+│       └── week_ending_2025-01-03/        # Cross-year work period
+│           ├── worklog_2024-12-30.txt
+│           └── worklog_2024-12-31.txt
 └── worklogs_2025/
+    └── worklogs_2025-01/
+        └── week_ending_2025-01-03/        # Same work period, different year
+            ├── worklog_2025-01-01.txt
+            ├── worklog_2025-01-02.txt
+            └── worklog_2025-01-03.txt
 ```
+
+**Key Features:**
+- `week_ending_YYYY-MM-DD` uses the **end date** of your work period (not calendar Sunday)
+- Files are organized by their actual date in year/month directories
+- Cross-year work periods are handled seamlessly
+- Missing files are tracked but don't stop processing
 
 ## Expected Output Structure (Future Phases)
 
@@ -233,6 +268,6 @@ This project is part of the Work Journal Summarizer implementation following the
 
 ---
 
-**Current Phase**: 1/8 Complete ✅  
-**Next Phase**: File Discovery Engine  
-**Status**: Ready for Phase 2 implementation
+**Current Phase**: 2/8 Complete ✅  
+**Next Phase**: Content Processing System (Planned)
+**Status**: Ready for Phase 3 implementation
