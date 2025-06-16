@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Work Journal Summarizer - Phase 5: Summary Generation System
+Work Journal Summarizer - Phase 6: Output Management System
 
 A Python program that generates weekly and monthly summaries of daily work journal
 text files using LLM APIs. This module implements the command-line interface with
 comprehensive argument validation, robust file discovery, content processing,
-and intelligent summary generation.
+intelligent summary generation, and professional markdown output generation.
 
 Author: Work Journal Summarizer Project
-Version: Phase 5 - Summary Generation System
+Version: Phase 6 - Output Management System
 """
 
 import argparse
@@ -28,6 +28,9 @@ from llm_client import LLMClient, AnalysisResult, APIStats
 
 # Import Phase 5 components
 from summary_generator import SummaryGenerator, PeriodSummary, SummaryStats
+
+# Import Phase 6 components
+from output_manager import OutputManager, OutputResult, ProcessingMetadata
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -176,7 +179,7 @@ def main() -> None:
         args = parse_arguments()
         
         # Display successful validation message
-        print("✅ Work Journal Summarizer - Phase 5")
+        print("✅ Work Journal Summarizer - Phase 6")
         print("=" * 50)
         print(f"Start Date: {args.start_date}")
         print(f"End Date: {args.end_date}")
@@ -443,13 +446,65 @@ def main() -> None:
                         
                         print()
                         print("✅ Phase 5 Complete - Summary generation successful!")
-                        print("📋 Ready for Phase 6: Output Management")
                         print()
-                        print("Next steps:")
-                        print("- Generate markdown output files")
-                        print("- Include processing metadata and statistics")
-                        print("- Create professional formatted summaries")
-                        print("- Save to designated output directory")
+                        
+                        # Phase 6: Output Management
+                        print("📄 Phase 6: Generating markdown output...")
+                        try:
+                            # Create processing metadata
+                            processing_metadata = ProcessingMetadata(
+                                total_files_found=discovery_result.total_expected,
+                                files_successfully_processed=processing_stats.successful,
+                                files_with_errors=processing_stats.failed,
+                                api_calls_made=api_stats.total_calls,
+                                successful_api_calls=api_stats.successful_calls,
+                                failed_api_calls=api_stats.failed_calls,
+                                unique_projects=len(all_projects),
+                                unique_participants=len(all_participants),
+                                total_tasks=len(all_tasks),
+                                major_themes=len(all_themes),
+                                processing_duration=(discovery_result.processing_time +
+                                                   processing_stats.processing_time +
+                                                   api_stats.total_time +
+                                                   summary_stats.total_generation_time)
+                            )
+                            
+                            # Initialize output manager
+                            output_manager = OutputManager()
+                            
+                            # Generate output file
+                            output_result = output_manager.generate_output(
+                                summaries, args.summary_type, args.start_date, args.end_date, processing_metadata
+                            )
+                            
+                            # Display output generation results
+                            print("📊 Output Generation Results:")
+                            print("-" * 30)
+                            print(f"Output file: {output_result.output_path}")
+                            print(f"File size: {output_result.file_size_bytes:,} bytes")
+                            print(f"Generation time: {output_result.generation_time:.3f} seconds")
+                            print(f"Sections count: {output_result.sections_count}")
+                            print(f"Metadata included: {'Yes' if output_result.metadata_included else 'No'}")
+                            print(f"Validation passed: {'Yes' if output_result.validation_passed else 'No'}")
+                            print()
+                            
+                            print("✅ Phase 6 Complete - Output management successful!")
+                            print()
+                            print("🎉 Work Journal Summarizer - All Phases Complete!")
+                            print("=" * 50)
+                            print(f"📁 Summary file created: {output_result.output_path}")
+                            print(f"📊 Total processing time: {processing_metadata.processing_duration:.2f} seconds")
+                            print(f"📈 Files processed: {processing_metadata.files_successfully_processed}/{processing_metadata.total_files_found}")
+                            print(f"🤖 API calls made: {processing_metadata.successful_api_calls}/{processing_metadata.api_calls_made}")
+                            print(f"📋 Summaries generated: {summary_stats.successful_summaries}")
+                            print()
+                            print("Your professional work journal summary is ready!")
+                            
+                        except Exception as e:
+                            print(f"❌ Output Generation Error: {e}")
+                            print()
+                            print("Output generation failed, but summaries were created successfully.")
+                            print("You can review the generated summaries above.")
                     
                     else:
                         print("⚠️  No summaries were generated")

@@ -395,7 +395,7 @@ EXPECTED OUTPUT:
 TASK: Implement robust LLM API integration for content analysis and entity extraction
 
 TECHNICAL REQUIREMENTS:
-1. LLMClient Class Design (Choose AWS Bedrock Claude for MVP):
+1. LLMClient Class Design (AWS Bedrock Claude):
 ```python
 # llm_client.py
 from dataclasses import dataclass
@@ -467,6 +467,7 @@ class LLMClient:
    - Request format: Bedrock-specific JSON with messages array
    - Response parsing: JSON with structured data extraction
    - Rate limiting: Bedrock service limits (varies by region/model)
+   - Keep in mind the API Bedrock documentation here for anthropic claude messages https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-anthropic-claude-messages.html 
 
 3. Entity Extraction Prompt Template:
 ```python
@@ -1133,19 +1134,6 @@ import json
 import os
 from enum import Enum
 
-class APIProvider(Enum):
-    CBORG = "cborg"
-    BEDROCK = "bedrock"
-
-@dataclass
-class CBORGConfig:
-    endpoint: str = "https://cborg.lbl.gov/api/chat/completions"
-    api_key_env: str = "CBORG_API_KEY"
-    model: str = "gpt-4"
-    timeout: int = 30
-    max_retries: int = 3
-    rate_limit_delay: float = 1.0
-
 @dataclass
 class BedrockConfig:
     region: str = "us-west-2"
@@ -1165,9 +1153,6 @@ class ProcessingConfig:
 
 @dataclass
 class AppConfig:
-    primary_api: APIProvider = APIProvider.CBORG
-    secondary_api: APIProvider = APIProvider.BEDROCK
-    cborg: CBORGConfig = field(default_factory=CBORGConfig)
     bedrock: BedrockConfig = field(default_factory=BedrockConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     logging: LogConfig = field(default_factory=LogConfig)
@@ -1190,40 +1175,7 @@ class ConfigManager:
         """Verify API credentials are available."""
 ```
 
-2. Enhanced LLMClient with Fallback:
-```python
-# Enhanced llm_client.py
-class EnhancedLLMClient:
-    def __init__(self, config: AppConfig):
-        self.config = config
-        self.primary_client = self._create_client(config.primary_api)
-        self.secondary_client = self._create_client(config.secondary_api)
-        self.current_client = self.primary_client
-        self.fallback_active = False
-        self.circuit_breaker = CircuitBreaker()
-        
-    def _create_client(self, api_provider: APIProvider):
-        """Factory method to create appropriate API client."""
-        
-    def analyze_content_with_fallback(self, content: str, file_path: Path) -> AnalysisResult:
-        """Analyze content with automatic fallback between APIs."""
-        
-    def _attempt_analysis(self, client, content: str, file_path: Path) -> Optional[AnalysisResult]:
-        """Attempt analysis with specific client."""
-        
-    def _should_fallback(self, error: Exception) -> bool:
-        """Determine if error warrants fallback to secondary API."""
-
-class CircuitBreaker:
-    def __init__(self, failure_threshold: int = 5, timeout: int = 60):
-        self.failure_threshold = failure_threshold
-        self.timeout = timeout
-        self.failure_count = 0
-        self.last_failure_time = None
-        self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
-```
-
-3. Bedrock API Integration:
+2. Bedrock API Integration:
 ```python
 # bedrock_client.py
 import boto3
@@ -1274,22 +1226,20 @@ class TestConfigManager:
     def test_missing_credentials_handling(self):
         # Test handling of missing API credentials
         
-# tests/test_enhanced_llm_client.py
-class TestEnhancedLLMClient:
-    def test_api_fallback_logic(self):
-        # Test automatic fallback between APIs
-        
-    def test_circuit_breaker(self):
-        # Test circuit breaker functionality
-        
+# tests/test_bedrock_client.py
+class TestBedrockClient:
     @patch('boto3.client')
     def test_bedrock_integration(self, mock_boto):
         # Test Bedrock API integration
+        
+    @patch('boto3.client')
+    def test_bedrock_error_handling(self, mock_boto):
+        # Test Bedrock error handling and retries
 ```
 
 INTEGRATION REQUIREMENTS:
 - Update main CLI to use ConfigManager
-- Replace single LLMClient with EnhancedLLMClient
+- Replace single LLMClient with BedrockClient
 - Add configuration validation at startup
 - Update all modules to use configuration
 - Add CLI options for config file path
@@ -1298,8 +1248,6 @@ COMMAND-LINE ENHANCEMENTS:
 ```python
 # Enhanced CLI arguments
 parser.add_argument('--config', type=str, help='Path to configuration file')
-parser.add_argument('--primary-api', choices=['cborg', 'bedrock'], 
-                   help='Override primary API provider')
 parser.add_argument('--output-dir', type=str, 
                    help='Override output directory')
 parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
@@ -1317,8 +1265,8 @@ FINAL INTEGRATION:
 
 SUCCESS CRITERIA:
 - Complete configuration management system
-- Robust API fallback with circuit breaker
-- Both Bedrock and CBORG APIs fully integrated (Bedrock primary)
+- Robust error handling and retry logic
+- AWS Bedrock API fully integrated
 - Comprehensive end-to-end testing
 - Production-ready error handling and logging
 - Professional documentation and examples
@@ -1327,7 +1275,7 @@ SUCCESS CRITERIA:
 
 EXPECTED OUTPUT:
 - Complete, production-ready Work Journal Summarizer
-- Dual API support with intelligent fallback
+- AWS Bedrock API integration with robust error handling
 - Comprehensive configuration management
 - Professional error handling and logging
 - Full test coverage across all components
@@ -1373,7 +1321,7 @@ class TestEndToEndIntegration:
     def test_large_dataset_performance(self):
         # Test with 1000+ journal files
         
-    def test_api_fallback_scenarios(self):
+    def test_api_error_scenarios(self):
         # Test various API failure and recovery scenarios
         
     def test_configuration_variations(self):
@@ -1394,7 +1342,6 @@ pip install -r requirements.txt
 ### Configuration
 ```bash
 # Set environment variables
-export CBORG_API_KEY="your-cborg-key"
 export AWS_ACCESS_KEY_ID="your-aws-key"
 export AWS_SECRET_ACCESS_KEY="your-aws-secret"
 
@@ -1425,11 +1372,11 @@ python work_journal_summarizer.py --start-date 2024-04-01 --end-date 2024-04-30 
 - ✅ Automatically identifies projects and participants
 - ✅ Creates professional markdown output files
 - ✅ Handles cross-year date ranges
-- ✅ Supports dual API providers with fallback
+- ✅ Supports AWS Bedrock API with robust error handling
 
 ### Quality Requirements
 - ✅ Robust error handling with detailed logging
-- ✅ Graceful fallback between APIs
+- ✅ Graceful error handling and retry logic
 - ✅ Clear, informative summary content
 - ✅ Professional markdown formatting
 - ✅ Comprehensive test coverage
