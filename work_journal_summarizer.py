@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Work Journal Summarizer - Phase 3: Content Processing System
+Work Journal Summarizer - Phase 5: Summary Generation System
 
 A Python program that generates weekly and monthly summaries of daily work journal
 text files using LLM APIs. This module implements the command-line interface with
-comprehensive argument validation, robust file discovery, and content processing.
+comprehensive argument validation, robust file discovery, content processing,
+and intelligent summary generation.
 
 Author: Work Journal Summarizer Project
-Version: Phase 4 - LLM API Integration
+Version: Phase 5 - Summary Generation System
 """
 
 import argparse
@@ -24,6 +25,9 @@ from content_processor import ContentProcessor, ProcessedContent, ProcessingStat
 
 # Import Phase 4 components
 from llm_client import LLMClient, AnalysisResult, APIStats
+
+# Import Phase 5 components
+from summary_generator import SummaryGenerator, PeriodSummary, SummaryStats
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -172,7 +176,7 @@ def main() -> None:
         args = parse_arguments()
         
         # Display successful validation message
-        print("✅ Work Journal Summarizer - Phase 4")
+        print("✅ Work Journal Summarizer - Phase 5")
         print("=" * 50)
         print(f"Start Date: {args.start_date}")
         print(f"End Date: {args.end_date}")
@@ -358,13 +362,107 @@ def main() -> None:
                     print()
                 
                 print("✅ Phase 4 Complete - LLM API integration successful!")
-                print("📋 Ready for Phase 5: Summary Generation")
                 print()
-                print("Next steps:")
-                print("- Group analysis results by time periods")
-                print("- Generate weekly or monthly summaries")
-                print("- Create narrative summaries using extracted entities")
-                print("- Prepare for markdown output generation")
+                
+                # Phase 5: Summary Generation
+                print("📝 Phase 5: Generating intelligent summaries...")
+                try:
+                    # Initialize summary generator
+                    summary_generator = SummaryGenerator(llm_client)
+                    
+                    # Generate summaries
+                    summaries, summary_stats = summary_generator.generate_summaries(
+                        analysis_results, args.summary_type, args.start_date, args.end_date
+                    )
+                    
+                    # Display summary generation statistics
+                    print("📊 Summary Generation Results:")
+                    print("-" * 30)
+                    print(f"Total periods processed: {summary_stats.total_periods}")
+                    print(f"Successful summaries: {summary_stats.successful_summaries}")
+                    print(f"Failed summaries: {summary_stats.failed_summaries}")
+                    print(f"Success rate: {summary_stats.successful_summaries/summary_stats.total_periods*100:.1f}%" if summary_stats.total_periods > 0 else "N/A")
+                    print(f"Total entries processed: {summary_stats.total_entries_processed}")
+                    print(f"Generation time: {summary_stats.total_generation_time:.3f} seconds")
+                    print(f"Average summary length: {summary_stats.average_summary_length} words")
+                    print()
+                    
+                    # Display generated summaries
+                    if summaries:
+                        print("📋 Generated Summaries:")
+                        print("=" * 50)
+                        
+                        for i, summary in enumerate(summaries, 1):
+                            print(f"\n{i}. {summary.period_name}")
+                            print(f"   Date Range: {summary.start_date} to {summary.end_date}")
+                            print(f"   Journal Entries: {summary.entry_count}")
+                            print(f"   Word Count: {summary.word_count}")
+                            print(f"   Generation Time: {summary.generation_time:.3f}s")
+                            print()
+                            
+                            # Display key entities
+                            if summary.projects:
+                                print(f"   📋 Projects: {', '.join(summary.projects[:3])}")
+                                if len(summary.projects) > 3:
+                                    print(f"        ... and {len(summary.projects) - 3} more")
+                            
+                            if summary.participants:
+                                print(f"   👥 Participants: {', '.join(summary.participants[:3])}")
+                                if len(summary.participants) > 3:
+                                    print(f"        ... and {len(summary.participants) - 3} more")
+                            
+                            if summary.themes:
+                                print(f"   🎨 Themes: {', '.join(summary.themes[:3])}")
+                                if len(summary.themes) > 3:
+                                    print(f"        ... and {len(summary.themes) - 3} more")
+                            
+                            print()
+                            print("   📄 Summary:")
+                            print("   " + "-" * 40)
+                            
+                            # Display summary text with proper wrapping
+                            summary_lines = summary.summary_text.split('\n')
+                            for line in summary_lines:
+                                if len(line) <= 70:
+                                    print(f"   {line}")
+                                else:
+                                    # Simple word wrapping
+                                    words = line.split()
+                                    current_line = "   "
+                                    for word in words:
+                                        if len(current_line + word) <= 70:
+                                            current_line += word + " "
+                                        else:
+                                            print(current_line.rstrip())
+                                            current_line = "   " + word + " "
+                                    if current_line.strip():
+                                        print(current_line.rstrip())
+                            
+                            print()
+                            print("   " + "=" * 40)
+                        
+                        print()
+                        print("✅ Phase 5 Complete - Summary generation successful!")
+                        print("📋 Ready for Phase 6: Output Management")
+                        print()
+                        print("Next steps:")
+                        print("- Generate markdown output files")
+                        print("- Include processing metadata and statistics")
+                        print("- Create professional formatted summaries")
+                        print("- Save to designated output directory")
+                    
+                    else:
+                        print("⚠️  No summaries were generated")
+                        print("This could be due to:")
+                        print("- No journal entries found in the specified date range")
+                        print("- All summary generation attempts failed")
+                        print("- Issues with LLM API responses")
+                
+                except Exception as e:
+                    print(f"❌ Summary Generation Error: {e}")
+                    print()
+                    print("Summary generation failed, but entity extraction was successful.")
+                    print("You can review the extracted entities above.")
                 
             except ValueError as e:
                 print(f"❌ LLM API Configuration Error: {e}")
