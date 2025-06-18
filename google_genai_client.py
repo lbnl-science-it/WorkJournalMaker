@@ -279,6 +279,13 @@ Guidelines:
         """
         import re
         
+        # Handle edge cases
+        if not isinstance(text, str):
+            return str(text)
+        
+        if not text or not text.strip():
+            return text
+        
         # Try to find JSON in markdown code blocks
         json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
         match = re.search(json_pattern, text, re.DOTALL)

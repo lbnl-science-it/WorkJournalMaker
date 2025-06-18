@@ -49,6 +49,34 @@ class TestGoogleGenAIClient:
             'themes': ['Development', 'Quality Assurance']
         }
     
+    @pytest.fixture
+    def sample_journal_content(self):
+        """Sample journal content for testing."""
+        return """
+        Today was a productive day working on Project Alpha with the development team.
+        I had meetings with John Smith and Jane Doe to discuss the database migration tasks.
+        We reviewed the security implementation and discussed performance optimization themes.
+        The code review process went smoothly, and we completed the documentation updates.
+        Tomorrow we'll focus on testing and quality assurance activities.
+        """
+    
+    @pytest.fixture
+    def long_journal_content(self):
+        """Very long journal content for truncation testing."""
+        base_content = "This is a very long journal entry. " * 250  # Increased to ensure > 8000 chars
+        return base_content + "Project Omega with Alice and Bob working on AI tasks and machine learning themes."
+    
+    @pytest.fixture
+    def api_error_scenarios(self):
+        """Different API error scenarios for testing."""
+        return [
+            Exception("Network connection failed"),
+            ValueError("Invalid model configuration"),
+            RuntimeError("API quota exceeded"),
+            ConnectionError("Service unavailable"),
+            TimeoutError("Request timed out"),
+        ]
+    
     @patch('google_genai_client.genai')
     def test_successful_client_creation(self, mock_genai, google_genai_config):
         """Test successful creation of Google GenAI client."""
@@ -474,6 +502,286 @@ class TestGoogleGenAIClient:
         assert result.participants == ["Alice"]
         assert result.tasks == ["testing"]
         assert result.themes == ["QA"]
+    
+    @patch('google_genai_client.genai')
+    def test_analyze_content_with_sample_data(self, mock_genai, google_genai_config, sample_journal_content):
+        """Test analyze_content with realistic sample journal content."""
+        # Mock the API response
+        mock_response = MagicMock()
+        mock_response.text = '''```json
+{
+  "projects": ["Project Alpha"],
+  "participants": ["John Smith", "Jane Doe"],
+  "tasks": ["database migration", "security implementation", "code review", "documentation updates"],
+  "themes": ["performance optimization", "testing", "quality assurance"]
+}
+```'''
+        
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        result = genai_client.analyze_content(sample_journal_content, Path("/test/sample.txt"))
+        
+        # Verify comprehensive analysis
+        assert isinstance(result, AnalysisResult)
+        assert "Project Alpha" in result.projects
+        assert "John Smith" in result.participants
+        assert "Jane Doe" in result.participants
+        assert len(result.tasks) == 4
+        assert len(result.themes) == 3
+        assert result.api_call_time >= 0
+        
+        # Verify API call was made with proper parameters
+        mock_client.models.generate_content.assert_called_once()
+        call_args = mock_client.models.generate_content.call_args
+        assert 'model' in call_args.kwargs
+        assert 'contents' in call_args.kwargs
+        assert 'config' in call_args.kwargs
+        assert call_args.kwargs['config']['temperature'] == 0.1
+    
+    @patch('google_genai_client.genai')
+    def test_analyze_content_with_long_content(self, mock_genai, google_genai_config, long_journal_content):
+        """Test analyze_content with very long content that should be truncated."""
+        # Mock the API response
+        mock_response = MagicMock()
+        mock_response.text = '{"projects": ["Project Omega"], "participants": ["Alice", "Bob"], "tasks": ["AI tasks"], "themes": ["machine learning"]}'
+        
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Verify content is longer than truncation limit
+        assert len(long_journal_content) > 8000
+        
+        result = genai_client.analyze_content(long_journal_content, Path("/test/long.txt"))
+        
+        # Should still work with truncated content
+        assert isinstance(result, AnalysisResult)
+        assert result.projects == ["Project Omega"]
+        assert result.participants == ["Alice", "Bob"]
+        
+        # Verify the prompt was created with truncation
+        call_args = mock_client.models.generate_content.call_args
+        prompt_content = call_args.kwargs['contents']
+        assert "[Content truncated for analysis]" in prompt_content
+    
+    @patch('google_genai_client.genai')
+    def test_analyze_content_malformed_json_responses(self, mock_genai, google_genai_config):
+        """Test analyze_content handles various malformed JSON responses gracefully."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Test specific malformed JSON responses as strings
+        # Some will succeed with empty results, others may fail completely
+        test_cases = [
+            ("This is not JSON at all", True),  # Should succeed with empty results
+            ('{"projects": ["Alpha"], "participants":}', True),  # Invalid JSON - should succeed with empty
+            ('{"projects": "not a list"}', True),  # Wrong data type - should succeed with empty
+            ('```json\n{"incomplete": true\n```', True),  # Incomplete JSON - should succeed with empty
+            ('', True),  # Empty response - should succeed with empty
+            ('{"wrong_fields": ["data"]}', True),  # Missing fields - should succeed with empty
+        ]
+        
+        for i, (malformed_response, should_succeed) in enumerate(test_cases):
+            # Reset stats for each test
+            genai_client.reset_stats()
+            
+            # Mock the API response with malformed JSON
+            mock_response = MagicMock()
+            mock_response.text = malformed_response
+            mock_client.models.generate_content.return_value = mock_response
+            
+            result = genai_client.analyze_content("test content", Path(f"/test/malformed{i}.txt"))
+            
+            # Should always return AnalysisResult with empty data
+            assert isinstance(result, AnalysisResult)
+            assert result.projects == []
+            assert result.participants == []
+            assert result.tasks == []
+            assert result.themes == []
+            assert result.api_call_time >= 0
+            
+            # Check statistics
+            stats = genai_client.get_stats()
+            assert stats.total_calls == 1
+            
+            if should_succeed:
+                # API call succeeded, parsing failed gracefully
+                assert stats.successful_calls == 1
+                assert stats.failed_calls == 0
+            # Note: Some edge cases might cause complete failure, which is also acceptable
+    
+    @patch('google_genai_client.genai')
+    def test_analyze_content_api_error_scenarios(self, mock_genai, google_genai_config, api_error_scenarios):
+        """Test analyze_content handles various API errors gracefully."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        for error in api_error_scenarios:
+            # Reset stats for each test
+            genai_client.reset_stats()
+            
+            # Mock the API to raise the error
+            mock_client.models.generate_content.side_effect = error
+            
+            result = genai_client.analyze_content("test content", Path("/test/error.txt"))
+            
+            # Should return empty result on API failure
+            assert isinstance(result, AnalysisResult)
+            assert result.projects == []
+            assert result.participants == []
+            assert result.tasks == []
+            assert result.themes == []
+            assert result.api_call_time >= 0
+            assert "ERROR:" in result.raw_response
+            assert str(error) in result.raw_response
+            
+            # Should track as failed API call
+            stats = genai_client.get_stats()
+            assert stats.total_calls == 1
+            assert stats.successful_calls == 0
+            assert stats.failed_calls == 1
+            
+            # Reset side effect for next test
+            mock_client.models.generate_content.side_effect = None
+    
+    @patch('google_genai_client.genai')
+    def test_make_api_call_different_response_formats(self, mock_genai, google_genai_config):
+        """Test _make_api_call handles different Google GenAI response formats."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Test 1: Response with direct text attribute
+        mock_response_1 = MagicMock()
+        mock_response_1.text = "Direct text response"
+        mock_client.models.generate_content.return_value = mock_response_1
+        
+        result_1 = genai_client._make_api_call("test prompt")
+        assert result_1 == "Direct text response"
+        
+        # Test 2: Response with candidates structure
+        mock_response_2 = MagicMock()
+        mock_response_2.text = None
+        mock_candidate = MagicMock()
+        mock_content = MagicMock()
+        mock_part = MagicMock()
+        mock_part.text = "Candidates structure response"
+        mock_content.parts = [mock_part]
+        mock_candidate.content = mock_content
+        mock_response_2.candidates = [mock_candidate]
+        mock_client.models.generate_content.return_value = mock_response_2
+        
+        result_2 = genai_client._make_api_call("test prompt")
+        assert result_2 == "Candidates structure response"
+        
+        # Test 3: Response with no text content should raise error
+        mock_response_3 = MagicMock()
+        mock_response_3.text = None
+        mock_response_3.candidates = []
+        mock_client.models.generate_content.return_value = mock_response_3
+        
+        with pytest.raises(ValueError, match="No text content found in API response"):
+            genai_client._make_api_call("test prompt")
+    
+    @patch('google_genai_client.genai')
+    def test_analyze_content_timing_accuracy(self, mock_genai, google_genai_config):
+        """Test that analyze_content timing measurements are accurate."""
+        # Mock the API response with a delay
+        mock_response = MagicMock()
+        mock_response.text = '{"projects": [], "participants": [], "tasks": [], "themes": []}'
+        
+        def delayed_generate_content(*args, **kwargs):
+            time.sleep(0.1)  # 100ms delay
+            return mock_response
+        
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = delayed_generate_content
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        result = genai_client.analyze_content("test content", Path("/test/timing.txt"))
+        
+        # Should measure timing accurately (at least 100ms)
+        assert result.api_call_time >= 0.1
+        
+        # Stats should reflect the timing
+        stats = genai_client.get_stats()
+        assert stats.total_time >= 0.1
+        assert stats.average_response_time >= 0.1
+    
+    @patch('google_genai_client.genai')
+    def test_analyze_content_concurrent_calls_statistics(self, mock_genai, google_genai_config):
+        """Test statistics tracking with mixed success/failure scenarios."""
+        mock_response = MagicMock()
+        mock_response.text = '{"projects": ["Test"], "participants": [], "tasks": [], "themes": []}'
+        
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Make 3 successful calls
+        mock_client.models.generate_content.return_value = mock_response
+        for i in range(3):
+            genai_client.analyze_content(f"success content {i}", Path(f"/test/success{i}.txt"))
+        
+        # Make 2 failed calls
+        mock_client.models.generate_content.side_effect = RuntimeError("API Error")
+        for i in range(2):
+            genai_client.analyze_content(f"error content {i}", Path(f"/test/error{i}.txt"))
+        
+        # Check final statistics
+        stats = genai_client.get_stats()
+        assert stats.total_calls == 5
+        assert stats.successful_calls == 3
+        assert stats.failed_calls == 2
+        assert stats.total_time > 0
+        assert stats.average_response_time > 0  # Should be calculated from successful calls only
+    
+    @patch('google_genai_client.genai')
+    def test_analyze_content_prompt_structure_validation(self, mock_genai, google_genai_config, sample_journal_content):
+        """Test that the analysis prompt contains all required elements."""
+        mock_response = MagicMock()
+        mock_response.text = '{"projects": [], "participants": [], "tasks": [], "themes": []}'
+        
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        genai_client.analyze_content(sample_journal_content, Path("/test/prompt.txt"))
+        
+        # Verify the prompt structure
+        call_args = mock_client.models.generate_content.call_args
+        prompt = call_args.kwargs['contents']
+        
+        # Should contain the journal content
+        assert sample_journal_content.strip() in prompt
+        
+        # Should contain analysis instructions
+        assert "projects" in prompt.lower()
+        assert "participants" in prompt.lower()
+        assert "tasks" in prompt.lower()
+        assert "themes" in prompt.lower()
+        assert "json" in prompt.lower()
+        
+        # Should contain guidelines
+        assert "guidelines" in prompt.lower()
+        assert "formal project names" in prompt.lower()
+        assert "informal references" in prompt.lower()
 
 
 if __name__ == '__main__':
