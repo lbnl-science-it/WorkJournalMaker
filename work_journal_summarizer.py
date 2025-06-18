@@ -26,7 +26,7 @@ from file_discovery import FileDiscovery, FileDiscoveryResult
 from content_processor import ContentProcessor, ProcessedContent, ProcessingStats
 
 # Import Phase 4 components (updated for Phase 8)
-from bedrock_client import BedrockClient
+from unified_llm_client import UnifiedLLMClient
 from llm_data_structures import AnalysisResult, APIStats
 
 # Import Phase 5 components
@@ -286,42 +286,52 @@ def _perform_dry_run(args: argparse.Namespace, config: AppConfig, logger: Journa
         months = (end_month.year - start_month.year) * 12 + (end_month.month - start_month.month) + 1
         print(f"📊 Estimated monthly summaries: {months}")
     
-    # Check AWS credentials using configuration
+    # Check provider credentials and test connection
     import os
-    aws_key = os.getenv(config.bedrock.aws_access_key_env)
-    aws_secret = os.getenv(config.bedrock.aws_secret_key_env)
     
-    if aws_key and aws_secret:
-        print("✅ AWS credentials found in environment")
+    # Test LLM connection using unified client
+    try:
+        llm_client = UnifiedLLMClient(config)
+        provider_name = llm_client.get_provider_name()
+        provider_info = llm_client.get_provider_info()
         
-        # Test Bedrock connection
-        try:
-            bedrock_client = BedrockClient(config.bedrock)
-            if bedrock_client.test_connection():
-                print("✅ Bedrock API connection successful")
+        print(f"🤖 LLM Provider: {provider_name}")
+        for key, value in provider_info.items():
+            print(f"📝 {key.replace('_', ' ').title()}: {value}")
+        
+        # Check provider-specific credentials
+        if provider_name == "bedrock":
+            aws_key = os.getenv(config.bedrock.aws_access_key_env)
+            aws_secret = os.getenv(config.bedrock.aws_secret_key_env)
+            if aws_key and aws_secret:
+                print("✅ AWS credentials found in environment")
             else:
-                print("❌ Bedrock API connection failed")
-                # Print additional diagnostic info from logger
-                print("💡 Check the log file for detailed error analysis and solutions")
-        except Exception as e:
-            print(f"Bedrock connection test failed: {e}")
-            print("❌ Bedrock API connection failed")
-            logger.log_error_with_category(
-                ErrorCategory.API_ERROR,
-                f"Failed to create Bedrock client: {e}",
-                recovery_action="Check AWS credentials and model configuration"
-            )
-    else:
-        print("❌ AWS credentials not found")
+                print("❌ AWS credentials not found")
+                logger.log_error_with_category(
+                    ErrorCategory.CONFIGURATION_ERROR,
+                    f"AWS credentials not configured: {config.bedrock.aws_access_key_env}, {config.bedrock.aws_secret_key_env}",
+                    recovery_action=f"Set {config.bedrock.aws_access_key_env} and {config.bedrock.aws_secret_key_env} environment variables"
+                )
+        elif provider_name == "google_genai":
+            # For Google GenAI, credentials are typically handled via service account or application default credentials
+            print("✅ Google GenAI provider configured")
+        
+        if llm_client.test_connection():
+            print(f"✅ {provider_name.title()} API connection successful")
+        else:
+            print(f"❌ {provider_name.title()} API connection failed")
+            # Print additional diagnostic info from logger
+            print("💡 Check the log file for detailed error analysis and solutions")
+    except Exception as e:
+        print(f"LLM connection test failed: {e}")
+        print("❌ LLM API connection failed")
         logger.log_error_with_category(
-            ErrorCategory.CONFIGURATION_ERROR,
-            f"AWS credentials not configured: {config.bedrock.aws_access_key_env}, {config.bedrock.aws_secret_key_env}",
-            recovery_action=f"Set {config.bedrock.aws_access_key_env} and {config.bedrock.aws_secret_key_env} environment variables"
+            ErrorCategory.API_ERROR,
+            f"Failed to create LLM client: {e}",
+            recovery_action="Check LLM provider credentials and configuration"
         )
     
     # Configuration summary
-    print(f"📝 AWS Region: {config.bedrock.region}")
-    print(f"🤖 Model ID: {config.bedrock.model_id}")
     print(f"📁 Max file size: {config.processing.max_file_size_mb} MB")
     print(f"📝 Log level: {config.logging.level.value}")
     print(f"📁 Log directory: {logger.log_file_path.parent}")
@@ -569,8 +579,8 @@ def main() -> None:
             # Phase 4: LLM API Integration
             print("🤖 Phase 4: Analyzing content with LLM API...")
             try:
-                # Initialize Bedrock client with configuration
-                llm_client = BedrockClient(config.bedrock)
+                # Initialize Unified LLM client with configuration
+                llm_client = UnifiedLLMClient(config)
                 
                 # Process content through LLM for entity extraction
                 analysis_results = []
