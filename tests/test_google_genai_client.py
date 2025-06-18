@@ -261,16 +261,25 @@ class TestGoogleGenAIClient:
             assert stats.total_calls == 1
     
     @patch('google_genai_client.genai')
-    def test_test_connection_stub_implementation(self, mock_genai, google_genai_config):
-        """Test test_connection stub implementation."""
-        mock_genai.Client.return_value = MagicMock()
+    def test_test_connection_successful(self, mock_genai, google_genai_config):
+        """Test test_connection successful implementation."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        # Mock successful API response
+        mock_response = MagicMock()
+        mock_response.text = '{"test": "success"}'
+        mock_client.models.generate_content.return_value = mock_response
         
         genai_client = GoogleGenAIClient(google_genai_config)
         
-        # Test connection should return False for stub implementation
+        # Test connection should return True for successful connection
         result = genai_client.test_connection()
         
-        assert result == False
+        assert result == True
+        
+        # Verify API was called with correct parameters
+        mock_client.models.generate_content.assert_called_once()
     
     @patch('google_genai_client.genai')
     def test_test_connection_error_handling(self, mock_genai, google_genai_config):
@@ -642,7 +651,7 @@ class TestGoogleGenAIClient:
             assert result.tasks == []
             assert result.themes == []
             assert result.api_call_time >= 0
-            assert "ERROR:" in result.raw_response
+            assert "ERROR (" in result.raw_response
             assert str(error) in result.raw_response
             
             # Should track as failed API call
@@ -655,8 +664,8 @@ class TestGoogleGenAIClient:
             mock_client.models.generate_content.side_effect = None
     
     @patch('google_genai_client.genai')
-    def test_make_api_call_different_response_formats(self, mock_genai, google_genai_config):
-        """Test _make_api_call handles different Google GenAI response formats."""
+    def test_make_api_call_with_retry_different_response_formats(self, mock_genai, google_genai_config):
+        """Test _make_api_call_with_retry handles different Google GenAI response formats."""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
         
@@ -667,7 +676,7 @@ class TestGoogleGenAIClient:
         mock_response_1.text = "Direct text response"
         mock_client.models.generate_content.return_value = mock_response_1
         
-        result_1 = genai_client._make_api_call("test prompt")
+        result_1 = genai_client._make_api_call_with_retry("test prompt", max_retries=0)
         assert result_1 == "Direct text response"
         
         # Test 2: Response with candidates structure
@@ -682,7 +691,7 @@ class TestGoogleGenAIClient:
         mock_response_2.candidates = [mock_candidate]
         mock_client.models.generate_content.return_value = mock_response_2
         
-        result_2 = genai_client._make_api_call("test prompt")
+        result_2 = genai_client._make_api_call_with_retry("test prompt", max_retries=0)
         assert result_2 == "Candidates structure response"
         
         # Test 3: Response with no text content should raise error
@@ -692,7 +701,7 @@ class TestGoogleGenAIClient:
         mock_client.models.generate_content.return_value = mock_response_3
         
         with pytest.raises(ValueError, match="No text content found in API response"):
-            genai_client._make_api_call("test prompt")
+            genai_client._make_api_call_with_retry("test prompt", max_retries=0)
     
     @patch('google_genai_client.genai')
     def test_analyze_content_timing_accuracy(self, mock_genai, google_genai_config):
