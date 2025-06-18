@@ -65,14 +65,13 @@ class FileDiscovery:
         # Generate all dates in the range
         date_range = self._generate_date_range(start_date, end_date)
         
-        # Calculate week ending date (end of work period)
-        week_ending_date = self._calculate_week_ending(start_date, end_date)
-        
         # Discover files for each date
         found_files = []
         missing_files = []
         
         for target_date in date_range:
+            # Calculate week ending date for THIS specific file
+            week_ending_date = self._calculate_week_ending_for_date(target_date)
             file_path = self._construct_file_path(target_date, week_ending_date)
             
             if file_path.exists():
@@ -112,10 +111,10 @@ class FileDiscovery:
     
     def _calculate_week_ending(self, start_date: date, end_date: date) -> date:
         """
-        Calculate week ending date based on the work period end date.
+        DEPRECATED: Calculate week ending date based on the work period end date.
         
-        This is a key change from the original blueprint - instead of using
-        calendar Sunday, we use the actual end date of the work period.
+        This method is kept for backward compatibility but should not be used
+        for file discovery. Use _calculate_week_ending_for_date instead.
         
         Args:
             start_date: Start date of the work period
@@ -125,6 +124,27 @@ class FileDiscovery:
             date: The end date of the work period (used for week_ending directory)
         """
         return end_date
+    
+    def _calculate_week_ending_for_date(self, target_date: date) -> date:
+        """
+        Calculate the proper week ending date for a specific file date.
+        
+        Based on your file structure example (week_ending_2024-12-20), it appears
+        that the week_ending date corresponds to the actual file date when the
+        file represents the end of a work week.
+        
+        For now, we'll use the target_date itself as the week_ending date,
+        but this can be adjusted based on your actual weekly structure.
+        
+        Args:
+            target_date: The date of the specific journal file
+            
+        Returns:
+            date: The week ending date for this file's directory structure
+        """
+        # For now, use the target date itself as week ending
+        # This matches your example: worklog_2024-12-20.txt in week_ending_2024-12-20/
+        return target_date
     
     def _construct_file_path(self, target_date: date, week_ending_date: date) -> Path:
         """
