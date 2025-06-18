@@ -578,6 +578,9 @@ Guidelines:
         Returns:
             bool: True if connection successful, False otherwise
         """
+        start_time = time.time()
+        self.stats.total_calls += 1
+        
         try:
             # Simple test prompt to minimize token usage
             test_prompt = "Respond with valid JSON: {\"test\": \"success\"}"
@@ -590,11 +593,26 @@ Guidelines:
             # Make a simple API call with retry logic (but only 1 retry for connection test)
             response_text = self._make_api_call_with_retry(test_prompt, max_retries=1)
             
+            # Update statistics for successful connection test
+            call_time = time.time() - start_time
+            self.stats.successful_calls += 1
+            self.stats.total_time += call_time
+            self.stats.average_response_time = self.stats.total_time / self.stats.successful_calls
+            
             # If we get here, the connection works
             self.logger.info("Google GenAI connection test successful")
             return True
             
         except Exception as e:
+            # Update statistics for failed connection test
+            self.stats.failed_calls += 1
+            call_time = time.time() - start_time
+            self.stats.total_time += call_time
+            
+            # Update average response time even for failed requests
+            if self.stats.total_calls > 0:
+                self.stats.average_response_time = self.stats.total_time / self.stats.total_calls
+            
             error_type = type(e).__name__
             error_message = str(e)
             

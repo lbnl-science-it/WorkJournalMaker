@@ -306,6 +306,306 @@ class TestGoogleGenAIClient:
             assert result == False
     
     @patch('google_genai_client.genai')
+    def test_test_connection_statistics_tracking(self, mock_genai, google_genai_config):
+        """Test that test_connection properly updates statistics."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        # Mock successful API response
+        mock_response = MagicMock()
+        mock_response.text = '{"test": "success"}'
+        mock_client.models.generate_content.return_value = mock_response
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Verify initial stats are zero
+        initial_stats = genai_client.get_stats()
+        assert initial_stats.total_calls == 0
+        assert initial_stats.successful_calls == 0
+        assert initial_stats.failed_calls == 0
+        
+        # Test successful connection
+        result = genai_client.test_connection()
+        assert result == True
+        
+        # Verify statistics were updated correctly
+        stats = genai_client.get_stats()
+        assert stats.total_calls == 1
+        assert stats.successful_calls == 1
+        assert stats.failed_calls == 0
+        assert stats.total_time > 0
+        assert stats.average_response_time > 0
+        
+        # Capture the total time after first call
+        first_call_total_time = stats.total_time
+        
+        # Test failed connection
+        mock_client.models.generate_content.side_effect = Exception("Connection failed")
+        
+        result = genai_client.test_connection()
+        assert result == False
+        
+        # Verify statistics were updated for failure
+        final_stats = genai_client.get_stats()
+        assert final_stats.total_calls == 2
+        assert final_stats.successful_calls == 1  # Still 1 from previous success
+        assert final_stats.failed_calls == 1
+        assert final_stats.total_time > first_call_total_time  # Should have increased
+    
+    @patch('google_genai_client.genai')
+    def test_test_connection_network_error_scenarios(self, mock_genai, google_genai_config):
+        """Test test_connection handles various network error scenarios."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Test different network error types
+        network_errors = [
+            ConnectionError("Network connection failed"),
+            TimeoutError("Request timed out"),
+            Exception("DNS resolution failed"),
+            Exception("SSL certificate error"),
+            Exception("Connection refused")
+        ]
+        
+        for error in network_errors:
+            # Reset mock for each test
+            mock_client.reset_mock()
+            mock_client.models.generate_content.side_effect = error
+            
+            # Test that method doesn't throw exceptions
+            try:
+                result = genai_client.test_connection()
+                assert result == False, f"Should return False for {type(error).__name__}"
+            except Exception as e:
+                pytest.fail(f"test_connection should not throw exceptions, but got: {e}")
+    
+    @patch('google_genai_client.genai')
+    def test_test_connection_authentication_error_scenarios(self, mock_genai, google_genai_config):
+        """Test test_connection handles authentication error scenarios."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Test different authentication error types
+        auth_errors = [
+            Exception("Authentication failed - invalid credentials"),
+            Exception("Unauthorized access - 401"),
+            Exception("Permission denied - 403"),
+            Exception("Invalid API key"),
+            Exception("Access denied to project")
+        ]
+        
+        for error in auth_errors:
+            # Reset mock for each test
+            mock_client.reset_mock()
+            mock_client.models.generate_content.side_effect = error
+            
+            # Test that method doesn't throw exceptions
+            try:
+                result = genai_client.test_connection()
+                assert result == False, f"Should return False for auth error: {error}"
+            except Exception as e:
+                pytest.fail(f"test_connection should not throw exceptions, but got: {e}")
+    
+    @patch('google_genai_client.genai')
+    def test_test_connection_rate_limit_scenarios(self, mock_genai, google_genai_config):
+        """Test test_connection handles rate limiting scenarios."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Test rate limiting errors
+        rate_limit_errors = [
+            Exception("Rate limit exceeded"),
+            Exception("Quota exceeded for project"),
+            Exception("Too many requests - 429"),
+            Exception("Resource exhausted"),
+            Exception("Throttled due to high usage")
+        ]
+        
+        for error in rate_limit_errors:
+            # Reset mock and stats for each test
+            mock_client.reset_mock()
+            genai_client.reset_stats()
+            mock_client.models.generate_content.side_effect = error
+            
+            # Test that method doesn't throw exceptions
+            try:
+                result = genai_client.test_connection()
+                assert result == False, f"Should return False for rate limit error: {error}"
+                
+                # Verify statistics are updated even for failed calls
+                stats = genai_client.get_stats()
+                assert stats.total_calls >= 1, "Should track failed connection attempts"
+                assert stats.failed_calls >= 1, "Should track failed calls"
+                
+            except Exception as e:
+                pytest.fail(f"test_connection should not throw exceptions, but got: {e}")
+    
+    @patch('google_genai_client.genai')
+    def test_test_connection_with_different_response_formats(self, mock_genai, google_genai_config):
+        """Test test_connection works with different API response formats."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Test different successful response formats
+        response_formats = [
+            # Simple text response
+            {'text': '{"test": "success"}'},
+            # Structured response with candidates
+            {'candidates': [{'content': {'parts': [{'text': '{"test": "success"}'}]}}]},
+            # Response with extra whitespace
+            {'text': '  {"test": "success"}  '},
+            # Response with markdown formatting
+            {'text': '```json\n{"test": "success"}\n```'}
+        ]
+        
+        for i, response_format in enumerate(response_formats):
+            # Reset mock and stats for each test
+            mock_client.reset_mock()
+            genai_client.reset_stats()
+            
+            # Create mock response with the specified format
+            mock_response = MagicMock()
+            if 'text' in response_format:
+                mock_response.text = response_format['text']
+                # Ensure candidates attribute doesn't exist for text responses
+                mock_response.candidates = None
+            if 'candidates' in response_format:
+                # Create proper mock structure for candidates
+                mock_candidate = MagicMock()
+                mock_content = MagicMock()
+                mock_part = MagicMock()
+                mock_part.text = response_format['candidates'][0]['content']['parts'][0]['text']
+                mock_content.parts = [mock_part]
+                mock_candidate.content = mock_content
+                mock_response.candidates = [mock_candidate]
+                # Remove text attribute for candidates response
+                del mock_response.text
+            
+            mock_client.models.generate_content.return_value = mock_response
+            
+            # Test successful connection with this response format
+            result = genai_client.test_connection()
+            assert result == True, f"Should succeed with response format {i+1}"
+            
+            # Verify statistics are updated correctly
+            stats = genai_client.get_stats()
+            assert stats.total_calls == 1, f"Should track 1 call for format {i+1}"
+            assert stats.successful_calls == 1, f"Should track 1 success for format {i+1}"
+            assert stats.failed_calls == 0, f"Should track 0 failures for format {i+1}"
+            assert stats.total_time > 0, f"Should track timing for format {i+1}"
+    
+    @patch('google_genai_client.genai')
+    def test_test_connection_statistics_comprehensive(self, mock_genai, google_genai_config):
+        """Test comprehensive statistics tracking during connection tests."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Test multiple successful connections
+        mock_response = MagicMock()
+        mock_response.text = '{"test": "success"}'
+        mock_client.models.generate_content.return_value = mock_response
+        
+        # Make 3 successful connection tests
+        for i in range(3):
+            result = genai_client.test_connection()
+            assert result == True
+        
+        # Verify cumulative statistics
+        stats = genai_client.get_stats()
+        assert stats.total_calls == 3
+        assert stats.successful_calls == 3
+        assert stats.failed_calls == 0
+        assert stats.total_time > 0
+        assert stats.average_response_time > 0
+        
+        # Capture intermediate timing
+        intermediate_total_time = stats.total_time
+        
+        # Test mixed success/failure scenario
+        mock_client.models.generate_content.side_effect = [
+            Exception("Network error"),  # Failure
+            mock_response,               # Success
+            Exception("Auth error")      # Failure
+        ]
+        
+        # Make 3 more connection tests (1 success, 2 failures)
+        for i in range(3):
+            result = genai_client.test_connection()
+            # Don't assert result here since we expect mixed results
+        
+        # Verify final statistics
+        final_stats = genai_client.get_stats()
+        assert final_stats.total_calls == 6  # 3 initial + 3 additional
+        assert final_stats.successful_calls == 4  # 3 initial + 1 additional
+        assert final_stats.failed_calls == 2  # 0 initial + 2 additional
+        assert final_stats.total_time > intermediate_total_time  # Should have increased
+    
+    @patch('google_genai_client.genai')
+    def test_test_connection_no_exceptions_guarantee(self, mock_genai, google_genai_config):
+        """Test that test_connection never throws exceptions under any circumstances."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        # Test with various exception types that could occur
+        exception_scenarios = [
+            # Standard exceptions
+            Exception("Generic error"),
+            ValueError("Invalid value"),
+            TypeError("Type error"),
+            RuntimeError("Runtime error"),
+            
+            # Network-related exceptions
+            ConnectionError("Connection failed"),
+            TimeoutError("Timeout occurred"),
+            
+            # Simulated Google API exceptions
+            Exception("google.api_core.exceptions.GoogleAPIError"),
+            Exception("google.auth.exceptions.DefaultCredentialsError"),
+            
+            # Unexpected exceptions
+            KeyError("Missing key"),
+            AttributeError("Missing attribute"),
+            ImportError("Import failed"),
+            
+            # None response (edge case)
+            None
+        ]
+        
+        for i, exception in enumerate(exception_scenarios):
+            # Reset mock for each test
+            mock_client.reset_mock()
+            
+            if exception is None:
+                # Test with None response
+                mock_client.models.generate_content.return_value = None
+            else:
+                # Test with exception
+                mock_client.models.generate_content.side_effect = exception
+            
+            # The critical test: method should NEVER throw exceptions
+            try:
+                result = genai_client.test_connection()
+                # Result should always be a boolean
+                assert isinstance(result, bool), f"Should return boolean for scenario {i+1}"
+                # For exceptions, should return False
+                if exception is not None:
+                    assert result == False, f"Should return False for exception scenario {i+1}"
+            except Exception as e:
+                pytest.fail(f"test_connection threw exception in scenario {i+1}: {type(e).__name__}: {e}")
+    
+    @patch('google_genai_client.genai')
     def test_configuration_validation(self, mock_genai, google_genai_config):
         """Test that configuration is properly stored and accessible."""
         mock_genai.Client.return_value = MagicMock()
