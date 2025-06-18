@@ -1,6 +1,6 @@
 # Work Journal Summarizer
 
-A comprehensive Python application that generates intelligent weekly and monthly summaries of daily work journal text files using AWS Bedrock Claude API. The program automatically discovers journal files, processes content with advanced encoding detection, extracts key entities (projects, participants, tasks, themes), and generates professional markdown summaries with detailed processing statistics.
+A comprehensive Python application that generates intelligent weekly and monthly summaries of daily work journal text files using multiple LLM providers (AWS Bedrock Claude API [Untested and in development] or Google GenAI Gemini). The program automatically discovers journal files, processes content with advanced encoding detection, extracts key entities (projects, participants, tasks, themes), and generates professional markdown summaries with detailed processing statistics.
 
 ## ✨ Key Features
 
@@ -19,11 +19,12 @@ A comprehensive Python application that generates intelligent weekly and monthly
 - Robust error handling with detailed recovery guidance
 
 ### 🤖 **AI-Powered Analysis**
-- AWS Bedrock Claude API integration for intelligent content analysis
+- **Multi-Provider LLM Support**: Choose between AWS Bedrock Claude API or Google GenAI Gemini
 - Automatic entity extraction: projects, participants, tasks, and themes
 - Retry logic with exponential backoff and rate limiting
 - Entity deduplication and normalization
 - Comprehensive API usage statistics and performance tracking
+- Seamless provider switching with unified interface
 
 ### 📊 **Smart Summary Generation**
 - Weekly and monthly summary grouping with intelligent date handling
@@ -53,12 +54,54 @@ A comprehensive Python application that generates intelligent weekly and monthly
 - Graceful degradation strategies
 - Dry run mode for configuration validation
 
+## 🔧 LLM Provider Support
+
+The Work Journal Summarizer supports multiple LLM providers, allowing you to choose the best option for your infrastructure and requirements:
+
+### Supported Providers
+
+| Provider | Status | Best For | Setup Complexity |
+|----------|--------|----------|------------------|
+| **Google GenAI** | ✅ Fully Supported | Development, testing, GCP environments | Low |
+| **AWS Bedrock** | ⚠️ Experimental | AWS environments (requires Provisioned Throughput) | Medium |
+
+### Quick Provider Selection
+
+```yaml
+# Choose your LLM provider
+llm:
+  provider: google_genai  # or "bedrock"
+
+# Google GenAI Configuration (Recommended)
+google_genai:
+  project: your-gcp-project-id
+  location: us-central1
+  model: gemini-2.0-flash-001
+
+# AWS Bedrock Configuration (Experimental)
+bedrock:
+  region: us-east-2
+  model_id: anthropic.claude-3-5-sonnet-20241022-v2:0
+```
+
+📖 **For detailed setup instructions, troubleshooting, and provider comparison, see the [LLM Provider Guide](docs/llm_providers.md)**
+
+### Recent Updates
+
+**🎉 Google GenAI Integration (Latest)**
+- ✅ Full Google GenAI Gemini support with Vertex AI integration
+- ✅ Unified LLM client architecture for seamless provider switching
+- ✅ Comprehensive configuration management with YAML/JSON support
+- ✅ Production-ready error handling and retry logic
+- ✅ Complete test coverage for all provider integrations
+
 ## 🚀 Installation
 
 ### Prerequisites
 - **Python 3.8+** - Required for modern async/await syntax and type hints
-- **AWS Account** - With Bedrock API access enabled
-- **AWS Credentials** - Configured for Bedrock service access
+- **LLM Provider Access** - Choose one:
+  - **Google GenAI** (Recommended): GCP project with Vertex AI API enabled
+  - **AWS Bedrock** (Experimental): AWS account with Bedrock API access
 
 ### Quick Setup
 1. **Clone the repository**
@@ -72,7 +115,17 @@ A comprehensive Python application that generates intelligent weekly and monthly
    pip install -r requirements.txt
    ```
 
-3. **Configure AWS credentials**
+3. **Configure your chosen LLM provider**
+   
+   **For Google GenAI (Recommended):**
+   ```bash
+   # Set up Google Cloud authentication
+   export GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account-key.json"
+   # Or use gcloud CLI
+   gcloud auth application-default login
+   ```
+   
+   **For AWS Bedrock (Experimental):**
    ```bash
    export AWS_ACCESS_KEY_ID="your-access-key"
    export AWS_SECRET_ACCESS_KEY="your-secret-key"
@@ -100,10 +153,23 @@ The application supports both YAML and JSON configuration files with automatic d
 
 ### Example Configuration (`config.yaml`)
 ```yaml
-# AWS Bedrock Configuration
+# LLM Provider Selection
+llm:
+  provider: google_genai  # Choose: "google_genai" or "bedrock"
+
+# Google GenAI Configuration (Recommended)
+google_genai:
+  project: your-gcp-project-id
+  location: us-central1
+  model: gemini-2.0-flash-001
+  timeout: 30
+  max_retries: 3
+  rate_limit_delay: 1.0
+
+# AWS Bedrock Configuration (Experimental)
 bedrock:
   region: us-east-2
-  model_id: anthropic.claude-sonnet-4-20250514-v1:0
+  model_id: anthropic.claude-3-5-sonnet-20241022-v2:0
   aws_access_key_env: AWS_ACCESS_KEY_ID
   aws_secret_key_env: AWS_SECRET_ACCESS_KEY
   timeout: 30
@@ -131,8 +197,18 @@ logging:
 ### Environment Variable Overrides
 Override any configuration value using environment variables with `WJS_` prefix:
 ```bash
+# LLM Provider Configuration
+export WJS_LLM_PROVIDER=google_genai
+export WJS_GOOGLE_GENAI_PROJECT=your-gcp-project
+export WJS_GOOGLE_GENAI_LOCATION=us-central1
+export WJS_GOOGLE_GENAI_MODEL=gemini-2.0-flash-001
+
+# Or for AWS Bedrock
+export WJS_LLM_PROVIDER=bedrock
 export WJS_BEDROCK_REGION=us-west-2
-export WJS_BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
+export WJS_BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
+
+# General Configuration
 export WJS_BASE_PATH=/custom/journal/path
 export WJS_OUTPUT_PATH=/custom/output/path
 export WJS_LOG_LEVEL=DEBUG
@@ -203,7 +279,12 @@ python work_journal_summarizer.py --start-date 2024-05-01 --end-date 2024-05-30 
 
 #### Environment Variable Configuration
 ```bash
-# Set environment overrides
+# Set LLM provider configuration
+export WJS_LLM_PROVIDER="google_genai"
+export WJS_GOOGLE_GENAI_PROJECT="your-gcp-project"
+export WJS_GOOGLE_GENAI_LOCATION="us-central1"
+
+# Set processing configuration
 export WJS_BASE_PATH="/work/journals"
 export WJS_OUTPUT_PATH="/work/summaries"
 export WJS_LOG_LEVEL="DEBUG"
@@ -271,8 +352,8 @@ Summary Type: weekly
 Base Path: ~/Desktop/worklogs/
 Output Path: ~/Desktop/worklogs/summaries/
 Date Range: 30 days
-AWS Region: us-east-2
-Model: anthropic.claude-sonnet-4-20250514-v1:0
+LLM Provider: google_genai
+Model: gemini-2.0-flash-001
 
 🔍 DRY RUN MODE - Configuration Validation
 ==================================================
@@ -280,10 +361,11 @@ Model: anthropic.claude-sonnet-4-20250514-v1:0
 ✅ Base path accessible: /Users/username/Desktop/worklogs
 ✅ Output path accessible: /Users/username/Desktop/worklogs/summaries
 📊 Estimated weekly summaries: 5
-✅ AWS credentials found in environment
-✅ Bedrock API connection successful
-📝 AWS Region: us-east-2
-🤖 Model ID: anthropic.claude-sonnet-4-20250514-v1:0
+✅ Google GenAI credentials found
+✅ Google GenAI API connection successful
+📝 GCP Project: your-gcp-project-id
+📍 Location: us-central1
+🤖 Model: gemini-2.0-flash-001
 📁 Max file size: 50 MB
 📝 Log level: INFO
 📁 Log directory: /Users/username/Desktop/worklogs/summaries/error_logs
@@ -302,8 +384,8 @@ Summary Type: weekly
 Base Path: ~/Desktop/worklogs/
 Output Path: ~/Desktop/worklogs/summaries/
 Date Range: 30 days
-AWS Region: us-east-2
-Model: anthropic.claude-sonnet-4-20250514-v1:0
+LLM Provider: google_genai
+Model: gemini-2.0-flash-001
 
 🔍 Phase 2: Discovering journal files...
 📊 File Discovery Results:
@@ -422,7 +504,7 @@ Average summary length: 287 words
    ========================================
 
 📄 Phase 6: Generating markdown output...
-� Output Generation Results:
+📊 Output Generation Results:
 ------------------------------
 Output file: /Users/username/Desktop/worklogs/summaries/weekly_summary_2024-05-01_to_2024-05-30_20250616_160234.md
 File size: 15,432 bytes
@@ -513,6 +595,42 @@ Invalid summary type. Must be 'weekly' or 'monthly', got: 'daily'
 Invalid date for end-date: 2024-02-30. Please check that the date exists (e.g., Feb 30 is invalid).
 ```
 
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### LLM Provider Connection Issues
+```bash
+# Test your LLM provider configuration
+python work_journal_summarizer.py --start-date 2024-01-01 --end-date 2024-01-07 --summary-type weekly --dry-run
+```
+
+**Google GenAI Issues:**
+- Ensure your GCP project has Vertex AI API enabled
+- Verify authentication: `gcloud auth application-default login`
+- Check project ID and location in configuration
+- See [LLM Provider Guide](docs/llm_providers.md) for detailed setup
+
+**AWS Bedrock Issues:**
+- Verify AWS credentials are configured
+- Ensure Bedrock API access is enabled in your region
+- Check if model requires Provisioned Throughput
+- See [LLM Provider Guide](docs/llm_providers.md) for detailed setup
+
+#### File Discovery Issues
+```bash
+# Check if your directory structure matches expected format
+ls -la ~/Desktop/worklogs/worklogs_2024/worklogs_2024-*/week_ending_*/
+```
+
+#### Configuration Issues
+```bash
+# Generate a fresh example configuration
+python work_journal_summarizer.py --save-example-config debug-config.yaml
+```
+
+📖 **For comprehensive troubleshooting, see the [LLM Provider Guide](docs/llm_providers.md)**
+
 ## Development
 
 ### Running Tests
@@ -536,42 +654,70 @@ pytest tests/test_cli.py::TestCLIArguments -v
 
 ### Test Coverage
 
-The project maintains 100% test coverage with comprehensive test suites covering:
+The project maintains comprehensive test coverage with test suites covering:
 
-- ✅ Valid argument parsing for both weekly and monthly summaries
+**Core Functionality:**
+- ✅ CLI argument parsing for both weekly and monthly summaries
 - ✅ Date format validation (various invalid formats)
 - ✅ Date range validation (end before start, same dates)
 - ✅ Summary type validation (invalid values, case sensitivity)
-- ✅ Missing required arguments
-- ✅ Help message content verification
-- ✅ Leap year handling
-- ✅ Cross-year date ranges
-- ✅ Error message formatting
+- ✅ Missing required arguments and help message content
+- ✅ Leap year handling and cross-year date ranges
+
+**LLM Provider Integration:**
+- ✅ Google GenAI client functionality and error handling
+- ✅ AWS Bedrock client functionality (experimental)
+- ✅ Unified LLM client provider switching
+- ✅ Configuration management and validation
+- ✅ API retry logic and rate limiting
+- ✅ Provider-specific authentication and connection testing
+
+**System Integration:**
+- ✅ File discovery across complex directory structures
+- ✅ Content processing with encoding detection
+- ✅ Summary generation and markdown output
+- ✅ Logging system and error handling
+- ✅ Dry run functionality and configuration validation
 
 ### Project Structure
 
 ```
 JournalSummarizer/
-├── work_journal_summarizer.py    # Main CLI module with Phase 7 logging
+├── work_journal_summarizer.py    # Main CLI module with Phase 8 integration
 ├── file_discovery.py             # File discovery engine (Phase 2)
 ├── content_processor.py          # Content processing system (Phase 3)
-├── llm_client.py                 # LLM API integration (Phase 4)
+├── llm_client.py                 # Legacy LLM client (Phase 4)
+├── unified_llm_client.py         # Multi-provider LLM client (Phase 8)
+├── bedrock_client.py             # AWS Bedrock client implementation
+├── google_genai_client.py        # Google GenAI client implementation
 ├── summary_generator.py          # Summary generation system (Phase 5)
 ├── output_manager.py             # Output management system (Phase 6)
 ├── logger.py                     # Comprehensive error handling & logging (Phase 7)
+├── config_manager.py             # Configuration management system
+├── config.yaml.example           # Example configuration file
+├── docs/
+│   └── llm_providers.md          # LLM provider setup and troubleshooting guide
 ├── tests/                        # Test directory
 │   ├── test_cli.py              # CLI tests (Phase 1)
 │   ├── test_file_discovery.py   # File discovery tests (Phase 2)
 │   ├── test_content_processor.py # Content processing tests (Phase 3)
-│   ├── test_llm_client.py       # LLM API tests (Phase 4)
+│   ├── test_llm_client.py       # Legacy LLM API tests (Phase 4)
+│   ├── test_unified_llm_client.py # Multi-provider LLM tests
+│   ├── test_bedrock_client.py   # AWS Bedrock client tests
+│   ├── test_google_genai_client.py # Google GenAI client tests
 │   ├── test_summary_generator.py # Summary generation tests (Phase 5)
 │   ├── test_output_manager.py   # Output management tests (Phase 6)
-│   ├── test_logger.py           # Logger tests (Phase 7) - 442 lines
+│   ├── test_logger.py           # Logger tests (Phase 7)
+│   ├── test_config_manager.py   # Configuration management tests
+│   ├── test_integration_llm_providers.py # LLM provider integration tests
 │   └── test_integration_logging.py # Integration tests (Phase 7)
 ├── requirements.txt             # Project dependencies
 ├── README.md                    # This file
 ├── .gitignore                   # Python gitignore
-└── work_journal_summarizer_implementation_blueprint.md # Implementation documentation
+└── implementation_plans/        # Implementation documentation
+    ├── work_journal_summarizer_implementation_blueprint.md
+    ├── google_genai_implementation_blueprint.md
+    └── phase1_implementation_plan.md
 ```
 
 **Key Features:**
