@@ -10,7 +10,6 @@ Author: Work Journal Summarizer Project
 Version: Phase 8 - Configuration Management & API Fallback
 """
 
-from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
 from pathlib import Path
 import boto3
@@ -22,30 +21,7 @@ import os
 import re
 
 from config_manager import BedrockConfig
-
-
-@dataclass
-class AnalysisResult:
-    """Result of LLM analysis for a single journal file."""
-    file_path: Path
-    projects: List[str]
-    participants: List[str]
-    tasks: List[str]
-    themes: List[str]
-    api_call_time: float
-    confidence_score: Optional[float] = None
-    raw_response: Optional[str] = None
-
-
-@dataclass
-class APIStats:
-    """Statistics for API usage across all calls."""
-    total_calls: int
-    successful_calls: int
-    failed_calls: int
-    total_time: float
-    average_response_time: float
-    rate_limit_hits: int
+from llm_data_structures import AnalysisResult, APIStats
 
 
 class BedrockClient:

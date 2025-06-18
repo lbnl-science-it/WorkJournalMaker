@@ -26,7 +26,8 @@ from file_discovery import FileDiscovery, FileDiscoveryResult
 from content_processor import ContentProcessor, ProcessedContent, ProcessingStats
 
 # Import Phase 4 components (updated for Phase 8)
-from bedrock_client import BedrockClient, AnalysisResult, APIStats
+from bedrock_client import BedrockClient
+from llm_data_structures import AnalysisResult, APIStats
 
 # Import Phase 5 components
 from summary_generator import SummaryGenerator, PeriodSummary, SummaryStats
