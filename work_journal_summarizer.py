@@ -300,8 +300,16 @@ def _perform_dry_run(args: argparse.Namespace, config: AppConfig, logger: Journa
                 print("✅ Bedrock API connection successful")
             else:
                 print("❌ Bedrock API connection failed")
+                # Print additional diagnostic info from logger
+                print("💡 Check the log file for detailed error analysis and solutions")
         except Exception as e:
-            print(f"❌ Bedrock API connection error: {e}")
+            print(f"Bedrock connection test failed: {e}")
+            print("❌ Bedrock API connection failed")
+            logger.log_error_with_category(
+                ErrorCategory.API_ERROR,
+                f"Failed to create Bedrock client: {e}",
+                recovery_action="Check AWS credentials and model configuration"
+            )
     else:
         print("❌ AWS credentials not found")
         logger.log_error_with_category(

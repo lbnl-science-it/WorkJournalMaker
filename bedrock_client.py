@@ -416,6 +416,11 @@ Guidelines:
             test_prompt = "Respond with valid JSON: {\"test\": \"success\"}"
             request_body = self._format_bedrock_request(test_prompt)
             
+            # Add diagnostic logging
+            self.logger.info(f"Testing Bedrock connection with model: {self.config.model_id}")
+            self.logger.info(f"Region: {self.config.region}")
+            self.logger.debug(f"Request body: {json.dumps(request_body, indent=2)}")
+            
             response = self.client.invoke_model(
                 modelId=self.config.model_id,
                 body=json.dumps(request_body),
@@ -424,8 +429,39 @@ Guidelines:
             )
             
             # If we get here, the connection works
+            self.logger.info("Bedrock connection test successful")
             return True
             
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            error_message = e.response['Error']['Message']
+            
+            self.logger.error(f"Bedrock connection test failed: {error_code} - {error_message}")
+            
+            # Provide specific guidance based on error type
+            if error_code == 'ValidationException' and 'on-demand throughput' in error_message:
+                self.logger.error("DIAGNOSIS: Model doesn't support on-demand throughput")
+                self.logger.error("SOLUTION: Try using an inference profile or different model version")
+                self.logger.error("Available alternatives:")
+                self.logger.error("  - anthropic.claude-3-5-sonnet-20241022-v2:0")
+                self.logger.error("  - anthropic.claude-3-sonnet-20240229-v1:0")
+                self.logger.error("  - Use inference profile ARN instead of model ID")
+            elif error_code == 'AccessDeniedException':
+                self.logger.error("DIAGNOSIS: Access denied - check model permissions")
+                self.logger.error("SOLUTION: Verify model access in AWS Bedrock console")
+            elif error_code == 'ResourceNotFoundException':
+                self.logger.error("DIAGNOSIS: Model not found in this region")
+                self.logger.error(f"SOLUTION: Check if model {self.config.model_id} is available in {self.config.region}")
+            
+            return False
+            
+        except BotoCoreError as e:
+            self.logger.error(f"Bedrock connection test failed (network/auth): {e}")
+            self.logger.error("DIAGNOSIS: Network or authentication issue")
+            self.logger.error("SOLUTION: Check AWS credentials and network connectivity")
+            return False
+            
         except Exception as e:
-            self.logger.error(f"Bedrock connection test failed: {e}")
+            self.logger.error(f"Bedrock connection test failed (unexpected): {e}")
+            self.logger.error("DIAGNOSIS: Unexpected error occurred")
             return False
