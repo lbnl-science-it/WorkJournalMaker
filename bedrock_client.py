@@ -441,3 +441,20 @@ Guidelines:
             self.logger.error(f"Bedrock connection test failed (unexpected): {e}")
             self.logger.error("DIAGNOSIS: Unexpected error occurred")
             return False
+    
+    def get_provider_info(self) -> Dict[str, Any]:
+        """
+        Get provider-specific configuration information.
+        
+        Returns provider-specific configuration details that are useful
+        for debugging, logging, and displaying current settings.
+        
+        Returns:
+            Dict[str, Any]: Bedrock-specific configuration information
+                           including region and model_id
+        """
+        return {
+            "provider": "bedrock",
+            "region": self.config.region,
+            "model_id": self.config.model_id
+        }

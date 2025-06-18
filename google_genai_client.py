@@ -643,3 +643,21 @@ Guidelines:
                 self.logger.error("SOLUTION: Check Google GenAI service status and configuration")
             
             return False
+    
+    def get_provider_info(self) -> Dict[str, Any]:
+        """
+        Get provider-specific configuration information.
+        
+        Returns provider-specific configuration details that are useful
+        for debugging, logging, and displaying current settings.
+        
+        Returns:
+            Dict[str, Any]: Google GenAI-specific configuration information
+                           including project, location, and model
+        """
+        return {
+            "provider": "google_genai",
+            "project": self.config.project,
+            "location": self.config.location,
+            "model": self.config.model
+        }

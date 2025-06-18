@@ -1091,6 +1091,29 @@ class TestGoogleGenAIClient:
         assert "guidelines" in prompt.lower()
         assert "formal project names" in prompt.lower()
         assert "informal references" in prompt.lower()
+    
+    @patch('google_genai_client.genai')
+    def test_get_provider_info(self, mock_genai, google_genai_config):
+        """Test get_provider_info returns correct google_genai-specific information."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        
+        genai_client = GoogleGenAIClient(google_genai_config)
+        
+        provider_info = genai_client.get_provider_info()
+        
+        expected_info = {
+            "provider": "google_genai",
+            "project": google_genai_config.project,
+            "location": google_genai_config.location,
+            "model": google_genai_config.model
+        }
+        
+        assert provider_info == expected_info
+        assert provider_info["provider"] == "google_genai"
+        assert provider_info["project"] == google_genai_config.project
+        assert provider_info["location"] == google_genai_config.location
+        assert provider_info["model"] == google_genai_config.model
 
 
 if __name__ == '__main__':

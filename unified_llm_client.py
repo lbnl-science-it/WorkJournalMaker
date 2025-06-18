@@ -11,7 +11,7 @@ Author: Work Journal Summarizer Project
 Version: Multi-Provider Support
 """
 
-from typing import Union
+from typing import Union, Dict, Any
 from pathlib import Path
 import logging
 
@@ -160,30 +160,17 @@ class UnifiedLLMClient:
         """
         return self.provider_name
     
-    def get_provider_info(self) -> dict:
+    def get_provider_info(self) -> Dict[str, Any]:
         """
         Get provider-specific configuration information.
         
         Returns provider-specific configuration details that are useful
         for debugging, logging, and displaying current settings.
+        This method delegates to the underlying client's get_provider_info() method.
         
         Returns:
-            dict: Provider-specific configuration information
-                 - For bedrock: region, model_id
-                 - For google_genai: project, location, model
+            Dict[str, Any]: Provider-specific configuration information
+                           - For bedrock: provider, region, model_id
+                           - For google_genai: provider, project, location, model
         """
-        if self.provider_name == "bedrock":
-            return {
-                "provider": "bedrock",
-                "region": self.config.bedrock.region,
-                "model_id": self.config.bedrock.model_id
-            }
-        elif self.provider_name == "google_genai":
-            return {
-                "provider": "google_genai",
-                "project": self.config.google_genai.project,
-                "location": self.config.google_genai.location,
-                "model": self.config.google_genai.model
-            }
-        else:
-            return {"provider": self.provider_name, "error": "Unknown provider"}
+        return self.client.get_provider_info()

@@ -233,34 +233,40 @@ class TestUnifiedLLMClient:
     
     @patch('unified_llm_client.BedrockClient')
     def test_get_provider_info_bedrock(self, mock_bedrock_client, bedrock_config):
-        """Test get_provider_info returns correct info for bedrock."""
-        mock_bedrock_client.return_value = Mock()
-        
-        unified_client = UnifiedLLMClient(bedrock_config)
-        info = unified_client.get_provider_info()
-        
+        """Test get_provider_info delegates to underlying bedrock client."""
+        mock_client_instance = Mock()
         expected_info = {
             "provider": "bedrock",
             "region": "us-east-1",
             "model_id": "test-model"
         }
+        mock_client_instance.get_provider_info.return_value = expected_info
+        mock_bedrock_client.return_value = mock_client_instance
+        
+        unified_client = UnifiedLLMClient(bedrock_config)
+        info = unified_client.get_provider_info()
+        
         assert info == expected_info
+        mock_client_instance.get_provider_info.assert_called_once()
     
     @patch('unified_llm_client.GoogleGenAIClient')
     def test_get_provider_info_google_genai(self, mock_google_client, google_genai_config):
-        """Test get_provider_info returns correct info for google_genai."""
-        mock_google_client.return_value = Mock()
-        
-        unified_client = UnifiedLLMClient(google_genai_config)
-        info = unified_client.get_provider_info()
-        
+        """Test get_provider_info delegates to underlying google_genai client."""
+        mock_client_instance = Mock()
         expected_info = {
             "provider": "google_genai",
             "project": "test-project",
             "location": "us-central1",
             "model": "test-model"
         }
+        mock_client_instance.get_provider_info.return_value = expected_info
+        mock_google_client.return_value = mock_client_instance
+        
+        unified_client = UnifiedLLMClient(google_genai_config)
+        info = unified_client.get_provider_info()
+        
         assert info == expected_info
+        mock_client_instance.get_provider_info.assert_called_once()
     
     @patch('unified_llm_client.BedrockClient')
     def test_error_propagation_from_underlying_client(self, mock_bedrock_client, bedrock_config):
