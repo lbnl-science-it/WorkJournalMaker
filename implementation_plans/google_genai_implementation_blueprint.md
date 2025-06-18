@@ -712,63 +712,11 @@ These tests should ensure that users get a consistent experience regardless of w
 
 ---
 
-## Step 14: Create Documentation and Migration Guide
-
-**Objective**: Create documentation for the new multi-provider functionality.
-
-**Files Created**: `docs/llm_providers.md`
-
-### Prompt 14.1: Create Provider Documentation
-
-```
-I need comprehensive documentation for the new LLM provider functionality.
-
-Requirements:
-1. Create docs/llm_providers.md with sections:
-   - Overview of supported providers
-   - Configuration instructions for each provider
-   - Prerequisites and setup requirements
-   - Switching between providers
-   - Troubleshooting common issues
-
-2. Document the differences between providers:
-   - Cost considerations
-   - Performance characteristics
-   - Feature availability
-
-3. Provide step-by-step setup instructions for:
-   - AWS Bedrock (existing)
-   - Google GenAI (new)
-
-4. Include example configurations and common use cases
-
-5. Add migration instructions for existing users
-
-The documentation should be clear and comprehensive enough for users to successfully configure and use either provider.
-```
-
-### Prompt 14.2: Update Main README
-
-```
-I need to update the main README.md to mention the new multi-provider support.
-
-Requirements:
-1. Add a section about LLM provider support
-2. Mention both AWS Bedrock and Google GenAI options
-3. Link to the detailed provider documentation
-4. Update installation instructions to mention the new dependency
-5. Add a quick configuration example showing provider selection
-
-Keep the README concise but ensure users know about the new functionality and where to find more details.
-```
-
----
-
-## Step 15: Final Validation and Testing
+## Step 14: Final Validation and Testing
 
 **Objective**: Perform final validation that everything works correctly and no functionality has been broken.
 
-### Prompt 15.1: Create Final Validation Script
+### Prompt 14.1: Create Final Validation Script
 
 ```
 I need a comprehensive validation script that tests the entire system with both providers.
@@ -798,7 +746,7 @@ Requirements:
 This script should give confidence that the implementation is complete and correct.
 ```
 
-### Prompt 15.2: Create Rollback Plan
+### Prompt 14.2: Create Rollback Plan
 
 ```
 I need a rollback plan in case issues are discovered after deployment.
@@ -811,6 +759,58 @@ Requirements:
 
 The rollback plan should ensure that users can quickly return to a working state if needed.
 ```
+---
+## Step 15: Create Documentation and Migration Guide
+
+**Objective**: Create documentation for the new multi-provider functionality.
+
+**Files Created**: `docs/llm_providers.md`
+
+### Prompt 15.1: Create Provider Documentation
+
+```
+I need comprehensive documentation for the new LLM provider functionality.
+
+Requirements:
+1. Create docs/llm_providers.md with sections:
+   - Overview of supported providers
+   - Configuration instructions for each provider
+   - Prerequisites and setup requirements
+   - Switching between providers
+   - Troubleshooting common issues
+
+2. Document the differences between providers:
+   - Cost considerations
+   - Performance characteristics
+   - Feature availability
+
+3. Provide step-by-step setup instructions for:
+   - AWS Bedrock (existing)
+   - Google GenAI (new)
+
+4. Include example configurations and common use cases
+
+5. Add migration instructions for existing users
+
+The documentation should be clear and comprehensive enough for users to successfully configure and use either provider.
+```
+
+### Prompt 15.2: Update Main README
+
+```
+I need to update the main README.md to mention the new multi-provider support.
+
+Requirements:
+1. Add a section about LLM provider support
+2. Mention both AWS Bedrock and Google GenAI options
+3. Link to the detailed provider documentation
+4. Update installation instructions to mention the new dependency
+5. Add a quick configuration example showing provider selection
+
+Keep the README concise but ensure users know about the new functionality and where to find more details.
+```
+
+---
 
 ---
 
