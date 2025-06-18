@@ -21,26 +21,20 @@ from typing import Tuple
 
 # Import Phase 2 components
 from file_discovery import FileDiscovery, FileDiscoveryResult
-
 # Import Phase 3 components
 from content_processor import ContentProcessor, ProcessedContent, ProcessingStats
-
 # Import Phase 4 components (updated for Phase 8)
 from unified_llm_client import UnifiedLLMClient
 from llm_data_structures import AnalysisResult, APIStats
-
 # Import Phase 5 components
 from summary_generator import SummaryGenerator, PeriodSummary, SummaryStats
-
 # Import Phase 6 components
 from output_manager import OutputManager, OutputResult, ProcessingMetadata
-
 # Import Phase 7 components
 from logger import (
     JournalSummarizerLogger, LogConfig, LogLevel, ErrorCategory,
     create_logger_with_config
 )
-
 # Import Phase 8 components
 from config_manager import ConfigManager, AppConfig
 
@@ -326,7 +320,7 @@ def _perform_dry_run(args: argparse.Namespace, config: AppConfig, logger: Journa
         print(f"LLM connection test failed: {e}")
         print("❌ LLM API connection failed")
         logger.log_error_with_category(
-            ErrorCategory.API_ERROR,
+            ErrorCategory.API_FAILURE,
             f"Failed to create LLM client: {e}",
             recovery_action="Check LLM provider credentials and configuration"
         )
