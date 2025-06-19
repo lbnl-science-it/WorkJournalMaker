@@ -14,7 +14,7 @@ Key features:
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 import time
 
 
@@ -281,32 +281,159 @@ class FileDiscovery:
         discovered_directories.sort(key=lambda x: x[1])
         return discovered_directories
     
-    def _parse_week_ending_date(self, directory_name: str) -> date:
+    def _parse_week_ending_date(self, directory_name: str) -> Optional[date]:
         """
         Parse week_ending_YYYY-MM-DD directory name to extract date.
+        
+        This function extracts the date from directory names following the pattern
+        'week_ending_YYYY-MM-DD'. It performs robust validation and handles edge
+        cases like leap years and invalid dates gracefully.
         
         Args:
             directory_name: Directory name like "week_ending_2024-04-15"
             
         Returns:
-            date: Parsed date, or None if format is invalid
+            date: Parsed date object if format is valid, None otherwise
+            
+        Examples:
+            >>> _parse_week_ending_date("week_ending_2024-02-29")  # Leap year
+            date(2024, 2, 29)
+            >>> _parse_week_ending_date("week_ending_2023-02-29")  # Invalid leap year
+            None
+            >>> _parse_week_ending_date("invalid_format")
+            None
         """
+        # Handle non-string input gracefully
+        if not isinstance(directory_name, str):
+            return None
+            
+        # Check for correct prefix
         if not directory_name.startswith("week_ending_"):
             return None
         
         try:
-            # Extract date part after "week_ending_"
+            # Extract date part after "week_ending_" prefix
             date_str = directory_name[12:]  # Remove "week_ending_" prefix
+            
+            # Validate basic format: should have exactly 2 dashes
+            if date_str.count("-") != 2:
+                return None
             
             # Parse YYYY-MM-DD format
             parts = date_str.split("-")
             if len(parts) != 3:
                 return None
             
-            year, month, day = parts
-            return date(int(year), int(month), int(day))
+            # Extract and validate components
+            year_str, month_str, day_str = parts
+            
+            # Check for empty parts
+            if not all([year_str, month_str, day_str]):
+                return None
+            
+            # Convert to integers and validate ranges
+            try:
+                year = int(year_str)
+                month = int(month_str)
+                day = int(day_str)
+            except ValueError:
+                return None
+            
+            # Basic range validation before creating date object
+            if year < 1 or year > 9999:
+                return None
+            if month < 1 or month > 12:
+                return None
+            if day < 1 or day > 31:
+                return None
+            
+            # Create date object (this will validate leap years and month boundaries)
+            return date(year, month, day)
         
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, OverflowError):
+            # date() constructor will raise ValueError for invalid dates
+            # (e.g., Feb 29 in non-leap years, April 31st, etc.)
+            return None
+    
+    def _parse_file_date(self, filename: str) -> Optional[date]:
+        """
+        Parse worklog_YYYY-MM-DD.txt filename to extract date.
+        
+        This function extracts the date from worklog filenames following the pattern
+        'worklog_YYYY-MM-DD.txt'. It performs robust validation and handles edge
+        cases like leap years and invalid dates gracefully.
+        
+        Args:
+            filename: Filename like "worklog_2024-04-15.txt"
+            
+        Returns:
+            date: Parsed date object if format is valid, None otherwise
+            
+        Examples:
+            >>> _parse_file_date("worklog_2024-02-29.txt")  # Leap year
+            date(2024, 2, 29)
+            >>> _parse_file_date("worklog_2023-02-29.txt")  # Invalid leap year
+            None
+            >>> _parse_file_date("invalid_format.txt")
+            None
+        """
+        # Handle non-string input gracefully
+        if not isinstance(filename, str):
+            return None
+        
+        # Strip whitespace for flexibility
+        filename = filename.strip()
+            
+        # Check for correct prefix and suffix
+        if not filename.startswith("worklog_") or not filename.endswith(".txt"):
+            return None
+        
+        try:
+            # Extract date part between "worklog_" and ".txt"
+            # Remove "worklog_" prefix (8 chars) and ".txt" suffix (4 chars)
+            if len(filename) < 12:  # Minimum length check
+                return None
+                
+            date_str = filename[8:-4]  # Extract middle part
+            
+            # Validate basic format: should have exactly 2 dashes
+            if date_str.count("-") != 2:
+                return None
+            
+            # Parse YYYY-MM-DD format
+            parts = date_str.split("-")
+            if len(parts) != 3:
+                return None
+            
+            # Extract and validate components
+            year_str, month_str, day_str = parts
+            
+            # Check for empty parts
+            if not all([year_str, month_str, day_str]):
+                return None
+            
+            # Convert to integers and validate ranges
+            try:
+                year = int(year_str)
+                month = int(month_str)
+                day = int(day_str)
+            except ValueError:
+                return None
+            
+            # Basic range validation before creating date object
+            if year < 1 or year > 9999:
+                return None
+            if month < 1 or month > 12:
+                return None
+            if day < 1 or day > 31:
+                return None
+            
+            # Create date object (this will validate leap years and month boundaries)
+            return date(year, month, day)
+        
+        except (ValueError, TypeError, OverflowError):
+            # date() constructor will raise ValueError for invalid dates
+            # (e.g., Feb 29 in non-leap years, April 31st, etc.)
             return None
     
     def _get_years_in_range(self, start_date: date, end_date: date) -> List[int]:
