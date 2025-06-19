@@ -11,21 +11,42 @@ Key features:
 - Provides comprehensive discovery statistics
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import time
 
 
 @dataclass
 class FileDiscoveryResult:
-    """Result of file discovery operation with comprehensive statistics."""
+    """
+    Result of file discovery operation with comprehensive statistics.
+    
+    Enhanced for File Discovery Engine v2.0 with directory scanning capabilities.
+    Maintains backward compatibility with existing code.
+    """
+    # Original fields (maintained for backward compatibility)
     found_files: List[Path]
     missing_files: List[Path]
     total_expected: int
     date_range: Tuple[date, date]
     processing_time: float
+    
+    # New fields for directory-first discovery (v2.0)
+    discovered_weeks: List[Tuple[date, int]] = field(default_factory=list)
+    """
+    List of discovered week directories with file counts.
+    Each tuple contains (week_ending_date, file_count).
+    Empty list by default for backward compatibility.
+    """
+    
+    directory_scan_stats: Dict[str, int] = field(default_factory=dict)
+    """
+    Directory scanning statistics for debugging and monitoring.
+    Contains metrics like directories_scanned, valid_week_directories, etc.
+    Empty dict by default for backward compatibility.
+    """
 
 
 class FileDiscovery:
