@@ -195,3 +195,195 @@ class FileDiscovery:
         
         # Construct complete path
         return self.base_path / year_dir / month_dir / week_dir / filename
+    
+    def _discover_week_ending_directories(self, start_date: date, end_date: date) -> List[Tuple[Path, date]]:
+        """
+        Scan for week_ending_YYYY-MM-DD directories within date range.
+        
+        This method implements directory-first discovery to replace the flawed
+        date calculation approach. It scans the actual directory structure and
+        finds week_ending directories that fall within the specified date range.
+        
+        Args:
+            start_date: Start date of the range (inclusive)
+            end_date: End date of the range (inclusive)
+            
+        Returns:
+            List of (directory_path, week_ending_date) tuples sorted by date
+        """
+        discovered_directories = []
+        
+        try:
+            # Scan base directory for year directories
+            if not self.base_path.exists():
+                return discovered_directories
+                
+            for year_item in self.base_path.iterdir():
+                if not year_item.is_dir() or not year_item.name.startswith("worklogs_"):
+                    continue
+                
+                # Extract year from directory name
+                try:
+                    year_str = year_item.name.split("_")[1]
+                    year = int(year_str)
+                except (IndexError, ValueError):
+                    continue
+                
+                # Check if this year is in our date range
+                if not (start_date.year <= year <= end_date.year):
+                    continue
+                
+                try:
+                    # Scan year directory for month directories
+                    for month_item in year_item.iterdir():
+                        if not month_item.is_dir() or not month_item.name.startswith(f"worklogs_{year}-"):
+                            continue
+                        
+                        # Extract month from directory name
+                        try:
+                            month_str = month_item.name.split("-")[1]
+                            month = int(month_str)
+                        except (IndexError, ValueError):
+                            continue
+                        
+                        # Check if this month is relevant to our date range
+                        if not self._is_month_in_range(year, month, start_date, end_date):
+                            continue
+                        
+                        try:
+                            # Scan month directory for week directories
+                            for week_item in month_item.iterdir():
+                                if not week_item.is_dir():
+                                    continue
+                                
+                                # Parse week_ending date from directory name
+                                week_ending_date = self._parse_week_ending_date(week_item.name)
+                                if week_ending_date is None:
+                                    continue
+                                
+                                # Filter by date range
+                                if start_date <= week_ending_date <= end_date:
+                                    discovered_directories.append((week_item, week_ending_date))
+                        
+                        except (OSError, PermissionError):
+                            # Log error but continue processing other directories
+                            continue
+                
+                except (OSError, PermissionError):
+                    # Log error but continue processing other years
+                    continue
+        
+        except (OSError, PermissionError):
+            # Log error but return what we found so far
+            pass
+        
+        # Sort by date and return
+        discovered_directories.sort(key=lambda x: x[1])
+        return discovered_directories
+    
+    def _parse_week_ending_date(self, directory_name: str) -> date:
+        """
+        Parse week_ending_YYYY-MM-DD directory name to extract date.
+        
+        Args:
+            directory_name: Directory name like "week_ending_2024-04-15"
+            
+        Returns:
+            date: Parsed date, or None if format is invalid
+        """
+        if not directory_name.startswith("week_ending_"):
+            return None
+        
+        try:
+            # Extract date part after "week_ending_"
+            date_str = directory_name[12:]  # Remove "week_ending_" prefix
+            
+            # Parse YYYY-MM-DD format
+            parts = date_str.split("-")
+            if len(parts) != 3:
+                return None
+            
+            year, month, day = parts
+            return date(int(year), int(month), int(day))
+        
+        except (ValueError, TypeError):
+            return None
+    
+    def _get_years_in_range(self, start_date: date, end_date: date) -> List[int]:
+        """
+        Get all years that might contain files in the date range.
+        
+        Args:
+            start_date: Start date of the range
+            end_date: End date of the range
+            
+        Returns:
+            List of years to scan
+        """
+        years = []
+        for year in range(start_date.year, end_date.year + 1):
+            years.append(year)
+        return years
+    
+    def _get_months_in_year_range(self, year: int, start_date: date, end_date: date) -> List[int]:
+        """
+        Get all months in a specific year that might contain files in the date range.
+        
+        Args:
+            year: Year to get months for
+            start_date: Start date of the range
+            end_date: End date of the range
+            
+        Returns:
+            List of months (1-12) to scan in this year
+        """
+        months = []
+        
+        # Determine month range for this year
+        if year == start_date.year and year == end_date.year:
+            # Range is entirely within this year
+            start_month = start_date.month
+            end_month = end_date.month
+        elif year == start_date.year:
+            # This is the start year
+            start_month = start_date.month
+            end_month = 12
+        elif year == end_date.year:
+            # This is the end year
+            start_month = 1
+            end_month = end_date.month
+        else:
+            # This is a middle year
+            start_month = 1
+            end_month = 12
+        
+        for month in range(start_month, end_month + 1):
+            months.append(month)
+        
+        return months
+    
+    def _is_month_in_range(self, year: int, month: int, start_date: date, end_date: date) -> bool:
+        """
+        Check if a specific year/month combination is relevant to the date range.
+        
+        Args:
+            year: Year to check
+            month: Month to check (1-12)
+            start_date: Start date of the range
+            end_date: End date of the range
+            
+        Returns:
+            bool: True if this month might contain relevant dates
+        """
+        # Create first and last day of the month
+        try:
+            from calendar import monthrange
+            _, last_day = monthrange(year, month)
+            month_start = date(year, month, 1)
+            month_end = date(year, month, last_day)
+            
+            # Check if month overlaps with date range
+            return not (month_end < start_date or month_start > end_date)
+        except ValueError:
+            # Invalid date, skip this month
+            return False
