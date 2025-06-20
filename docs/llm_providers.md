@@ -40,102 +40,11 @@ Always test your setup with a dry run:
 python work_journal_summarizer.py --start-date 2024-01-01 --end-date 2024-01-07 --summary-type weekly --dry-run
 ```
 
-## AWS Bedrock Provider
-
-### Overview
-
-AWS Bedrock provides access to Claude models through Amazon's managed service. This is the **recommended provider for production environments**.
-
-### Prerequisites
-
-1. **AWS Account** with Bedrock access
-2. **AWS Credentials** configured (Access Key ID and Secret Access Key)
-3. **Model Access** granted in AWS Bedrock Console
-4. **Appropriate IAM Permissions** for Bedrock service
-
-### Step-by-Step Setup
-
-#### 1. Configure AWS Credentials
-
-**Option A: Environment Variables (Recommended)**
-```bash
-export AWS_ACCESS_KEY_ID="your-access-key-id"
-export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
-```
-
-**Option B: AWS CLI Configuration**
-```bash
-aws configure
-```
-
-**Option C: IAM Roles (for EC2/Lambda)**
-- Attach appropriate IAM role to your compute instance
-
-#### 2. Request Model Access
-
-1. Navigate to [AWS Bedrock Console](https://console.aws.amazon.com/bedrock/)
-2. Go to **"Model access"** in the left sidebar
-3. Find **"Anthropic Claude 3.5 Sonnet"** or your preferred model
-4. Click **"Request model access"**
-5. Fill out the use case form:
-   - **Use case**: "Work journal analysis and summarization"
-   - **Description**: "Automated analysis of daily work journals to extract projects, participants, tasks, and themes"
-6. Wait for approval (typically 5 minutes to 2 hours)
-
-#### 3. Configure the Application
-
-**Configuration File (`config.yaml`):**
-```yaml
-llm:
-  provider: bedrock
-
-bedrock:
-  region: us-east-2
-  model_id: anthropic.claude-3-5-sonnet-20241022-v2:0
-  aws_access_key_env: AWS_ACCESS_KEY_ID
-  aws_secret_key_env: AWS_SECRET_ACCESS_KEY
-  timeout: 30
-  max_retries: 3
-  rate_limit_delay: 1.0
-```
-
-**Environment Variables:**
-```bash
-export WJS_LLM_PROVIDER=bedrock
-export WJS_BEDROCK_REGION=us-east-2
-export WJS_BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
-```
-
-### Available Models
-
-| Model | Model ID | Use Case | Cost |
-|-------|----------|----------|------|
-| **Claude 3.5 Sonnet** | `anthropic.claude-3-5-sonnet-20241022-v2:0` | Best performance, production | Higher |
-| **Claude 3 Sonnet** | `anthropic.claude-3-sonnet-20240229-v1:0` | Good performance, balanced | Medium |
-| **Claude 3 Haiku** | `anthropic.claude-3-haiku-20240307-v1:0` | Fast responses, cost-effective | Lower |
-
-### Troubleshooting
-
-**"Access Denied" Error:**
-- Verify model access is granted in Bedrock Console
-- Check AWS credentials have Bedrock permissions
-- Ensure you're in the correct region
-
-**"Model Not Found" Error:**
-- Double-check the exact model ID
-- Verify the model is available in your region
-- Try listing available models in console
-
-**"Throttling" Errors:**
-- Increase `rate_limit_delay` in configuration
-- Reduce `batch_size` for processing
-- Consider upgrading to provisioned throughput
-
 ## Google GenAI Provider
 
 ### Overview
 
-Google GenAI provides access to Gemini models through Google Cloud's Vertex AI service. This is a **good option for development/testing** and environments already using GCP infrastructure.
+Google GenAI provides access to Gemini models through Google Cloud's Vertex AI service. This is currently the only tested and fully supported provider for the tool. 
 
 ### Prerequisites
 
@@ -235,6 +144,97 @@ export WJS_GOOGLE_GENAI_MODEL=gemini-2.0-flash-001
 - Verify project ID is correct
 - Ensure you have access to the project
 - Check project is active and billing is enabled
+
+## AWS Bedrock Provider
+
+### Overview
+
+AWS Bedrock provides access to Claude models through Amazon's managed service. THIS IS UNTESTED LIVE.  
+
+### Prerequisites
+
+1. **AWS Account** with Bedrock access
+2. **AWS Credentials** configured (Access Key ID and Secret Access Key)
+3. **Model Access** granted in AWS Bedrock Console
+4. **Appropriate IAM Permissions** for Bedrock service
+
+### Step-by-Step Setup
+
+#### 1. Configure AWS Credentials
+
+**Option A: Environment Variables (Recommended)**
+```bash
+export AWS_ACCESS_KEY_ID="your-access-key-id"
+export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
+```
+
+**Option B: AWS CLI Configuration**
+```bash
+aws configure
+```
+
+**Option C: IAM Roles (for EC2/Lambda)**
+- Attach appropriate IAM role to your compute instance
+
+#### 2. Request Model Access
+
+1. Navigate to [AWS Bedrock Console](https://console.aws.amazon.com/bedrock/)
+2. Go to **"Model access"** in the left sidebar
+3. Find **"Anthropic Claude 3.5 Sonnet"** or your preferred model
+4. Click **"Request model access"**
+5. Fill out the use case form:
+   - **Use case**: "Work journal analysis and summarization"
+   - **Description**: "Automated analysis of daily work journals to extract projects, participants, tasks, and themes"
+6. Wait for approval (typically 5 minutes to 2 hours)
+
+#### 3. Configure the Application
+
+**Configuration File (`config.yaml`):**
+```yaml
+llm:
+  provider: bedrock
+
+bedrock:
+  region: us-east-2
+  model_id: anthropic.claude-3-5-sonnet-20241022-v2:0
+  aws_access_key_env: AWS_ACCESS_KEY_ID
+  aws_secret_key_env: AWS_SECRET_ACCESS_KEY
+  timeout: 30
+  max_retries: 3
+  rate_limit_delay: 1.0
+```
+
+**Environment Variables:**
+```bash
+export WJS_LLM_PROVIDER=bedrock
+export WJS_BEDROCK_REGION=us-east-2
+export WJS_BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
+```
+
+### Available Models
+
+| Model | Model ID | Use Case | Cost |
+|-------|----------|----------|------|
+| **Claude 3.5 Sonnet** | `anthropic.claude-3-5-sonnet-20241022-v2:0` | Best performance, production | Higher |
+| **Claude 3 Sonnet** | `anthropic.claude-3-sonnet-20240229-v1:0` | Good performance, balanced | Medium |
+| **Claude 3 Haiku** | `anthropic.claude-3-haiku-20240307-v1:0` | Fast responses, cost-effective | Lower |
+
+### Troubleshooting
+
+**"Access Denied" Error:**
+- Verify model access is granted in Bedrock Console
+- Check AWS credentials have Bedrock permissions
+- Ensure you're in the correct region
+
+**"Model Not Found" Error:**
+- Double-check the exact model ID
+- Verify the model is available in your region
+- Try listing available models in console
+
+**"Throttling" Errors:**
+- Increase `rate_limit_delay` in configuration
+- Reduce `batch_size` for processing
+- Consider upgrading to provisioned throughput
 
 ## Provider Comparison
 
