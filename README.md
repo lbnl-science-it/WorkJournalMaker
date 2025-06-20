@@ -106,7 +106,7 @@ Application Flow:
 | Provider | Status | Best For | Setup Complexity | Performance |
 |----------|--------|----------|------------------|-------------|
 | **Google GenAI** | ✅ Production Ready | Development, GCP environments, cost-effective | Low | Excellent |
-| **AWS Bedrock** | ✅ Production Ready | AWS environments, enterprise | Medium | Excellent |
+| **AWS Bedrock** | NOT WORKING | AWS environments, enterprise | Medium | Excellent |
 
 ### Quick Provider Selection
 
@@ -777,7 +777,7 @@ The project maintains comprehensive test coverage with test suites covering:
 
 **Multi-Provider LLM Integration:**
 - ✅ Google GenAI client functionality and error handling
-- ✅ AWS Bedrock client functionality
+- [NOT TESTED ] Bedrock client functionality
 - ✅ Unified LLM client provider switching
 - ✅ Configuration management and validation
 - ✅ API retry logic and rate limiting
