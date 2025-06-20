@@ -16,6 +16,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 import time
+import os
 
 
 @dataclass
@@ -74,6 +75,9 @@ class FileDiscovery:
         """
         Discover all journal files in the specified date range.
         
+        Main discovery method using directory-first approach by default.
+        Falls back to legacy method if feature flag is disabled.
+        
         Args:
             start_date: Start date of the range (inclusive)
             end_date: End date of the range (inclusive)
@@ -81,12 +85,137 @@ class FileDiscovery:
         Returns:
             FileDiscoveryResult: Complete discovery results with statistics
         """
+        import os
+        
+        # Check feature flag for directory-first discovery
+        use_directory_first = os.environ.get('USE_DIRECTORY_FIRST_DISCOVERY', 'true').lower() == 'true'
+        
+        if use_directory_first:
+            return self._discover_files_directory_first(start_date, end_date)
+        else:
+            return self._discover_files_legacy(start_date, end_date)
+    
+    def _discover_files_directory_first(self, start_date: date, end_date: date) -> FileDiscoveryResult:
+        """
+        Directory-first discovery implementation (v2.0).
+        
+        This method implements the new directory-first approach that scans for
+        week_ending directories and extracts files from them, rather than
+        calculating expected paths for each date.
+        
+        Args:
+            start_date: Start date of the range (inclusive)
+            end_date: End date of the range (inclusive)
+            
+        Returns:
+            FileDiscoveryResult: Complete discovery results with enhanced statistics
+        """
+        start_time = time.time()
+        scan_start_time = time.time()
+        
+        # Initialize statistics tracking
+        directory_scan_stats = {
+            'directories_scanned': 0,
+            'valid_week_directories': 0,
+            'invalid_directories_skipped': 0,
+            'total_files_found': 0,
+            'scan_duration_ms': 0,
+            'cross_month_weeks': 0,
+            'format_variations_found': 0
+        }
+        
+        try:
+            # Step 1: Discover week_ending directories within date range
+            directories = self._discover_week_ending_directories(start_date, end_date)
+            directory_scan_stats['valid_week_directories'] = len(directories)
+            
+            # Step 2: Extract files from discovered directories
+            found_files, missing_files = self._extract_files_from_directories(directories, start_date, end_date)
+            directory_scan_stats['total_files_found'] = len(found_files)
+            
+            # Step 3: Build discovered_weeks statistics
+            discovered_weeks = []
+            for directory_path, week_ending_date in directories:
+                # Count files in this specific week directory that match our date range
+                week_file_count = 0
+                try:
+                    if directory_path.exists():
+                        for item in directory_path.iterdir():
+                            if item.is_file() and item.suffix.lower() == '.txt':
+                                file_date = self._parse_file_date(item.name)
+                                if file_date and start_date <= file_date <= end_date:
+                                    week_file_count += 1
+                except (OSError, PermissionError):
+                    pass  # Skip directories we can't access
+                
+                discovered_weeks.append((week_ending_date, week_file_count))
+                
+                # Track cross-month weeks
+                if week_ending_date.month != (week_ending_date - timedelta(days=6)).month:
+                    directory_scan_stats['cross_month_weeks'] += 1
+            
+            # Sort discovered weeks chronologically
+            discovered_weeks.sort(key=lambda x: x[0])
+            
+            # Step 4: Calculate additional statistics
+            directory_scan_stats['scan_duration_ms'] = int((time.time() - scan_start_time) * 1000)
+            
+            # Count directories scanned (estimate based on date range)
+            years_in_range = set(range(start_date.year, end_date.year + 1))
+            months_in_range = set()
+            for year in years_in_range:
+                year_months = self._get_months_in_year_range(year, start_date, end_date)
+                months_in_range.update([(year, month) for month in year_months])
+            directory_scan_stats['directories_scanned'] = len(months_in_range)
+            
+            # Generate expected date range for total_expected calculation
+            date_range = self._generate_date_range(start_date, end_date)
+            total_expected = len(date_range)
+            
+        except Exception as e:
+            # Handle any unexpected errors gracefully
+            directory_scan_stats['scan_errors'] = 1
+            directory_scan_stats['error_message'] = str(e)
+            
+            # Fallback to basic results
+            found_files = []
+            missing_files = []
+            discovered_weeks = []
+            date_range = self._generate_date_range(start_date, end_date)
+            total_expected = len(date_range)
+        
+        processing_time = time.time() - start_time
+        
+        return FileDiscoveryResult(
+            found_files=found_files,
+            missing_files=missing_files,
+            total_expected=total_expected,
+            date_range=(start_date, end_date),
+            processing_time=processing_time,
+            discovered_weeks=discovered_weeks,
+            directory_scan_stats=directory_scan_stats
+        )
+    
+    def _discover_files_legacy(self, start_date: date, end_date: date) -> FileDiscoveryResult:
+        """
+        Legacy discovery implementation (original method).
+        
+        This method maintains the original date-calculation approach for
+        backward compatibility when the feature flag is disabled.
+        
+        Args:
+            start_date: Start date of the range (inclusive)
+            end_date: End date of the range (inclusive)
+            
+        Returns:
+            FileDiscoveryResult: Discovery results with empty new fields
+        """
         start_time = time.time()
         
         # Generate all dates in the range
         date_range = self._generate_date_range(start_date, end_date)
         
-        # Discover files for each date
+        # Discover files for each date using original method
         found_files = []
         missing_files = []
         
@@ -102,12 +231,15 @@ class FileDiscovery:
         
         processing_time = time.time() - start_time
         
+        # Return with empty new fields for backward compatibility
         return FileDiscoveryResult(
             found_files=found_files,
             missing_files=missing_files,
             total_expected=len(date_range),
             date_range=(start_date, end_date),
-            processing_time=processing_time
+            processing_time=processing_time,
+            discovered_weeks=[],  # Empty for legacy method
+            directory_scan_stats={}  # Empty for legacy method
         )
     
     def _generate_date_range(self, start_date: date, end_date: date) -> List[date]:
@@ -137,6 +269,10 @@ class FileDiscovery:
         This method is kept for backward compatibility but should not be used
         for file discovery. Use _calculate_week_ending_for_date instead.
         
+        Migration Guide:
+        - Replace calls to _calculate_week_ending() with _calculate_week_ending_for_date()
+        - Use directory-first discovery by setting USE_DIRECTORY_FIRST_DISCOVERY=true
+        
         Args:
             start_date: Start date of the work period
             end_date: End date of the work period
@@ -144,6 +280,14 @@ class FileDiscovery:
         Returns:
             date: The end date of the work period (used for week_ending directory)
         """
+        import warnings
+        warnings.warn(
+            "FileDiscovery._calculate_week_ending() is deprecated. "
+            "Use _calculate_week_ending_for_date() or enable directory-first discovery "
+            "with USE_DIRECTORY_FIRST_DISCOVERY=true environment variable.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return end_date
     
     def _calculate_week_ending_for_date(self, target_date: date) -> date:
