@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 import time
 import os
+import logging
 
 
 @dataclass
@@ -75,8 +76,8 @@ class FileDiscovery:
         """
         Discover all journal files in the specified date range.
         
-        Main discovery method using directory-first approach by default.
-        Falls back to legacy method if feature flag is disabled.
+        Uses directory-first approach that scans for week_ending directories
+        and extracts files from them, providing robust file discovery.
         
         Args:
             start_date: Start date of the range (inclusive)
@@ -85,15 +86,9 @@ class FileDiscovery:
         Returns:
             FileDiscoveryResult: Complete discovery results with statistics
         """
-        import os
-        
-        # Check feature flag for directory-first discovery
-        use_directory_first = os.environ.get('USE_DIRECTORY_FIRST_DISCOVERY', 'true').lower() == 'true'
-        
-        if use_directory_first:
-            return self._discover_files_directory_first(start_date, end_date)
-        else:
-            return self._discover_files_legacy(start_date, end_date)
+        result = self._discover_files_directory_first(start_date, end_date)
+        self._log_discovery_operation('directory_first', start_date, end_date, result)
+        return result
     
     def _discover_files_directory_first(self, start_date: date, end_date: date) -> FileDiscoveryResult:
         """
@@ -196,51 +191,6 @@ class FileDiscovery:
             directory_scan_stats=directory_scan_stats
         )
     
-    def _discover_files_legacy(self, start_date: date, end_date: date) -> FileDiscoveryResult:
-        """
-        Legacy discovery implementation (original method).
-        
-        This method maintains the original date-calculation approach for
-        backward compatibility when the feature flag is disabled.
-        
-        Args:
-            start_date: Start date of the range (inclusive)
-            end_date: End date of the range (inclusive)
-            
-        Returns:
-            FileDiscoveryResult: Discovery results with empty new fields
-        """
-        start_time = time.time()
-        
-        # Generate all dates in the range
-        date_range = self._generate_date_range(start_date, end_date)
-        
-        # Discover files for each date using original method
-        found_files = []
-        missing_files = []
-        
-        for target_date in date_range:
-            # Calculate week ending date for THIS specific file
-            week_ending_date = self._calculate_week_ending_for_date(target_date)
-            file_path = self._construct_file_path(target_date, week_ending_date)
-            
-            if file_path.exists():
-                found_files.append(file_path)
-            else:
-                missing_files.append(file_path)
-        
-        processing_time = time.time() - start_time
-        
-        # Return with empty new fields for backward compatibility
-        return FileDiscoveryResult(
-            found_files=found_files,
-            missing_files=missing_files,
-            total_expected=len(date_range),
-            date_range=(start_date, end_date),
-            processing_time=processing_time,
-            discovered_weeks=[],  # Empty for legacy method
-            directory_scan_stats={}  # Empty for legacy method
-        )
     
     def _generate_date_range(self, start_date: date, end_date: date) -> List[date]:
         """
@@ -262,33 +212,6 @@ class FileDiscovery:
         
         return dates
     
-    def _calculate_week_ending(self, start_date: date, end_date: date) -> date:
-        """
-        DEPRECATED: Calculate week ending date based on the work period end date.
-        
-        This method is kept for backward compatibility but should not be used
-        for file discovery. Use _calculate_week_ending_for_date instead.
-        
-        Migration Guide:
-        - Replace calls to _calculate_week_ending() with _calculate_week_ending_for_date()
-        - Use directory-first discovery by setting USE_DIRECTORY_FIRST_DISCOVERY=true
-        
-        Args:
-            start_date: Start date of the work period
-            end_date: End date of the work period
-            
-        Returns:
-            date: The end date of the work period (used for week_ending directory)
-        """
-        import warnings
-        warnings.warn(
-            "FileDiscovery._calculate_week_ending() is deprecated. "
-            "Use _calculate_week_ending_for_date() or enable directory-first discovery "
-            "with USE_DIRECTORY_FIRST_DISCOVERY=true environment variable.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        return end_date
     
     def _calculate_week_ending_for_date(self, target_date: date) -> date:
         """
@@ -830,3 +753,289 @@ class FileDiscovery:
                 return Path(str(first_directory)) / filename
         
         return None
+    
+    def compare_discovery_results(self, result1: FileDiscoveryResult, result2: FileDiscoveryResult,
+                                detailed: bool = False) -> Dict[str, any]:
+        """
+        Compare two FileDiscoveryResult objects to validate migration effectiveness.
+        
+        This method provides comprehensive comparison between old and new discovery results
+        to ensure the migration maintains or improves file discovery capabilities.
+        
+        Args:
+            result1: First discovery result (typically legacy method)
+            result2: Second discovery result (typically directory-first method)
+            detailed: If True, provides detailed file-by-file analysis
+            
+        Returns:
+            Dict containing comparison metrics and analysis
+            
+        Examples:
+            >>> old_result = discovery.discover_files_legacy(start_date, end_date)
+            >>> new_result = discovery.discover_files_directory_first(start_date, end_date)
+            >>> comparison = discovery.compare_discovery_results(old_result, new_result)
+            >>> print(f"Files match: {comparison['files_match']}")
+        """
+        comparison = {
+            'files_match': False,
+            'found_files_diff': 0,
+            'missing_files_diff': 0,
+            'total_expected_diff': 0,
+            'processing_time_diff': 0.0,
+            'success_rate_1': 0.0,
+            'success_rate_2': 0.0,
+            'success_rate_improvement': 0.0
+        }
+        
+        try:
+            # Calculate basic metrics
+            found_1 = len(result1.found_files)
+            found_2 = len(result2.found_files)
+            missing_1 = len(result1.missing_files)
+            missing_2 = len(result2.missing_files)
+            
+            comparison['found_files_diff'] = found_2 - found_1
+            comparison['missing_files_diff'] = missing_2 - missing_1
+            comparison['total_expected_diff'] = result2.total_expected - result1.total_expected
+            comparison['processing_time_diff'] = result2.processing_time - result1.processing_time
+            
+            # Calculate success rates
+            if result1.total_expected > 0:
+                comparison['success_rate_1'] = found_1 / result1.total_expected
+            if result2.total_expected > 0:
+                comparison['success_rate_2'] = found_2 / result2.total_expected
+            
+            comparison['success_rate_improvement'] = comparison['success_rate_2'] - comparison['success_rate_1']
+            
+            # Check if files match exactly
+            found_files_1 = set(str(p) for p in result1.found_files)
+            found_files_2 = set(str(p) for p in result2.found_files)
+            missing_files_1 = set(str(p) for p in result1.missing_files)
+            missing_files_2 = set(str(p) for p in result2.missing_files)
+            
+            comparison['files_match'] = (found_files_1 == found_files_2 and
+                                       missing_files_1 == missing_files_2)
+            
+            # Detailed analysis if requested
+            if detailed:
+                comparison['only_in_first'] = {
+                    'found_files': [Path(p) for p in found_files_1 - found_files_2],
+                    'missing_files': [Path(p) for p in missing_files_1 - missing_files_2]
+                }
+                comparison['only_in_second'] = {
+                    'found_files': [Path(p) for p in found_files_2 - found_files_1],
+                    'missing_files': [Path(p) for p in missing_files_2 - missing_files_1]
+                }
+                
+                # Enhanced statistics for directory-first method
+                if hasattr(result2, 'directory_scan_stats') and result2.directory_scan_stats:
+                    comparison['directory_scan_stats'] = result2.directory_scan_stats.copy()
+                
+                if hasattr(result2, 'discovered_weeks') and result2.discovered_weeks:
+                    comparison['discovered_weeks_count'] = len(result2.discovered_weeks)
+                    comparison['total_week_files'] = sum(count for _, count in result2.discovered_weeks)
+        
+        except Exception as e:
+            # Handle comparison errors gracefully
+            comparison['comparison_error'] = str(e)
+            logging.warning(f"Error comparing discovery results: {e}")
+        
+        return comparison
+    
+    def validate_migration_success_criteria(self, old_result: FileDiscoveryResult,
+                                          new_result: FileDiscoveryResult) -> Dict[str, any]:
+        """
+        Validate that migration meets the defined success criteria.
+        
+        Success criteria from blueprint:
+        - File discovery success rate: 1.5% → 95%+
+        - Processing time: Maintain under 1 second for year-long ranges
+        - Error rate reduction: Fewer file system warnings
+        
+        Args:
+            old_result: Result from legacy discovery method
+            new_result: Result from directory-first discovery method
+            
+        Returns:
+            Dict containing validation results and recommendations
+        """
+        validation = {
+            'meets_success_criteria': False,
+            'success_rate_improvement': 0.0,
+            'performance_improvement': 0.0,
+            'file_discovery_improvement': 0,
+            'recommendations': []
+        }
+        
+        try:
+            # Calculate success rates
+            old_success_rate = (len(old_result.found_files) / old_result.total_expected
+                              if old_result.total_expected > 0 else 0)
+            new_success_rate = (len(new_result.found_files) / new_result.total_expected
+                              if new_result.total_expected > 0 else 0)
+            
+            validation['success_rate_improvement'] = new_success_rate - old_success_rate
+            
+            # Calculate performance improvement (negative means faster)
+            validation['performance_improvement'] = old_result.processing_time - new_result.processing_time
+            
+            # Calculate file discovery improvement
+            validation['file_discovery_improvement'] = len(new_result.found_files) - len(old_result.found_files)
+            
+            # Check success criteria
+            criteria_met = []
+            
+            # Criterion 1: Success rate improvement
+            if new_success_rate >= 0.95:  # 95%+ success rate
+                criteria_met.append("High success rate achieved")
+            elif validation['success_rate_improvement'] > 0:
+                criteria_met.append("Success rate improved")
+            else:
+                validation['recommendations'].append("Success rate needs improvement")
+            
+            # Criterion 2: Performance maintained or improved
+            if new_result.processing_time <= 1.0:  # Under 1 second
+                criteria_met.append("Performance target met")
+            elif validation['performance_improvement'] >= 0:
+                criteria_met.append("Performance maintained or improved")
+            else:
+                validation['recommendations'].append("Performance regression detected")
+            
+            # Criterion 3: File discovery improvement
+            if validation['file_discovery_improvement'] >= 0:
+                criteria_met.append("File discovery maintained or improved")
+            else:
+                validation['recommendations'].append("File discovery regression detected")
+            
+            # Overall assessment
+            validation['meets_success_criteria'] = (
+                len(criteria_met) >= 2 and  # At least 2 criteria met
+                len(validation['recommendations']) == 0  # No critical issues
+            )
+            
+            validation['criteria_met'] = criteria_met
+            
+            # Add specific recommendations based on results
+            if new_success_rate < 0.50:  # Less than 50% success rate
+                validation['recommendations'].append("Check base path and directory structure")
+            
+            if new_result.processing_time > 2.0:  # More than 2 seconds
+                validation['recommendations'].append("Consider optimizing directory scanning")
+            
+            # Log validation results for monitoring
+            self._log_migration_validation(validation, old_result, new_result)
+        
+        except Exception as e:
+            validation['validation_error'] = str(e)
+            logging.error(f"Error validating migration success criteria: {e}")
+        
+        return validation
+    
+    def _log_migration_validation(self, validation: Dict[str, any],
+                                old_result: FileDiscoveryResult,
+                                new_result: FileDiscoveryResult):
+        """
+        Log migration validation results for monitoring and debugging.
+        
+        Args:
+            validation: Validation results from validate_migration_success_criteria
+            old_result: Legacy discovery result
+            new_result: Directory-first discovery result
+        """
+        try:
+            # Log overall validation result
+            if validation['meets_success_criteria']:
+                logging.info(
+                    f"Migration validation PASSED - "
+                    f"Success rate improvement: {validation['success_rate_improvement']:.2%}, "
+                    f"Performance improvement: {validation['performance_improvement']:.3f}s, "
+                    f"File discovery improvement: {validation['file_discovery_improvement']} files"
+                )
+            else:
+                logging.warning(
+                    f"Migration validation FAILED - "
+                    f"Recommendations: {', '.join(validation['recommendations'])}"
+                )
+            
+            # Log detailed metrics for monitoring
+            logging.info(
+                f"Discovery comparison metrics - "
+                f"Old: {len(old_result.found_files)}/{old_result.total_expected} files "
+                f"({len(old_result.found_files)/old_result.total_expected:.1%} success) "
+                f"in {old_result.processing_time:.3f}s, "
+                f"New: {len(new_result.found_files)}/{new_result.total_expected} files "
+                f"({len(new_result.found_files)/new_result.total_expected:.1%} success) "
+                f"in {new_result.processing_time:.3f}s"
+            )
+            
+            # Log directory scan statistics if available
+            if hasattr(new_result, 'directory_scan_stats') and new_result.directory_scan_stats:
+                stats = new_result.directory_scan_stats
+                logging.info(
+                    f"Directory scan statistics - "
+                    f"Directories scanned: {stats.get('directories_scanned', 0)}, "
+                    f"Valid week directories: {stats.get('valid_week_directories', 0)}, "
+                    f"Files found: {stats.get('total_files_found', 0)}, "
+                    f"Scan duration: {stats.get('scan_duration_ms', 0)}ms"
+                )
+        
+        except Exception as e:
+            logging.error(f"Error logging migration validation: {e}")
+    
+    def _log_discovery_operation(self, method_name: str, start_date: date, end_date: date,
+                               result: FileDiscoveryResult):
+        """
+        Log discovery operation details for monitoring and debugging.
+        
+        Args:
+            method_name: Name of the discovery method used
+            start_date: Start date of discovery range
+            end_date: End date of discovery range
+            result: Discovery result
+        """
+        try:
+            # Calculate date range span
+            date_span = (end_date - start_date).days + 1
+            success_rate = (len(result.found_files) / result.total_expected
+                          if result.total_expected > 0 else 0)
+            
+            # Log operation summary
+            logging.info(
+                f"File discovery completed - "
+                f"Method: {method_name}, "
+                f"Date range: {start_date} to {end_date} ({date_span} days), "
+                f"Results: {len(result.found_files)}/{result.total_expected} files "
+                f"({success_rate:.1%} success), "
+                f"Processing time: {result.processing_time:.3f}s"
+            )
+            
+            
+            # Log performance warnings
+            if result.processing_time > 1.0:
+                logging.warning(
+                    f"Slow discovery operation: {result.processing_time:.3f}s "
+                    f"for {date_span} day range"
+                )
+            
+            if success_rate < 0.5:
+                logging.warning(
+                    f"Low success rate: {success_rate:.1%} "
+                    f"({len(result.found_files)}/{result.total_expected} files found)"
+                )
+            
+            # Log directory scan statistics for directory-first method
+            if hasattr(result, 'directory_scan_stats') and result.directory_scan_stats:
+                stats = result.directory_scan_stats
+                if stats.get('scan_errors', 0) > 0:
+                    logging.error(
+                        f"Directory scan errors: {stats.get('error_message', 'Unknown error')}"
+                    )
+                
+                # Log cross-month weeks for debugging complex scenarios
+                if stats.get('cross_month_weeks', 0) > 0:
+                    logging.info(
+                        f"Cross-month weeks detected: {stats.get('cross_month_weeks', 0)}"
+                    )
+        
+        except Exception as e:
+            logging.error(f"Error logging discovery operation: {e}")
