@@ -39,28 +39,90 @@ class GoogleGenAIClient:
     
     # Analysis prompt template for Gemini (same structure as BedrockClient)
     ANALYSIS_PROMPT = """
-Analyze the following work journal entry and extract structured information.
+You are an expert administrative assistant responsible for summarizing work journals. Your task is to transform a collection of raw, daily work log entries from a single week into a clean, consolidated,bulleted list of key accomplishments.
 
-JOURNAL CONTENT:
-{content}
+Follow these rules precisely:
 
-Extract the following information and respond with valid JSON only:
+1.  **FILTERING:**
+    * IGNORE any lines listed under a "To Do:" heading.
+    * IGNORE any meaningless fragments or stray characters (e.g., "??").
+    * KEEP entries that describe work done on a previous day (e.g., "Yesterday -- work on...").
 
-{{
-  "projects": ["list of project names, both formal and informal"],
-  "participants": ["list of people mentioned in any format"],
-  "tasks": ["list of specific tasks, activities, or work items"],
-  "themes": ["list of major topics, themes, or focus areas"]
-}}
+2.  **GROUPING:**
+    * Read all filtered entries and group them by topic.
+    * A topic is identified by a capitalized project name (e.g., "AI Parser", "CBORG"), a technology (e.g., "Amazon Bedrock"), or the name of a person being assisted (e.g., "Anna Wannemacher"). All related entries for a single topic should be consolidated.
 
-Guidelines:
-- Include both formal project names and informal references
-- Capture names in various formats (full names, first names, initials)
-- Focus on concrete tasks and activities, not abstract concepts
-- Identify recurring themes and topics
-- Return empty arrays if no entities found in a category
-- Ensure response is valid JSON format
+3.  **SUMMARIZATION:**
+    * For each topic, generate a single, descriptive bullet point.
+    * If the work involves fixing an issue, phrase the summary to describe the "problem and solution."
+    * For all other work, "describe the work done."
+    * Do NOT include any code snippets in the final output.
+
+Here is an example of how to perform the task:
+
+<example>
+<input>
+2024-07-22
+Office Hours
+Anna Wannemacher
+Loading qchem -- is it the module load qchem/
+Inputted something to run for a month. Node status indicated too long?
+When changed to a shorter time it started running.
+AI Parser -- see work log.
+
+2024-07-24
+Yesterday -- work on AI parser.
+Working with Andy on getting Claude back up and running:
+Amazon Bedrock
+When you go to CBORG chat, it's talking with Anthropic API. Proxy server for the API>
+Rancher cluster -- liteLLM is the proxy server.
+To Do:
+- Email post docs
+
+2024-07-26
+Yesterday -- work on claude-engineer try to get it to make fewer API calls.
+Problem is with the tooling calls to the chat api? ??
+Edited it to reformat the tools array to fit the openAI chat API.
+</input>
+<output>
+* Assisted user Anna Wannemacher in troubleshooting a `qchem` job failure on the cluster, identifying and resolving an issue with the requested runtime exceeding the system's maximum wall time limit.
+* Continued development work on the AI Parser project.
+* Worked with Andy to resolve an issue with the CBORG/Claude chat service by diagnosing the authentication flow through the liteLLM proxy server on the Rancher cluster to Amazon Bedrock.
+* Modified the `claude-engineer` fork to reduce API calls by reformatting the tooling array to align with the chat API specification.
+</output>
+</example>
+
+Now, process the following work logs using the same format.
+
+<input>
+{{content}}
+</input>
+<output>
 """
+    
+#    ANALYSIS_PROMPT = """
+#Analyze the following work journal entry and extract structured information.
+#
+#JOURNAL CONTENT:
+#{content}
+#
+#Extract the following information and respond with valid JSON only:
+#
+#{{
+#  "projects": ["list of project names, both formal and informal"],
+#  "participants": ["list of people mentioned in any format"],
+#  "tasks": ["list of specific tasks, activities, or work items"],
+#  "themes": ["list of major topics, themes, or focus areas"]
+#}}
+#
+#Guidelines:
+#- Include both formal project names and informal references
+#- Capture names in various formats (full names, first names, initials)
+#- Focus on concrete tasks and activities, not abstract concepts
+#- Identify recurring themes and topics
+#- Return empty arrays if no entities found in a category
+#- Ensure response is valid JSON format
+#"""
 
     def __init__(self, config: GoogleGenAIConfig):
         """
