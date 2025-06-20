@@ -911,8 +911,7 @@ This project follows Test-Driven Development (TDD) principles:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
+TBD 
 ## Changelog
 
 ### v2.0.0 (2025-06-19)
