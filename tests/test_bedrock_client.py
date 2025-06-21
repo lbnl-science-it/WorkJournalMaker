@@ -393,6 +393,28 @@ End of analysis.'''
                 assert request_body['messages'][0]['content'] == test_prompt
                 assert request_body['temperature'] == 0.1
                 assert request_body['top_p'] == 0.9
+    
+    def test_get_provider_info(self, bedrock_config):
+        """Test get_provider_info returns correct bedrock-specific information."""
+        with patch.dict('os.environ', {
+            'AWS_ACCESS_KEY_ID': 'test-access-key',
+            'AWS_SECRET_ACCESS_KEY': 'test-secret-key'
+        }):
+            with patch('boto3.client'):
+                bedrock_client = BedrockClient(bedrock_config)
+                
+                provider_info = bedrock_client.get_provider_info()
+                
+                expected_info = {
+                    "provider": "bedrock",
+                    "region": bedrock_config.region,
+                    "model_id": bedrock_config.model_id
+                }
+                
+                assert provider_info == expected_info
+                assert provider_info["provider"] == "bedrock"
+                assert provider_info["region"] == bedrock_config.region
+                assert provider_info["model_id"] == bedrock_config.model_id
 
 
 if __name__ == '__main__':
