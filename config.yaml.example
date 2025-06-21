@@ -4,7 +4,17 @@
 # This is an example configuration file showing all available options.
 # Copy this file to config.yaml and customize as needed.
 
+# LLM Provider Configuration
+# Choose which LLM provider to use for content analysis
+llm:
+  # Provider options: "bedrock" or "google_genai"
+  # - bedrock: AWS Bedrock with Claude models (default, recommended for production)
+  # - google_genai: Google GenAI with Gemini models (good for development/testing)
+  provider: bedrock
+
 # AWS Bedrock Configuration
+# Used when llm.provider is set to "bedrock"
+# Prerequisites: AWS account with Bedrock access, AWS credentials configured
 bedrock:
   # AWS region for Bedrock service
   region: us-east-2
@@ -24,6 +34,19 @@ bedrock:
   
   # Delay between rate-limited requests (seconds)
   rate_limit_delay: 1.0
+
+# Google GenAI Configuration
+# Used when llm.provider is set to "google_genai"
+# Prerequisites: GCP project with GenAI API enabled, Application Default Credentials configured
+google_genai:
+  # GCP project ID where GenAI API is enabled
+  project: geminijournal-463220
+  
+  # GCP region/location for GenAI service
+  location: us-central1
+  
+  # Gemini model to use for content analysis
+  model: gemini-2.0-flash-001
 
 # File Processing Configuration
 processing:
@@ -71,12 +94,31 @@ logging:
 # Environment Variable Overrides
 # You can override any configuration value using environment variables:
 #
+# LLM Provider Configuration:
+# WJS_LLM_PROVIDER=google_genai
+#
+# AWS Bedrock Configuration:
 # WJS_BEDROCK_REGION=us-west-2
 # WJS_BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
+#
+# Google GenAI Configuration:
+# WJS_GOOGLE_GENAI_PROJECT=your-gcp-project-id
+# WJS_GOOGLE_GENAI_LOCATION=us-central1
+# WJS_GOOGLE_GENAI_MODEL=gemini-2.0-flash-001
+#
+# File Processing Configuration:
 # WJS_BASE_PATH=/custom/journal/path
 # WJS_OUTPUT_PATH=/custom/output/path
 # WJS_MAX_FILE_SIZE_MB=100
+#
+# Logging Configuration:
 # WJS_LOG_LEVEL=DEBUG
 # WJS_LOG_DIR=/custom/log/path
 #
 # Environment variables take precedence over configuration file values.
+#
+# Provider Selection Guide:
+# - Use "bedrock" for production environments with AWS infrastructure
+# - Use "google_genai" for development/testing or when using GCP infrastructure
+# - Both providers offer similar functionality with different cost structures
+# - Switch providers by changing the llm.provider value or WJS_LLM_PROVIDER environment variable
