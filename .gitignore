@@ -133,3 +133,4 @@ dmypy.json
 config.yaml
 config.json
 .DS_Store
+local_summaries/
