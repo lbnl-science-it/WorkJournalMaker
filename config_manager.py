@@ -35,6 +35,20 @@ class BedrockConfig:
 
 
 @dataclass
+class GoogleGenAIConfig:
+    """Configuration for Google GenAI API integration."""
+    project: str = "geminijournal-463220"
+    location: str = "us-central1"
+    model: str = "gemini-2.0-flash-001"
+
+
+@dataclass
+class LLMConfig:
+    """Configuration for LLM provider selection."""
+    provider: str = "bedrock"  # Options: "bedrock" or "google_genai"
+
+
+@dataclass
 class ProcessingConfig:
     """Configuration for file processing and content handling."""
     base_path: str = "~/Desktop/worklogs/"
@@ -48,6 +62,8 @@ class ProcessingConfig:
 class AppConfig:
     """Complete application configuration."""
     bedrock: BedrockConfig = field(default_factory=BedrockConfig)
+    google_genai: GoogleGenAIConfig = field(default_factory=GoogleGenAIConfig)
+    llm: LLMConfig = field(default_factory=LLMConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     logging: LogConfig = field(default_factory=LogConfig)
 
@@ -157,6 +173,10 @@ class ConfigManager:
         env_mappings = {
             'WJS_BEDROCK_REGION': ['bedrock', 'region'],
             'WJS_BEDROCK_MODEL_ID': ['bedrock', 'model_id'],
+            'WJS_GOOGLE_GENAI_PROJECT': ['google_genai', 'project'],
+            'WJS_GOOGLE_GENAI_LOCATION': ['google_genai', 'location'],
+            'WJS_GOOGLE_GENAI_MODEL': ['google_genai', 'model'],
+            'WJS_LLM_PROVIDER': ['llm', 'provider'],
             'WJS_BASE_PATH': ['processing', 'base_path'],
             'WJS_OUTPUT_PATH': ['processing', 'output_path'],
             'WJS_MAX_FILE_SIZE_MB': ['processing', 'max_file_size_mb'],
@@ -207,6 +227,20 @@ class ConfigManager:
             rate_limit_delay=bedrock_dict.get('rate_limit_delay', BedrockConfig.rate_limit_delay)
         )
         
+        # Extract Google GenAI configuration
+        google_genai_dict = config_dict.get('google_genai', {})
+        google_genai_config = GoogleGenAIConfig(
+            project=google_genai_dict.get('project', GoogleGenAIConfig.project),
+            location=google_genai_dict.get('location', GoogleGenAIConfig.location),
+            model=google_genai_dict.get('model', GoogleGenAIConfig.model)
+        )
+        
+        # Extract LLM configuration
+        llm_dict = config_dict.get('llm', {})
+        llm_config = LLMConfig(
+            provider=llm_dict.get('provider', LLMConfig.provider)
+        )
+        
         # Extract processing configuration
         processing_dict = config_dict.get('processing', {})
         processing_config = ProcessingConfig(
@@ -240,6 +274,8 @@ class ConfigManager:
         
         return AppConfig(
             bedrock=bedrock_config,
+            google_genai=google_genai_config,
+            llm=llm_config,
             processing=processing_config,
             logging=logging_config
         )
@@ -254,6 +290,11 @@ class ConfigManager:
         Raises:
             ValueError: If configuration is invalid
         """
+        # Validate LLM provider
+        valid_providers = ["bedrock", "google_genai"]
+        if config.llm.provider not in valid_providers:
+            raise ValueError(f"Invalid LLM provider '{config.llm.provider}'. Must be one of: {valid_providers}")
+        
         # Validate paths exist or can be created
         base_path = Path(config.processing.base_path).expanduser()
         output_path = Path(config.processing.output_path).expanduser()
@@ -278,12 +319,25 @@ class ConfigManager:
         if config.bedrock.max_retries < 0:
             raise ValueError("bedrock max_retries cannot be negative")
         
-        # Check API credentials availability
-        self._check_api_credentials(config)
+        # Validate Google GenAI configuration
+        if not config.google_genai.project:
+            raise ValueError("Google GenAI project cannot be empty")
+        
+        if not config.google_genai.location:
+            raise ValueError("Google GenAI location cannot be empty")
+        
+        if not config.google_genai.model:
+            raise ValueError("Google GenAI model cannot be empty")
+        
+        # Check API credentials availability based on provider
+        if config.llm.provider == "bedrock":
+            self._check_bedrock_credentials(config)
+        elif config.llm.provider == "google_genai":
+            self._check_google_genai_credentials(config)
     
-    def _check_api_credentials(self, config: AppConfig) -> None:
+    def _check_bedrock_credentials(self, config: AppConfig) -> None:
         """
-        Verify API credentials are available.
+        Verify AWS Bedrock credentials are available.
         
         Args:
             config: Configuration to check
@@ -304,6 +358,31 @@ class ConfigManager:
                 f"AWS secret key not found in environment variable: {config.bedrock.aws_secret_key_env}"
             )
     
+    def _check_google_genai_credentials(self, config: AppConfig) -> None:
+        """
+        Verify Google GenAI credentials are available.
+        
+        Args:
+            config: Configuration to check
+            
+        Note:
+            Google GenAI uses Application Default Credentials (ADC) or service account keys.
+            This method provides guidance but doesn't enforce specific credential methods.
+        """
+        # Check for common Google Cloud credential environment variables
+        google_creds_env_vars = [
+            'GOOGLE_APPLICATION_CREDENTIALS',
+            'GOOGLE_CLOUD_PROJECT',
+            'GCLOUD_PROJECT'
+        ]
+        
+        has_credentials = any(os.getenv(var) for var in google_creds_env_vars)
+        
+        if not has_credentials:
+            print("Warning: No Google Cloud credentials detected in environment variables.")
+            print("Ensure you have set up Application Default Credentials (ADC) or")
+            print("set GOOGLE_APPLICATION_CREDENTIALS to point to your service account key file.")
+    
     def get_config(self) -> AppConfig:
         """
         Get the current configuration.
@@ -321,12 +400,20 @@ class ConfigManager:
             path: Path where to save the example config
         """
         example_config = {
+            'llm': {
+                'provider': 'bedrock'  # Options: 'bedrock' or 'google_genai'
+            },
             'bedrock': {
                 'region': 'us-east-2',
                 'model_id': 'anthropic.claude-sonnet-4-20250514-v1:0',
                 'timeout': 30,
                 'max_retries': 3,
                 'rate_limit_delay': 1.0
+            },
+            'google_genai': {
+                'project': 'geminijournal-463220',
+                'location': 'us-central1',
+                'model': 'gemini-2.0-flash-001'
             },
             'processing': {
                 'base_path': '~/Desktop/worklogs/',
@@ -363,8 +450,16 @@ class ConfigManager:
         else:
             print("Config file: Using defaults (no config file found)")
         
-        print(f"AWS Region: {self.config.bedrock.region}")
-        print(f"Model ID: {self.config.bedrock.model_id}")
+        print(f"LLM Provider: {self.config.llm.provider}")
+        
+        if self.config.llm.provider == "bedrock":
+            print(f"AWS Region: {self.config.bedrock.region}")
+            print(f"Model ID: {self.config.bedrock.model_id}")
+        elif self.config.llm.provider == "google_genai":
+            print(f"GCP Project: {self.config.google_genai.project}")
+            print(f"GCP Location: {self.config.google_genai.location}")
+            print(f"Model: {self.config.google_genai.model}")
+        
         print(f"Base Path: {self.config.processing.base_path}")
         print(f"Output Path: {self.config.processing.output_path}")
         print(f"Log Level: {self.config.logging.level.value}")
