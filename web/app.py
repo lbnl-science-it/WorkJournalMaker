@@ -25,8 +25,9 @@ sys.path.append(str(Path(__file__).parent.parent))
 from config_manager import ConfigManager, AppConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, db_manager
-from web.api import health
+from web.api import health, entries
 from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
+from web.services.entry_manager import EntryManager
 
 
 def create_logger_with_config(log_config: LogConfig) -> JournalSummarizerLogger:
@@ -41,6 +42,7 @@ class WorkJournalWebApp:
         self.config: Optional[AppConfig] = None
         self.logger: Optional[JournalSummarizerLogger] = None
         self.db_manager: DatabaseManager = db_manager
+        self.entry_manager: Optional[EntryManager] = None
         
     async def startup(self):
         """Application startup sequence."""
@@ -56,6 +58,10 @@ class WorkJournalWebApp:
             # Initialize database
             await self.db_manager.initialize()
             self.logger.logger.info("Database initialized successfully")
+            
+            # Initialize EntryManager service
+            self.entry_manager = EntryManager(self.config, self.logger, self.db_manager)
+            self.logger.logger.info("EntryManager service initialized successfully")
             
             # Log startup completion
             self.logger.logger.info("Web application startup completed successfully")
@@ -94,6 +100,7 @@ async def lifespan(app: FastAPI):
     app.state.config = web_app.config
     app.state.logger = web_app.logger
     app.state.db_manager = web_app.db_manager
+    app.state.entry_manager = web_app.entry_manager
     
     yield
     
@@ -132,6 +139,7 @@ app.add_middleware(ErrorHandlingMiddleware)
 
 # Include API routers
 app.include_router(health.router)
+app.include_router(entries.router)
 
 # Static files and templates (will be created in later steps)
 # app.mount("/static", StaticFiles(directory="web/static"), name="static")
