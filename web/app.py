@@ -24,9 +24,19 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from config_manager import ConfigManager, AppConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
-from web.database import DatabaseManager, db_manager
-from web.api import health
-from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
+
+# Import web modules with proper path handling
+current_dir = Path(__file__).parent
+if current_dir.name == 'web':
+    # Running from web directory
+    from database import DatabaseManager, db_manager
+    from api import health
+    from middleware import LoggingMiddleware, ErrorHandlingMiddleware
+else:
+    # Running from parent directory
+    from web.database import DatabaseManager, db_manager
+    from web.api import health
+    from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 
 
 def create_logger_with_config(log_config: LogConfig) -> JournalSummarizerLogger:

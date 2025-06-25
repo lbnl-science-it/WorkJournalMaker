@@ -16,8 +16,17 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger
-from web.database import DatabaseManager
-from web.models.responses import HealthResponse
+
+# Import with proper path handling
+current_dir = Path(__file__).parent.parent
+if current_dir.name == 'web':
+    # Running from web directory
+    from database import DatabaseManager
+    from models.responses import HealthResponse
+else:
+    # Running from parent directory
+    from web.database import DatabaseManager
+    from web.models.responses import HealthResponse
 
 router = APIRouter(prefix="/api/health", tags=["health"])
 
