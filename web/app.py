@@ -25,9 +25,10 @@ sys.path.append(str(Path(__file__).parent.parent))
 from config_manager import ConfigManager, AppConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, db_manager
-from web.api import health, entries
+from web.api import health, entries, sync
 from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from web.services.entry_manager import EntryManager
+from web.services.scheduler import SyncScheduler
 
 
 def create_logger_with_config(log_config: LogConfig) -> JournalSummarizerLogger:
@@ -43,6 +44,7 @@ class WorkJournalWebApp:
         self.logger: Optional[JournalSummarizerLogger] = None
         self.db_manager: DatabaseManager = db_manager
         self.entry_manager: Optional[EntryManager] = None
+        self.scheduler: Optional[SyncScheduler] = None
         
     async def startup(self):
         """Application startup sequence."""
@@ -63,6 +65,11 @@ class WorkJournalWebApp:
             self.entry_manager = EntryManager(self.config, self.logger, self.db_manager)
             self.logger.logger.info("EntryManager service initialized successfully")
             
+            # Initialize and start sync scheduler
+            self.scheduler = SyncScheduler(self.config, self.logger, self.db_manager)
+            await self.scheduler.start()
+            self.logger.logger.info("Sync scheduler started successfully")
+            
             # Log startup completion
             self.logger.logger.info("Web application startup completed successfully")
             
@@ -79,6 +86,11 @@ class WorkJournalWebApp:
         """Application shutdown sequence."""
         if self.logger:
             self.logger.logger.info("Shutting down Work Journal Web Application...")
+            
+        # Stop sync scheduler
+        if self.scheduler:
+            await self.scheduler.stop()
+            self.logger.logger.info("Sync scheduler stopped")
             
         # Close database connections
         if self.db_manager and self.db_manager.engine:
@@ -101,6 +113,7 @@ async def lifespan(app: FastAPI):
     app.state.logger = web_app.logger
     app.state.db_manager = web_app.db_manager
     app.state.entry_manager = web_app.entry_manager
+    app.state.scheduler = web_app.scheduler
     
     yield
     
@@ -140,6 +153,7 @@ app.add_middleware(ErrorHandlingMiddleware)
 # Include API routers
 app.include_router(health.router)
 app.include_router(entries.router)
+app.include_router(sync.router)
 
 # Static files and templates (will be created in later steps)
 # app.mount("/static", StaticFiles(directory="web/static"), name="static")
