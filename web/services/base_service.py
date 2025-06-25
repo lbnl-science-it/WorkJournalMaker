@@ -42,16 +42,16 @@ class BaseService:
     def _log_operation_start(self, operation: str, **kwargs) -> None:
         """Log the start of an operation with context."""
         context = ", ".join(f"{k}={v}" for k, v in kwargs.items())
-        self.logger.debug(f"Starting {operation}" + (f" ({context})" if context else ""))
+        self.logger.logger.debug(f"Starting {operation}" + (f" ({context})" if context else ""))
     
     def _log_operation_success(self, operation: str, **kwargs) -> None:
         """Log successful completion of an operation."""
         context = ", ".join(f"{k}={v}" for k, v in kwargs.items())
-        self.logger.debug(f"Completed {operation}" + (f" ({context})" if context else ""))
+        self.logger.logger.debug(f"Completed {operation}" + (f" ({context})" if context else ""))
     
     def _log_operation_error(self, operation: str, error: Exception, **kwargs) -> None:
         """Log operation error with context."""
         context = ", ".join(f"{k}={v}" for k, v in kwargs.items())
-        self.logger.error(
+        self.logger.logger.error(
             f"Failed {operation}: {str(error)}" + (f" ({context})" if context else "")
         )

@@ -1,0 +1,512 @@
+"""
+EntryManager Service for Work Journal Maker Web Interface
+
+This service wraps the existing FileDiscovery system, providing web-friendly APIs
+while maintaining full compatibility with the CLI codebase. It acts as the bridge
+between the web interface and the existing file system operations.
+"""
+
+import asyncio
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import List, Optional, Dict, Any, Tuple
+import aiofiles
+import os
+import sys
+from contextlib import asynccontextmanager
+
+# Add parent directory for imports
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from file_discovery import FileDiscovery, FileDiscoveryResult
+from config_manager import AppConfig
+from logger import JournalSummarizerLogger, ErrorCategory
+from web.database import DatabaseManager, JournalEntryIndex
+from web.models.journal import (
+    JournalEntryResponse, JournalEntryMetadata, EntryStatus,
+    RecentEntriesResponse, EntryListRequest
+)
+from web.services.base_service import BaseService
+from sqlalchemy import select, update, delete, and_, or_
+from sqlalchemy.exc import IntegrityError
+
+
+class EntryManager(BaseService):
+    """
+    Manages journal entries by wrapping the existing FileDiscovery system
+    and providing web-friendly async APIs with database indexing.
+    
+    This service maintains compatibility with CLI operations while providing
+    fast web queries through database indexing.
+    """
+    
+    def __init__(self, config: AppConfig, logger: JournalSummarizerLogger, 
+                 db_manager: DatabaseManager):
+        """
+        Initialize EntryManager with core dependencies.
+        
+        Args:
+            config: Application configuration
+            logger: Logger instance
+            db_manager: Database manager instance
+        """
+        super().__init__(config, logger, db_manager)
+        
+        # Initialize FileDiscovery with existing configuration
+        self.file_discovery = FileDiscovery(config.processing.base_path)
+        
+        # Cache for frequently accessed data
+        self._entry_cache = {}
+        self._cache_ttl = 300  # 5 minutes
+        
+    async def get_entry_content(self, entry_date: date) -> Optional[str]:
+        """
+        Get content for a specific journal entry date.
+        
+        Args:
+            entry_date: Date of the entry to retrieve
+            
+        Returns:
+            Entry content as string, or None if entry doesn't exist
+        """
+        self._log_operation_start("get_entry_content", date=entry_date)
+        
+        try:
+            # Use existing FileDiscovery to construct file path
+            file_path = self._construct_file_path(entry_date)
+            
+            if not file_path.exists():
+                self.logger.debug(f"Entry file does not exist: {file_path}")
+                return None
+            
+            # Read file content asynchronously
+            async with aiofiles.open(file_path, 'r', encoding='utf-8') as file:
+                content = await file.read()
+            
+            # Update database index with access information
+            await self._update_entry_access(entry_date, file_path)
+            
+            self._log_operation_success("get_entry_content", date=entry_date, 
+                                      content_length=len(content))
+            return content
+            
+        except Exception as e:
+            self._log_operation_error("get_entry_content", e, date=entry_date)
+            return None
+    
+    async def save_entry_content(self, entry_date: date, content: str) -> bool:
+        """
+        Save content for a specific journal entry date.
+        
+        Args:
+            entry_date: Date of the entry to save
+            content: Content to save
+            
+        Returns:
+            True if save was successful, False otherwise
+        """
+        self._log_operation_start("save_entry_content", date=entry_date, 
+                                content_length=len(content))
+        
+        try:
+            # Use existing FileDiscovery to construct file path
+            file_path = self._construct_file_path(entry_date)
+            
+            # Ensure directory exists
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Write file content asynchronously
+            async with aiofiles.open(file_path, 'w', encoding='utf-8') as file:
+                await file.write(content)
+            
+            # Update database index
+            await self._sync_entry_to_database(entry_date, file_path, content)
+            
+            self._log_operation_success("save_entry_content", date=entry_date)
+            return True
+            
+        except Exception as e:
+            self._log_operation_error("save_entry_content", e, date=entry_date)
+            return False
+    
+    async def get_recent_entries(self, limit: int = 10) -> RecentEntriesResponse:
+        """
+        Get recent journal entries with metadata.
+        
+        Args:
+            limit: Maximum number of entries to return
+            
+        Returns:
+            RecentEntriesResponse with entry list and metadata
+        """
+        self._log_operation_start("get_recent_entries", limit=limit)
+        
+        try:
+            async with self.db_manager.get_session() as session:
+                # Query recent entries from database index
+                stmt = (
+                    select(JournalEntryIndex)
+                    .order_by(JournalEntryIndex.date.desc())
+                    .limit(limit + 1)  # Get one extra to check if there are more
+                )
+                result = await session.execute(stmt)
+                db_entries = result.scalars().all()
+                
+                # Check if there are more entries
+                has_more = len(db_entries) > limit
+                if has_more:
+                    db_entries = db_entries[:limit]
+                
+                # Convert to response models
+                entries = []
+                for db_entry in db_entries:
+                    entry_response = await self._db_entry_to_response(db_entry)
+                    if entry_response:
+                        entries.append(entry_response)
+                
+                response = RecentEntriesResponse(
+                    entries=entries,
+                    total_count=len(entries),
+                    has_more=has_more,
+                    pagination={
+                        "limit": limit,
+                        "offset": 0,
+                        "has_next": has_more
+                    }
+                )
+                
+                self._log_operation_success("get_recent_entries", 
+                                          entries_returned=len(entries))
+                return response
+                
+        except Exception as e:
+            self._log_operation_error("get_recent_entries", e, limit=limit)
+            return RecentEntriesResponse(entries=[], total_count=0, has_more=False, pagination={})
+    
+    async def list_entries(self, request: EntryListRequest) -> RecentEntriesResponse:
+        """
+        List entries with filtering and pagination.
+        
+        Args:
+            request: Entry list request with filters and pagination
+            
+        Returns:
+            RecentEntriesResponse with filtered entries
+        """
+        self._log_operation_start("list_entries", 
+                                start_date=request.start_date,
+                                end_date=request.end_date,
+                                limit=request.limit,
+                                offset=request.offset)
+        
+        try:
+            async with self.db_manager.get_session() as session:
+                # Build query with filters
+                stmt = select(JournalEntryIndex)
+                
+                # Date range filter
+                if request.start_date:
+                    stmt = stmt.where(JournalEntryIndex.date >= request.start_date)
+                if request.end_date:
+                    stmt = stmt.where(JournalEntryIndex.date <= request.end_date)
+                
+                # Content filter
+                if request.has_content is not None:
+                    stmt = stmt.where(JournalEntryIndex.has_content == request.has_content)
+                
+                # Sorting
+                if request.sort_by == "date":
+                    if request.sort_order == "desc":
+                        stmt = stmt.order_by(JournalEntryIndex.date.desc())
+                    else:
+                        stmt = stmt.order_by(JournalEntryIndex.date.asc())
+                elif request.sort_by == "word_count":
+                    if request.sort_order == "desc":
+                        stmt = stmt.order_by(JournalEntryIndex.word_count.desc())
+                    else:
+                        stmt = stmt.order_by(JournalEntryIndex.word_count.asc())
+                elif request.sort_by == "created_at":
+                    if request.sort_order == "desc":
+                        stmt = stmt.order_by(JournalEntryIndex.created_at.desc())
+                    else:
+                        stmt = stmt.order_by(JournalEntryIndex.created_at.asc())
+                elif request.sort_by == "modified_at":
+                    if request.sort_order == "desc":
+                        stmt = stmt.order_by(JournalEntryIndex.modified_at.desc())
+                    else:
+                        stmt = stmt.order_by(JournalEntryIndex.modified_at.asc())
+                
+                # Get total count for pagination
+                count_stmt = select(JournalEntryIndex.id).where(stmt.whereclause)
+                total_count_result = await session.execute(count_stmt)
+                total_count = len(total_count_result.scalars().all())
+                
+                # Apply pagination
+                stmt = stmt.offset(request.offset).limit(request.limit + 1)
+                
+                result = await session.execute(stmt)
+                db_entries = result.scalars().all()
+                
+                # Check if there are more entries
+                has_more = len(db_entries) > request.limit
+                if has_more:
+                    db_entries = db_entries[:request.limit]
+                
+                # Convert to response models
+                entries = []
+                for db_entry in db_entries:
+                    entry_response = await self._db_entry_to_response(db_entry)
+                    if entry_response:
+                        entries.append(entry_response)
+                
+                response = RecentEntriesResponse(
+                    entries=entries,
+                    total_count=total_count,
+                    has_more=has_more,
+                    pagination={
+                        "limit": request.limit,
+                        "offset": request.offset,
+                        "total": total_count,
+                        "has_next": has_more,
+                        "has_prev": request.offset > 0
+                    }
+                )
+                
+                self._log_operation_success("list_entries", 
+                                          entries_returned=len(entries),
+                                          total_count=total_count)
+                return response
+                
+        except Exception as e:
+            self._log_operation_error("list_entries", e, 
+                                    start_date=request.start_date,
+                                    end_date=request.end_date)
+            return RecentEntriesResponse(entries=[], total_count=0, has_more=False, pagination={})
+    
+    async def get_entry_by_date(self, entry_date: date, include_content: bool = False) -> Optional[JournalEntryResponse]:
+        """
+        Get a specific entry by date with optional content.
+        
+        Args:
+            entry_date: Date of the entry to retrieve
+            include_content: Whether to include entry content
+            
+        Returns:
+            JournalEntryResponse or None if not found
+        """
+        self._log_operation_start("get_entry_by_date", date=entry_date, 
+                                include_content=include_content)
+        
+        try:
+            async with self.db_manager.get_session() as session:
+                stmt = select(JournalEntryIndex).where(JournalEntryIndex.date == entry_date)
+                result = await session.execute(stmt)
+                db_entry = result.scalar_one_or_none()
+                
+                if not db_entry:
+                    # Check if file exists but not in database
+                    file_path = self._construct_file_path(entry_date)
+                    if file_path.exists():
+                        # Sync to database and try again
+                        await self._sync_entry_to_database(entry_date, file_path)
+                        result = await session.execute(stmt)
+                        db_entry = result.scalar_one_or_none()
+                
+                if not db_entry:
+                    return None
+                
+                # Convert to response model
+                entry_response = await self._db_entry_to_response(db_entry, include_content)
+                
+                # Update access statistics
+                if entry_response:
+                    await self._update_entry_access(entry_date, Path(db_entry.file_path))
+                
+                self._log_operation_success("get_entry_by_date", date=entry_date)
+                return entry_response
+                
+        except Exception as e:
+            self._log_operation_error("get_entry_by_date", e, date=entry_date)
+            return None
+    
+    async def delete_entry(self, entry_date: date) -> bool:
+        """
+        Delete an entry (both file and database record).
+        
+        Args:
+            entry_date: Date of the entry to delete
+            
+        Returns:
+            True if deletion was successful, False otherwise
+        """
+        self._log_operation_start("delete_entry", date=entry_date)
+        
+        try:
+            # Get file path
+            file_path = self._construct_file_path(entry_date)
+            
+            # Delete file if it exists
+            if file_path.exists():
+                file_path.unlink()
+            
+            # Remove from database
+            async with self.db_manager.get_session() as session:
+                delete_stmt = delete(JournalEntryIndex).where(JournalEntryIndex.date == entry_date)
+                await session.execute(delete_stmt)
+                await session.commit()
+            
+            self._log_operation_success("delete_entry", date=entry_date)
+            return True
+            
+        except Exception as e:
+            self._log_operation_error("delete_entry", e, date=entry_date)
+            return False
+    
+    def _construct_file_path(self, entry_date: date) -> Path:
+        """
+        Construct file path for a given date using existing FileDiscovery logic.
+        
+        Args:
+            entry_date: Date of the entry
+            
+        Returns:
+            Path to the entry file
+        """
+        # Calculate week ending date using existing logic
+        week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+        
+        # Use existing FileDiscovery method to construct path
+        return self.file_discovery._construct_file_path(entry_date, week_ending_date)
+    
+    async def _sync_entry_to_database(self, entry_date: date, file_path: Path, 
+                                    content: Optional[str] = None) -> None:
+        """Sync a single entry to database."""
+        async with self.db_manager.get_session() as session:
+            await self._sync_entry_to_database_session(session, entry_date, file_path, content)
+            await session.commit()
+    
+    async def _sync_entry_to_database_session(self, session, entry_date: date, 
+                                            file_path: Path, content: Optional[str] = None) -> None:
+        """Sync a single entry to database within an existing session."""
+        try:
+            # Get file stats
+            file_stats = file_path.stat() if file_path.exists() else None
+            
+            # Read content if not provided
+            if content is None and file_path.exists():
+                async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
+                    content = await f.read()
+            
+            # Calculate metadata
+            metadata = self._calculate_entry_metadata(content or "")
+            
+            # Calculate week ending date using existing logic
+            week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+            
+            # Check if entry exists in database
+            stmt = select(JournalEntryIndex).where(JournalEntryIndex.date == entry_date)
+            result = await session.execute(stmt)
+            existing_entry = result.scalar_one_or_none()
+            
+            if existing_entry:
+                # Update existing entry
+                update_stmt = (
+                    update(JournalEntryIndex)
+                    .where(JournalEntryIndex.date == entry_date)
+                    .values(
+                        file_path=str(file_path),
+                        week_ending_date=week_ending_date,
+                        word_count=metadata["word_count"],
+                        character_count=metadata["character_count"],
+                        line_count=metadata["line_count"],
+                        has_content=metadata["has_content"],
+                        file_size_bytes=file_stats.st_size if file_stats else 0,
+                        file_modified_at=datetime.fromtimestamp(file_stats.st_mtime) if file_stats else None,
+                        modified_at=datetime.utcnow(),
+                        synced_at=datetime.utcnow()
+                    )
+                )
+                await session.execute(update_stmt)
+            else:
+                # Create new entry
+                new_entry = JournalEntryIndex(
+                    date=entry_date,
+                    file_path=str(file_path),
+                    week_ending_date=week_ending_date,
+                    word_count=metadata["word_count"],
+                    character_count=metadata["character_count"],
+                    line_count=metadata["line_count"],
+                    has_content=metadata["has_content"],
+                    file_size_bytes=file_stats.st_size if file_stats else 0,
+                    file_modified_at=datetime.fromtimestamp(file_stats.st_mtime) if file_stats else None,
+                    created_at=datetime.utcnow(),
+                    modified_at=datetime.utcnow(),
+                    synced_at=datetime.utcnow()
+                )
+                session.add(new_entry)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to sync entry {entry_date} to database: {str(e)}")
+            raise
+    
+    def _calculate_entry_metadata(self, content: str) -> Dict[str, Any]:
+        """Calculate metadata for entry content."""
+        lines = content.split('\n')
+        words = content.split()
+        
+        return {
+            "word_count": len(words),
+            "character_count": len(content),
+            "line_count": len(lines),
+            "has_content": len(content.strip()) > 0
+        }
+    
+    async def _db_entry_to_response(self, db_entry: JournalEntryIndex, 
+                                  include_content: bool = False) -> Optional[JournalEntryResponse]:
+        """Convert database entry to response model."""
+        try:
+            metadata = JournalEntryMetadata(
+                word_count=db_entry.word_count,
+                character_count=getattr(db_entry, 'character_count', 0),
+                line_count=getattr(db_entry, 'line_count', 0),
+                file_size_bytes=getattr(db_entry, 'file_size_bytes', 0),
+                has_content=db_entry.has_content,
+                status=EntryStatus.COMPLETE if db_entry.has_content else EntryStatus.EMPTY
+            )
+            
+            # Get content if requested
+            content = None
+            if include_content:
+                content = await self.get_entry_content(db_entry.date)
+            
+            return JournalEntryResponse(
+                date=db_entry.date,
+                content=content,
+                file_path=db_entry.file_path,
+                week_ending_date=db_entry.week_ending_date,
+                metadata=metadata,
+                created_at=db_entry.created_at,
+                modified_at=db_entry.modified_at,
+                last_accessed_at=getattr(db_entry, 'last_accessed_at', None),
+                file_modified_at=getattr(db_entry, 'file_modified_at', None)
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to convert db entry to response: {str(e)}")
+            return None
+    
+    async def _update_entry_access(self, entry_date: date, file_path: Path) -> None:
+        """Update entry access statistics in database."""
+        try:
+            async with self.db_manager.get_session() as session:
+                update_stmt = (
+                    update(JournalEntryIndex)
+                    .where(JournalEntryIndex.date == entry_date)
+                    .values(
+                        last_accessed_at=datetime.utcnow(),
+                        access_count=JournalEntryIndex.access_count + 1
+                    )
+                )
+                await session.execute(update_stmt)
+                await session.commit()
+        except Exception as e:
+            self.logger.debug(f"Failed to update entry access for {entry_date}: {str(e)}")
