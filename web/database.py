@@ -7,12 +7,14 @@ while maintaining the file system as the primary data store.
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text, Float, Index
 from datetime import datetime
 import aiosqlite
+import json
+import os
 from pathlib import Path
 from contextlib import asynccontextmanager
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Union
 
 
 class Base(DeclarativeBase):
@@ -77,6 +79,12 @@ class SyncStatus(Base):
     sync_metadata = Column(Text)  # JSON metadata
 
 
+# Add database indexes for performance
+Index('idx_journal_entries_date_content', JournalEntryIndex.date, JournalEntryIndex.has_content)
+Index('idx_journal_entries_week_ending', JournalEntryIndex.week_ending_date)
+Index('idx_sync_status_type_started', SyncStatus.sync_type, SyncStatus.started_at)
+
+
 class DatabaseManager:
     """Manages database operations and migrations."""
     
@@ -135,6 +143,154 @@ class DatabaseManager:
                     )
                     session.add(setting)
             await session.commit()
+    
+    def _parse_setting_value(self, value: str, value_type: str) -> Union[str, int, bool, float, Dict[str, Any]]:
+        """Parse setting value based on its type."""
+        try:
+            if value_type == "integer":
+                return int(value)
+            elif value_type == "boolean":
+                return value.lower() in ("true", "1", "yes", "on")
+            elif value_type == "float":
+                return float(value)
+            elif value_type == "json":
+                return json.loads(value)
+            else:  # string
+                return value
+        except (ValueError, json.JSONDecodeError):
+            return value  # Return original value if parsing fails
+    
+    async def get_setting(self, key: str) -> Optional[Dict[str, Any]]:
+        """Get a specific setting by key."""
+        try:
+            async with self.get_session() as session:
+                from sqlalchemy import select
+                stmt = select(WebSettings).where(WebSettings.key == key)
+                result = await session.execute(stmt)
+                setting = result.scalar_one_or_none()
+                
+                if setting:
+                    return {
+                        "key": setting.key,
+                        "value": setting.value,
+                        "parsed_value": self._parse_setting_value(setting.value, setting.value_type),
+                        "value_type": setting.value_type,
+                        "description": setting.description,
+                        "created_at": setting.created_at,
+                        "modified_at": setting.modified_at
+                    }
+                return None
+        except Exception as e:
+            return None
+    
+    async def set_setting(self, key: str, value: str, value_type: str, description: Optional[str] = None) -> bool:
+        """Set or update a setting."""
+        try:
+            async with self.get_session() as session:
+                from sqlalchemy import select, update
+                
+                # Check if setting exists
+                stmt = select(WebSettings).where(WebSettings.key == key)
+                result = await session.execute(stmt)
+                existing = result.scalar_one_or_none()
+                
+                if existing:
+                    # Update existing setting
+                    update_stmt = (
+                        update(WebSettings)
+                        .where(WebSettings.key == key)
+                        .values(
+                            value=value,
+                            value_type=value_type,
+                            description=description or existing.description,
+                            modified_at=datetime.utcnow()
+                        )
+                    )
+                    await session.execute(update_stmt)
+                else:
+                    # Create new setting
+                    new_setting = WebSettings(
+                        key=key,
+                        value=value,
+                        value_type=value_type,
+                        description=description
+                    )
+                    session.add(new_setting)
+                
+                await session.commit()
+                return True
+        except Exception as e:
+            return False
+    
+    async def get_all_settings(self) -> Dict[str, Any]:
+        """Get all settings as a dictionary."""
+        try:
+            async with self.get_session() as session:
+                from sqlalchemy import select
+                stmt = select(WebSettings)
+                result = await session.execute(stmt)
+                settings = result.scalars().all()
+                
+                return {
+                    setting.key: self._parse_setting_value(setting.value, setting.value_type)
+                    for setting in settings
+                }
+        except Exception as e:
+            return {}
+    
+    async def get_database_stats(self) -> Dict[str, Any]:
+        """Get comprehensive database statistics."""
+        try:
+            async with self.get_session() as session:
+                from sqlalchemy import select, func, and_
+                
+                # Get entry statistics
+                total_entries_stmt = select(func.count(JournalEntryIndex.id))
+                total_entries = await session.scalar(total_entries_stmt)
+                
+                entries_with_content_stmt = select(func.count(JournalEntryIndex.id)).where(
+                    JournalEntryIndex.has_content == True
+                )
+                entries_with_content = await session.scalar(entries_with_content_stmt)
+                
+                # Get date range
+                date_range_stmt = select(
+                    func.min(JournalEntryIndex.date),
+                    func.max(JournalEntryIndex.date)
+                )
+                date_range_result = await session.execute(date_range_stmt)
+                min_date, max_date = date_range_result.fetchone()
+                
+                # Get last sync info
+                last_sync_stmt = select(func.max(SyncStatus.completed_at)).where(
+                    and_(SyncStatus.status == "completed", SyncStatus.sync_type == "full")
+                )
+                last_sync = await session.scalar(last_sync_stmt)
+                
+                # Get database file size
+                db_size_mb = 0.0
+                if os.path.exists(self.database_path):
+                    db_size_mb = os.path.getsize(self.database_path) / (1024 * 1024)
+                
+                return {
+                    "total_entries": total_entries or 0,
+                    "entries_with_content": entries_with_content or 0,
+                    "date_range": {
+                        "start": min_date.isoformat() if min_date else None,
+                        "end": max_date.isoformat() if max_date else None
+                    } if min_date and max_date else None,
+                    "last_sync": last_sync.isoformat() if last_sync else None,
+                    "database_size_mb": round(db_size_mb, 2)
+                }
+        except Exception as e:
+            return {
+                "total_entries": 0,
+                "entries_with_content": 0,
+                "date_range": None,
+                "last_sync": None,
+                "database_size_mb": 0.0,
+                "error": str(e)
+            }
     
     @asynccontextmanager
     async def get_session(self):
