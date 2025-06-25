@@ -1678,3 +1678,495 @@ class DatabaseSyncService:
             cleanup_result = await self._cleanup_orphaned_entries(discovery_result.found_files)
             sync_result.entries_removed = cleanup_result["removed"]
             sync_result.errors.extend(cleanup
+_result["errors"])
+            
+            # Mark sync as completed
+            sync_result.completed_at = datetime.utcnow()
+            sync_result.success = True
+            sync_result.metadata = {
+                "date_range": {"start": start_date.isoformat(), "end": end_date.isoformat()},
+                "files_discovered": len(discovery_result.found_files),
+                "batches_processed": len(file_batches)
+            }
+            
+            await self._record_sync_completion(sync_id, sync_result)
+            self._last_full_sync = datetime.utcnow()
+            
+            self.logger.info(f"Full sync completed: {sync_result.entries_processed} processed, "
+                           f"{sync_result.entries_added} added, {sync_result.entries_updated} updated, "
+                           f"{sync_result.entries_removed} removed")
+            
+        except Exception as e:
+            sync_result.errors.append(str(e))
+            self.logger.error(f"Full sync failed: {str(e)}", ErrorCategory.DATABASE_ERROR)
+            await self._record_sync_failure(sync_id, str(e))
+            
+        finally:
+            self._sync_in_progress = False
+            
+        return sync_result
+    
+    async def incremental_sync(self, since_date: Optional[date] = None) -> SyncResult:
+        """
+        Perform incremental synchronization for recent changes.
+        
+        Args:
+            since_date: Date to sync from (default: last 7 days)
+            
+        Returns:
+            SyncResult with operation details
+        """
+        sync_result = SyncResult(
+            sync_type=SyncType.INCREMENTAL,
+            started_at=datetime.utcnow(),
+            completed_at=None,
+            success=False
+        )
+        
+        try:
+            # Determine sync date range
+            if since_date is None:
+                since_date = date.today() - timedelta(days=7)
+            end_date = date.today()
+            
+            self.logger.info(f"Starting incremental sync from {since_date}")
+            
+            # Discover recent files
+            discovery_result = self.file_discovery.discover_files(since_date, end_date)
+            
+            # Process files
+            batch_result = await self._process_file_batch(discovery_result.found_files)
+            
+            sync_result.entries_processed = batch_result["processed"]
+            sync_result.entries_added = batch_result["added"]
+            sync_result.entries_updated = batch_result["updated"]
+            sync_result.errors = batch_result["errors"]
+            sync_result.completed_at = datetime.utcnow()
+            sync_result.success = True
+            
+            self.logger.info(f"Incremental sync completed: {sync_result.entries_processed} processed")
+            
+        except Exception as e:
+            sync_result.errors.append(str(e))
+            self.logger.error(f"Incremental sync failed: {str(e)}", ErrorCategory.DATABASE_ERROR)
+            
+        return sync_result
+    
+    async def sync_single_entry(self, entry_date: date) -> SyncResult:
+        """
+        Synchronize a single entry between file system and database.
+        
+        Args:
+            entry_date: Date of entry to synchronize
+            
+        Returns:
+            SyncResult with operation details
+        """
+        sync_result = SyncResult(
+            sync_type=SyncType.SINGLE_ENTRY,
+            started_at=datetime.utcnow(),
+            completed_at=None,
+            success=False
+        )
+        
+        try:
+            # Get file path using existing FileDiscovery
+            file_path = self.file_discovery._construct_file_path(entry_date)
+            
+            if file_path.exists():
+                batch_result = await self._process_file_batch([file_path])
+                sync_result.entries_processed = batch_result["processed"]
+                sync_result.entries_added = batch_result["added"]
+                sync_result.entries_updated = batch_result["updated"]
+                sync_result.errors = batch_result["errors"]
+            else:
+                # Remove from database if file doesn't exist
+                await self._remove_entry_from_database(entry_date)
+                sync_result.entries_removed = 1
+            
+            sync_result.completed_at = datetime.utcnow()
+            sync_result.success = True
+            
+        except Exception as e:
+            sync_result.errors.append(str(e))
+            self.logger.error(f"Single entry sync failed for {entry_date}: {str(e)}")
+            
+        return sync_result
+    
+    async def _process_file_batch(self, file_paths: List[Path]) -> Dict[str, Any]:
+        """Process a batch of files for synchronization."""
+        result = {
+            "processed": 0,
+            "added": 0,
+            "updated": 0,
+            "errors": []
+        }
+        
+        async with self.db_manager.get_session() as session:
+            for file_path in file_paths:
+                try:
+                    entry_date = self._extract_date_from_path(file_path)
+                    if not entry_date:
+                        result["errors"].append(f"Could not extract date from {file_path}")
+                        continue
+                    
+                    # Check if entry exists in database
+                    stmt = select(JournalEntryIndex).where(JournalEntryIndex.date == entry_date)
+                    existing_entry = await session.scalar(stmt)
+                    
+                    # Get file stats and content metadata
+                    file_stats = file_path.stat()
+                    content_metadata = await self._get_file_metadata(file_path)
+                    
+                    # Calculate week ending date using existing logic
+                    week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+                    
+                    if existing_entry:
+                        # Check if update is needed
+                        if (not existing_entry.file_modified_at or 
+                            existing_entry.file_modified_at < datetime.fromtimestamp(file_stats.st_mtime)):
+                            
+                            # Update existing entry
+                            update_stmt = (
+                                update(JournalEntryIndex)
+                                .where(JournalEntryIndex.date == entry_date)
+                                .values(
+                                    file_path=str(file_path),
+                                    week_ending_date=week_ending_date,
+                                    word_count=content_metadata["word_count"],
+                                    character_count=content_metadata["character_count"],
+                                    line_count=content_metadata["line_count"],
+                                    has_content=content_metadata["has_content"],
+                                    file_size_bytes=file_stats.st_size,
+                                    file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
+                                    modified_at=datetime.utcnow(),
+                                    synced_at=datetime.utcnow()
+                                )
+                            )
+                            await session.execute(update_stmt)
+                            result["updated"] += 1
+                    else:
+                        # Create new entry
+                        new_entry = JournalEntryIndex(
+                            date=entry_date,
+                            file_path=str(file_path),
+                            week_ending_date=week_ending_date,
+                            word_count=content_metadata["word_count"],
+                            character_count=content_metadata["character_count"],
+                            line_count=content_metadata["line_count"],
+                            has_content=content_metadata["has_content"],
+                            file_size_bytes=file_stats.st_size,
+                            file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
+                            created_at=datetime.utcnow(),
+                            modified_at=datetime.utcnow(),
+                            synced_at=datetime.utcnow()
+                        )
+                        session.add(new_entry)
+                        result["added"] += 1
+                    
+                    result["processed"] += 1
+                    
+                except Exception as e:
+                    result["errors"].append(f"Error processing {file_path}: {str(e)}")
+                    self.logger.error(f"Error processing file {file_path}: {str(e)}")
+            
+            await session.commit()
+        
+        return result
+    
+    async def _cleanup_orphaned_entries(self, existing_files: List[Path]) -> Dict[str, Any]:
+        """Remove database entries for files that no longer exist."""
+        result = {"removed": 0, "errors": []}
+        
+        try:
+            # Get set of existing file paths
+            existing_paths = {str(path) for path in existing_files}
+            
+            async with self.db_manager.get_session() as session:
+                # Find database entries not in existing files
+                stmt = select(JournalEntryIndex)
+                all_entries = await session.scalars(stmt)
+                
+                entries_to_remove = []
+                for entry in all_entries:
+                    if entry.file_path not in existing_paths:
+                        # Double-check that file doesn't exist
+                        if not Path(entry.file_path).exists():
+                            entries_to_remove.append(entry.date)
+                
+                # Remove orphaned entries
+                if entries_to_remove:
+                    delete_stmt = delete(JournalEntryIndex).where(
+                        JournalEntryIndex.date.in_(entries_to_remove)
+                    )
+                    await session.execute(delete_stmt)
+                    await session.commit()
+                    result["removed"] = len(entries_to_remove)
+                    
+                    self.logger.info(f"Removed {len(entries_to_remove)} orphaned database entries")
+        
+        except Exception as e:
+            result["errors"].append(f"Cleanup error: {str(e)}")
+            self.logger.error(f"Cleanup failed: {str(e)}")
+        
+        return result
+    
+    async def _get_file_metadata(self, file_path: Path) -> Dict[str, Any]:
+        """Get metadata for a file."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            lines = content.split('\n')
+            words = content.split()
+            
+            return {
+                "word_count": len(words),
+                "character_count": len(content),
+                "line_count": len(lines),
+                "has_content": len(content.strip()) > 0
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to get metadata for {file_path}: {str(e)}")
+            return {
+                "word_count": 0,
+                "character_count": 0,
+                "line_count": 0,
+                "has_content": False
+            }
+    
+    def _extract_date_from_path(self, file_path: Path) -> Optional[date]:
+        """Extract date from file path using existing naming convention."""
+        try:
+            # File name format: worklog_YYYY-MM-DD.txt
+            filename = file_path.stem
+            if filename.startswith('worklog_'):
+                date_str = filename[8:]  # Remove 'worklog_' prefix
+                return datetime.strptime(date_str, '%Y-%m-%d').date()
+        except Exception:
+            pass
+        return None
+    
+    def _batch_files(self, files: List[Path], batch_size: int) -> List[List[Path]]:
+        """Split files into batches for processing."""
+        return [files[i:i + batch_size] for i in range(0, len(files), batch_size)]
+    
+    async def _record_sync_start(self, sync_type: SyncType) -> int:
+        """Record sync start in database."""
+        async with self.db_manager.get_session() as session:
+            sync_record = SyncStatus(
+                sync_type=sync_type.value,
+                started_at=datetime.utcnow(),
+                status="running"
+            )
+            session.add(sync_record)
+            await session.commit()
+            await session.refresh(sync_record)
+            return sync_record.id
+    
+    async def _record_sync_completion(self, sync_id: int, result: SyncResult) -> None:
+        """Record sync completion in database."""
+        async with self.db_manager.get_session() as session:
+            update_stmt = (
+                update(SyncStatus)
+                .where(SyncStatus.id == sync_id)
+                .values(
+                    completed_at=result.completed_at,
+                    status="completed",
+                    entries_processed=result.entries_processed,
+                    entries_added=result.entries_added,
+                    entries_updated=result.entries_updated,
+                    entries_removed=result.entries_removed,
+                    metadata=str(result.metadata) if result.metadata else None
+                )
+            )
+            await session.execute(update_stmt)
+            await session.commit()
+    
+    async def _record_sync_failure(self, sync_id: int, error_message: str) -> None:
+        """Record sync failure in database."""
+        async with self.db_manager.get_session() as session:
+            update_stmt = (
+                update(SyncStatus)
+                .where(SyncStatus.id == sync_id)
+                .values(
+                    completed_at=datetime.utcnow(),
+                    status="failed",
+                    error_message=error_message
+                )
+            )
+            await session.execute(update_stmt)
+            await session.commit()
+    
+    async def get_sync_status(self) -> Dict[str, Any]:
+        """Get current synchronization status."""
+        async with self.db_manager.get_session() as session:
+            # Get latest sync records
+            stmt = (
+                select(SyncStatus)
+                .order_by(SyncStatus.started_at.desc())
+                .limit(5)
+            )
+            recent_syncs = await session.scalars(stmt)
+            
+            return {
+                "sync_in_progress": self._sync_in_progress,
+                "last_full_sync": self._last_full_sync.isoformat() if self._last_full_sync else None,
+                "recent_syncs": [
+                    {
+                        "id": sync.id,
+                        "type": sync.sync_type,
+                        "status": sync.status,
+                        "started_at": sync.started_at.isoformat(),
+                        "completed_at": sync.completed_at.isoformat() if sync.completed_at else None,
+                        "entries_processed": sync.entries_processed,
+                        "entries_added": sync.entries_added,
+                        "entries_updated": sync.entries_updated,
+                        "entries_removed": sync.entries_removed
+                    }
+                    for sync in recent_syncs
+                ]
+            }
+
+2. Background Sync Scheduler (web/services/scheduler.py):
+import asyncio
+from datetime import datetime, timedelta
+from typing import Optional
+import sys
+from pathlib import Path
+
+# Add parent directory for imports
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from config_manager import AppConfig
+from logger import JournalSummarizerLogger
+from web.database import DatabaseManager
+from web.services.sync_service import DatabaseSyncService
+
+class SyncScheduler:
+    """Manages scheduled synchronization tasks."""
+    
+    def __init__(self, config: AppConfig, logger: JournalSummarizerLogger, 
+                 db_manager: DatabaseManager):
+        self.config = config
+        self.logger = logger
+        self.sync_service = DatabaseSyncService(config, logger, db_manager)
+        
+        # Scheduling configuration
+        self.incremental_sync_interval = 300  # 5 minutes
+        self.full_sync_interval = 3600 * 24  # 24 hours
+        
+        # Task tracking
+        self._scheduler_task: Optional[asyncio.Task] = None
+        self._running = False
+    
+    async def start(self):
+        """Start the sync scheduler."""
+        if self._running:
+            return
+        
+        self._running = True
+        self._scheduler_task = asyncio.create_task(self._scheduler_loop())
+        self.logger.info("Sync scheduler started")
+    
+    async def stop(self):
+        """Stop the sync scheduler."""
+        self._running = False
+        if self._scheduler_task:
+            self._scheduler_task.cancel()
+            try:
+                await self._scheduler_task
+            except asyncio.CancelledError:
+                pass
+        self.logger.info("Sync scheduler stopped")
+    
+    async def _scheduler_loop(self):
+        """Main scheduler loop."""
+        last_incremental_sync = datetime.utcnow()
+        last_full_sync = None
+        
+        while self._running:
+            try:
+                current_time = datetime.utcnow()
+                
+                # Check for incremental sync
+                if (current_time - last_incremental_sync).total_seconds() >= self.incremental_sync_interval:
+                    await self._run_incremental_sync()
+                    last_incremental_sync = current_time
+                
+                # Check for full sync
+                if (last_full_sync is None or 
+                    (current_time - last_full_sync).total_seconds() >= self.full_sync_interval):
+                    await self._run_full_sync()
+                    last_full_sync = current_time
+                
+                # Sleep for a short interval
+                await asyncio.sleep(60)  # Check every minute
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error(f"Scheduler error: {str(e)}")
+                await asyncio.sleep(60)  # Wait before retrying
+    
+    async def _run_incremental_sync(self):
+        """Run incremental synchronization."""
+        try:
+            result = await self.sync_service.incremental_sync()
+            if result.success:
+                self.logger.debug(f"Incremental sync completed: {result.entries_processed} processed")
+            else:
+                self.logger.warning(f"Incremental sync had errors: {result.errors}")
+        except Exception as e:
+            self.logger.error(f"Incremental sync failed: {str(e)}")
+    
+    async def _run_full_sync(self):
+        """Run full synchronization."""
+        try:
+            result = await self.sync_service.full_sync()
+            if result.success:
+                self.logger.info(f"Full sync completed: {result.entries_processed} processed")
+            else:
+                self.logger.error(f"Full sync failed: {result.errors}")
+        except Exception as e:
+            self.logger.error(f"Full sync failed: {str(e)}")
+
+Testing Requirements:
+1. Test full synchronization with large file sets
+2. Verify incremental sync detects recent changes
+3. Test concurrent access handling between web and CLI
+4. Validate orphaned entry cleanup
+5. Test sync scheduler and background operations
+6. Verify error handling and recovery
+
+Success Criteria:
+- Database stays synchronized with file system changes
+- Incremental syncs detect and process recent changes
+- Full syncs handle large datasets efficiently
+- Concurrent access is handled safely
+- Orphaned entries are cleaned up properly
+- Background scheduler runs reliably
+- Comprehensive sync monitoring and reporting
+
+Write production-ready code with robust error handling, efficient batch processing, and comprehensive logging for all sync operations.
+```
+
+---
+
+### **Step 6: Entry API Endpoints**
+
+```
+Create comprehensive REST API endpoints for journal entry operations, providing full CRUD functionality with proper validation, error handling, and integration with the EntryManager service.
+
+Requirements:
+1. Create REST API for entry CRUD operations
+2. Implement entry listing and filtering with pagination
+3. Add entry search and metadata endpoints
+4. Include comprehensive error handling and validation
+5. Add proper HTTP status codes and response formatting
+6. Implement request/response logging and monitoring
+
+API Implementation:
+
+1. Entry API Endpoints (web/api/entries.py):
+from fastapi import APIRouter, Depends, HTTPException, Query
