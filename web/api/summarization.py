@@ -5,13 +5,15 @@ This module provides REST API endpoints for summarization operations with
 real-time progress tracking and task management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Set
 import sys
 from pathlib import Path
 import os
+import json
+import asyncio
 
 # Add parent directory for imports
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -22,6 +24,107 @@ from web.services.web_summarizer import WebSummarizationService, SummaryType, Su
 from web.models.journal import SummaryRequest, SummaryTaskResponse, ProgressResponse
 
 router = APIRouter(prefix="/api/summarization", tags=["summarization"])
+
+
+# WebSocket connection manager
+class ConnectionManager:
+    """Manages WebSocket connections for real-time progress updates."""
+    
+    def __init__(self):
+        self.active_connections: Dict[str, Set[WebSocket]] = {}
+        self.task_subscribers: Dict[str, Set[WebSocket]] = {}
+    
+    async def connect(self, websocket: WebSocket, task_id: Optional[str] = None):
+        """Accept a WebSocket connection."""
+        await websocket.accept()
+        
+        if task_id:
+            if task_id not in self.task_subscribers:
+                self.task_subscribers[task_id] = set()
+            self.task_subscribers[task_id].add(websocket)
+        else:
+            # General connection for all updates
+            if "general" not in self.active_connections:
+                self.active_connections["general"] = set()
+            self.active_connections["general"].add(websocket)
+    
+    def disconnect(self, websocket: WebSocket, task_id: Optional[str] = None):
+        """Remove a WebSocket connection."""
+        if task_id and task_id in self.task_subscribers:
+            self.task_subscribers[task_id].discard(websocket)
+            if not self.task_subscribers[task_id]:
+                del self.task_subscribers[task_id]
+        else:
+            if "general" in self.active_connections:
+                self.active_connections["general"].discard(websocket)
+    
+    async def send_progress_update(self, task_id: str, progress_data: dict):
+        """Send progress update to subscribers of a specific task."""
+        connections_to_remove = []
+        
+        # Send to task-specific subscribers
+        if task_id in self.task_subscribers:
+            for websocket in self.task_subscribers[task_id].copy():
+                try:
+                    await websocket.send_text(json.dumps({
+                        "type": "progress_update",
+                        "task_id": task_id,
+                        "data": progress_data
+                    }))
+                except Exception:
+                    connections_to_remove.append((websocket, task_id))
+        
+        # Send to general subscribers
+        if "general" in self.active_connections:
+            for websocket in self.active_connections["general"].copy():
+                try:
+                    await websocket.send_text(json.dumps({
+                        "type": "progress_update",
+                        "task_id": task_id,
+                        "data": progress_data
+                    }))
+                except Exception:
+                    connections_to_remove.append((websocket, None))
+        
+        # Clean up failed connections
+        for websocket, tid in connections_to_remove:
+            self.disconnect(websocket, tid)
+    
+    async def send_task_status(self, task_id: str, status_data: dict):
+        """Send task status update to subscribers."""
+        connections_to_remove = []
+        
+        # Send to task-specific subscribers
+        if task_id in self.task_subscribers:
+            for websocket in self.task_subscribers[task_id].copy():
+                try:
+                    await websocket.send_text(json.dumps({
+                        "type": "task_status",
+                        "task_id": task_id,
+                        "data": status_data
+                    }))
+                except Exception:
+                    connections_to_remove.append((websocket, task_id))
+        
+        # Send to general subscribers
+        if "general" in self.active_connections:
+            for websocket in self.active_connections["general"].copy():
+                try:
+                    await websocket.send_text(json.dumps({
+                        "type": "task_status",
+                        "task_id": task_id,
+                        "data": status_data
+                    }))
+                except Exception:
+                    connections_to_remove.append((websocket, None))
+        
+        # Clean up failed connections
+        for websocket, tid in connections_to_remove:
+            self.disconnect(websocket, tid)
+
+
+# Global connection manager instance
+connection_manager = ConnectionManager()
 
 
 def get_summarization_service(request: Request) -> WebSummarizationService:
@@ -345,3 +448,63 @@ async def get_summarization_stats(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to retrieve statistics")
+
+
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for general progress updates."""
+    await connection_manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive and handle any incoming messages
+            data = await websocket.receive_text()
+            # Echo back for connection testing
+            await websocket.send_text(json.dumps({
+                "type": "connection_status",
+                "status": "connected",
+                "message": "WebSocket connection established"
+            }))
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket)
+
+
+@router.websocket("/ws/{task_id}")
+async def websocket_task_endpoint(websocket: WebSocket, task_id: str):
+    """WebSocket endpoint for specific task progress updates."""
+    await connection_manager.connect(websocket, task_id)
+    try:
+        # Send initial task status
+        summarization_service = websocket.app.state.summarization_service
+        task = await summarization_service.get_task_status(task_id)
+        
+        if task:
+            await websocket.send_text(json.dumps({
+                "type": "initial_status",
+                "task_id": task_id,
+                "data": {
+                    "status": task.status.value,
+                    "progress": task.progress,
+                    "current_step": task.current_step,
+                    "created_at": task.created_at.isoformat(),
+                    "started_at": task.started_at.isoformat() if task.started_at else None,
+                    "completed_at": task.completed_at.isoformat() if task.completed_at else None
+                }
+            }))
+        else:
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "message": f"Task {task_id} not found"
+            }))
+        
+        while True:
+            # Keep connection alive and handle any incoming messages
+            data = await websocket.receive_text()
+            # Echo back for connection testing
+            await websocket.send_text(json.dumps({
+                "type": "connection_status",
+                "task_id": task_id,
+                "status": "connected",
+                "message": f"WebSocket connection established for task {task_id}"
+            }))
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket, task_id)

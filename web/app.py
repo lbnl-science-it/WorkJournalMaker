@@ -77,6 +77,11 @@ class WorkJournalWebApp:
             self.summarization_service = WebSummarizationService(self.config, self.logger, self.db_manager)
             self.logger.logger.info("WebSummarizationService initialized successfully")
             
+            # Set up WebSocket connection manager for real-time updates
+            from web.api.summarization import connection_manager
+            self.summarization_service.set_connection_manager(connection_manager)
+            self.logger.logger.info("WebSocket connection manager configured for summarization service")
+            
             # Initialize and start sync scheduler
             self.scheduler = SyncScheduler(self.config, self.logger, self.db_manager)
             await self.scheduler.start()
