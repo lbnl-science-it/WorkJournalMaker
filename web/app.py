@@ -25,9 +25,10 @@ sys.path.append(str(Path(__file__).parent.parent))
 from config_manager import ConfigManager, AppConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, db_manager
-from web.api import health, entries, sync
+from web.api import health, entries, sync, calendar
 from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from web.services.entry_manager import EntryManager
+from web.services.calendar_service import CalendarService
 from web.services.scheduler import SyncScheduler
 
 
@@ -44,6 +45,7 @@ class WorkJournalWebApp:
         self.logger: Optional[JournalSummarizerLogger] = None
         self.db_manager: DatabaseManager = db_manager
         self.entry_manager: Optional[EntryManager] = None
+        self.calendar_service: Optional[CalendarService] = None
         self.scheduler: Optional[SyncScheduler] = None
         
     async def startup(self):
@@ -64,6 +66,10 @@ class WorkJournalWebApp:
             # Initialize EntryManager service
             self.entry_manager = EntryManager(self.config, self.logger, self.db_manager)
             self.logger.logger.info("EntryManager service initialized successfully")
+            
+            # Initialize CalendarService
+            self.calendar_service = CalendarService(self.config, self.logger, self.db_manager)
+            self.logger.logger.info("CalendarService initialized successfully")
             
             # Initialize and start sync scheduler
             self.scheduler = SyncScheduler(self.config, self.logger, self.db_manager)
@@ -113,6 +119,7 @@ async def lifespan(app: FastAPI):
     app.state.logger = web_app.logger
     app.state.db_manager = web_app.db_manager
     app.state.entry_manager = web_app.entry_manager
+    app.state.calendar_service = web_app.calendar_service
     app.state.scheduler = web_app.scheduler
     
     yield
@@ -154,6 +161,7 @@ app.add_middleware(ErrorHandlingMiddleware)
 app.include_router(health.router)
 app.include_router(entries.router)
 app.include_router(sync.router)
+app.include_router(calendar.router)
 
 # Static files and templates (will be created in later steps)
 # app.mount("/static", StaticFiles(directory="web/static"), name="static")
