@@ -202,3 +202,15 @@ class EntryValidationResult(BaseModel):
     errors: List[str] = Field(default_factory=list, description="Validation errors")
     warnings: List[str] = Field(default_factory=list, description="Validation warnings")
     entry_date: Optional[Date] = Field(None, description="Entry date if valid")
+
+
+class TodayResponse(BaseModel):
+    """Response model for today's information."""
+    today: Date = Field(..., description="Today's date")
+    day_name: str = Field(..., description="Day name")
+    formatted_date: str = Field(..., description="Formatted date string")
+    has_entry: bool = Field(False, description="Whether today has an entry")
+    entry_metadata: Optional[Dict[str, Any]] = Field(None, description="Entry metadata")
+    week_ending_date: Date = Field(..., description="Week ending date")
+    current_month: int = Field(..., description="Current month number")
+    current_year: int = Field(..., description="Current year")
