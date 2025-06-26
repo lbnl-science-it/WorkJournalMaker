@@ -1,0 +1,140 @@
+/* CSS Reset - Modern normalize.css approach */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+    display: block;
+    max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+    font: inherit;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    overflow-wrap: break-word;
+}
+
+#root,
+#__next {
+    isolation: isolate;
+}
+
+/* Remove default button styles */
+button {
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+/* Remove default link styles */
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* Remove default list styles */
+ul,
+ol {
+    list-style: none;
+}
+
+/* Remove default table styles */
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+/* Remove default fieldset styles */
+fieldset {
+    border: none;
+}
+
+/* Remove default legend styles */
+legend {
+    display: table;
+}
+
+/* Remove default details/summary styles */
+details {
+    display: block;
+}
+
+summary {
+    display: list-item;
+}
+
+/* Remove default hr styles */
+hr {
+    border: none;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.25;
+}
+
+/* Remove default abbr styles */
+abbr[title] {
+    text-decoration: underline dotted;
+}
+
+/* Remove default code styles */
+code,
+kbd,
+samp,
+pre {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 1em;
+}
+
+/* Remove default small styles */
+small {
+    font-size: 80%;
+}
+
+/* Remove default sub/sup styles */
+sub,
+sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+}
+
+sub {
+    bottom: -0.25em;
+}
+
+sup {
+    top: -0.5em;
+}
