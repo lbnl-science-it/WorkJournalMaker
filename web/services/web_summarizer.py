@@ -82,7 +82,7 @@ class WebSummarizationService(BaseService):
     while maintaining full compatibility with existing CLI components.
     """
     
-    def __init__(self, config: AppConfig, logger: JournalSummarizerLogger, 
+    def __init__(self, config: AppConfig, logger: JournalSummarizerLogger,
                  db_manager: DatabaseManager):
         """Initialize WebSummarizationService with core dependencies."""
         super().__init__(config, logger, db_manager)
@@ -98,8 +98,15 @@ class WebSummarizationService(BaseService):
         self.active_tasks: Dict[str, SummaryTask] = {}
         self.task_progress: Dict[str, ProgressUpdate] = {}
         self._task_lock = asyncio.Lock()
+        
+        # WebSocket connection manager (will be set by the API)
+        self.connection_manager = None
     
-    async def create_summary_task(self, summary_type: SummaryType, 
+    def set_connection_manager(self, connection_manager):
+        """Set the WebSocket connection manager for real-time updates."""
+        self.connection_manager = connection_manager
+    
+    async def create_summary_task(self, summary_type: SummaryType,
                                 start_date: date, end_date: date) -> str:
         """
         Create a new summarization task.
@@ -355,10 +362,20 @@ class WebSummarizationService(BaseService):
                     
                     self.task_progress[task_id] = progress_update
                     
+                    # Send WebSocket update if connection manager is available
+                    if self.connection_manager:
+                        progress_data = {
+                            "progress": progress,
+                            "current_step": current_step,
+                            "status": task.status.value,
+                            "timestamp": progress_update.timestamp.isoformat()
+                        }
+                        await self.connection_manager.send_progress_update(task_id, progress_data)
+                    
         except Exception as e:
             self.logger.logger.error(f"Failed to update progress for task {task_id}: {str(e)}")
     
-    async def _update_task_status(self, task_id: str, status: SummaryTaskStatus, 
+    async def _update_task_status(self, task_id: str, status: SummaryTaskStatus,
                                 error_message: Optional[str] = None) -> None:
         """Update task status."""
         try:
@@ -370,6 +387,18 @@ class WebSummarizationService(BaseService):
                     
                     if status in [SummaryTaskStatus.COMPLETED, SummaryTaskStatus.FAILED, SummaryTaskStatus.CANCELLED]:
                         task.completed_at = datetime.utcnow()
+                    
+                    # Send WebSocket update if connection manager is available
+                    if self.connection_manager:
+                        status_data = {
+                            "status": status.value,
+                            "progress": task.progress,
+                            "current_step": task.current_step,
+                            "error_message": error_message,
+                            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                        await self.connection_manager.send_task_status(task_id, status_data)
                         
         except Exception as e:
             self.logger.logger.error(f"Failed to update status for task {task_id}: {str(e)}")
