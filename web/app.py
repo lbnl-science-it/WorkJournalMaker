@@ -176,9 +176,11 @@ app.include_router(sync.router)
 app.include_router(calendar.router)
 app.include_router(summarization.router)
 
-# Static files and templates (will be created in later steps)
-# app.mount("/static", StaticFiles(directory="web/static"), name="static")
-# templates = Jinja2Templates(directory="web/templates")
+# Static files and templates
+static_dir = Path(__file__).parent / "static"
+templates_dir = Path(__file__).parent / "templates"
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+templates = Jinja2Templates(directory=str(templates_dir))
 
 
 @app.get("/")
@@ -190,6 +192,12 @@ async def root():
         "status": "running",
         "docs": "/api/docs"
     }
+
+
+@app.get("/test")
+async def test_page(request: Request):
+    """Test page for base templates and styling."""
+    return templates.TemplateResponse("test.html", {"request": request})
 
 
 if __name__ == "__main__":
