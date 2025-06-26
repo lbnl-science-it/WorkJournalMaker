@@ -25,10 +25,11 @@ sys.path.append(str(Path(__file__).parent.parent))
 from config_manager import ConfigManager, AppConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, db_manager
-from web.api import health, entries, sync, calendar
+from web.api import health, entries, sync, calendar, summarization
 from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
+from web.services.web_summarizer import WebSummarizationService
 from web.services.scheduler import SyncScheduler
 
 
@@ -46,6 +47,7 @@ class WorkJournalWebApp:
         self.db_manager: DatabaseManager = db_manager
         self.entry_manager: Optional[EntryManager] = None
         self.calendar_service: Optional[CalendarService] = None
+        self.summarization_service: Optional[WebSummarizationService] = None
         self.scheduler: Optional[SyncScheduler] = None
         
     async def startup(self):
@@ -70,6 +72,10 @@ class WorkJournalWebApp:
             # Initialize CalendarService
             self.calendar_service = CalendarService(self.config, self.logger, self.db_manager)
             self.logger.logger.info("CalendarService initialized successfully")
+            
+            # Initialize WebSummarizationService
+            self.summarization_service = WebSummarizationService(self.config, self.logger, self.db_manager)
+            self.logger.logger.info("WebSummarizationService initialized successfully")
             
             # Initialize and start sync scheduler
             self.scheduler = SyncScheduler(self.config, self.logger, self.db_manager)
@@ -120,6 +126,7 @@ async def lifespan(app: FastAPI):
     app.state.db_manager = web_app.db_manager
     app.state.entry_manager = web_app.entry_manager
     app.state.calendar_service = web_app.calendar_service
+    app.state.summarization_service = web_app.summarization_service
     app.state.scheduler = web_app.scheduler
     
     yield
@@ -162,6 +169,7 @@ app.include_router(health.router)
 app.include_router(entries.router)
 app.include_router(sync.router)
 app.include_router(calendar.router)
+app.include_router(summarization.router)
 
 # Static files and templates (will be created in later steps)
 # app.mount("/static", StaticFiles(directory="web/static"), name="static")
