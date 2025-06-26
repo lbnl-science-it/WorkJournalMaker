@@ -214,3 +214,46 @@ class TodayResponse(BaseModel):
     week_ending_date: Date = Field(..., description="Week ending date")
     current_month: int = Field(..., description="Current month number")
     current_year: int = Field(..., description="Current year")
+
+
+class SummaryRequest(BaseModel):
+    """Request model for summary generation."""
+    summary_type: str = Field(..., pattern="^(weekly|monthly|custom)$", description="Type of summary")
+    start_date: Date = Field(..., description="Start date for summary")
+    end_date: Date = Field(..., description="End date for summary")
+    
+    @model_validator(mode='after')
+    def validate_date_range(self):
+        """Validate date range."""
+        if self.start_date > self.end_date:
+            raise ValueError('start_date must be before or equal to end_date')
+        if self.start_date > Date.today():
+            raise ValueError('start_date cannot be in the future')
+        return self
+
+
+class SummaryTaskResponse(BaseModel):
+    """Response model for summary tasks."""
+    task_id: str = Field(..., description="Task ID")
+    summary_type: str = Field(..., description="Type of summary")
+    start_date: Date = Field(..., description="Start date")
+    end_date: Date = Field(..., description="End date")
+    status: str = Field(..., description="Task status")
+    progress: float = Field(0.0, ge=0.0, le=100.0, description="Progress percentage")
+    current_step: str = Field("", description="Current processing step")
+    created_at: DateTime = Field(..., description="Task creation time")
+    started_at: Optional[DateTime] = Field(None, description="Task start time")
+    completed_at: Optional[DateTime] = Field(None, description="Task completion time")
+    result: Optional[str] = Field(None, description="Summary result")
+    error_message: Optional[str] = Field(None, description="Error message if failed")
+    output_file_path: Optional[str] = Field(None, description="Output file path")
+
+
+class ProgressResponse(BaseModel):
+    """Response model for progress updates."""
+    task_id: str = Field(..., description="Task ID")
+    progress: float = Field(..., ge=0.0, le=100.0, description="Progress percentage")
+    current_step: str = Field(..., description="Current processing step")
+    status: str = Field(..., description="Task status")
+    message: Optional[str] = Field(None, description="Progress message")
+    timestamp: DateTime = Field(..., description="Update timestamp")
