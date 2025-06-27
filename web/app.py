@@ -152,8 +152,8 @@ app = FastAPI(
 
 # Security middleware
 app.add_middleware(
-    TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "*.localhost"]
+    TrustedHostMiddleware,
+    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0", "*.localhost"]
 )
 
 # CORS middleware for development
