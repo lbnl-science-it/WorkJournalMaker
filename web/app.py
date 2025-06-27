@@ -184,8 +184,14 @@ templates = Jinja2Templates(directory=str(templates_dir))
 
 
 @app.get("/")
-async def root():
-    """Root endpoint with basic application information."""
+async def dashboard(request: Request):
+    """Dashboard - main entry point for the web interface."""
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
+@app.get("/api")
+async def api_root():
+    """API root endpoint with basic application information."""
     return {
         "service": "Work Journal Maker Web Interface",
         "version": "1.0.0",
