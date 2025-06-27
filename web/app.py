@@ -152,8 +152,8 @@ app = FastAPI(
 
 # Security middleware
 app.add_middleware(
-    TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "*.localhost"]
+    TrustedHostMiddleware,
+    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0", "*.localhost"]
 )
 
 # CORS middleware for development
@@ -187,6 +187,28 @@ templates = Jinja2Templates(directory=str(templates_dir))
 async def dashboard(request: Request):
     """Dashboard - main entry point for the web interface."""
     return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
+@app.get("/entry/{entry_date}")
+async def entry_editor(request: Request, entry_date: str):
+    """Entry editor interface for creating and editing journal entries."""
+    # Validate date format (basic validation)
+    try:
+        from datetime import datetime
+        datetime.strptime(entry_date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    return templates.TemplateResponse("entry_editor.html", {
+        "request": request,
+        "entry_date": entry_date
+    })
+
+
+@app.get("/calendar")
+async def calendar_view(request: Request):
+    """Calendar view interface for browsing journal entries."""
+    return templates.TemplateResponse("calendar.html", {"request": request})
 
 
 @app.get("/api")
