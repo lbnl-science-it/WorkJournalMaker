@@ -57,6 +57,11 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
         except Exception as e:
+            # Don't catch HTTPException - let FastAPI handle it properly
+            from fastapi import HTTPException
+            if isinstance(e, HTTPException):
+                raise
+            
             # Get logger from app state
             logger: JournalSummarizerLogger = getattr(request.app.state, 'logger', None)
             
