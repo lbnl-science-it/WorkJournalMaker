@@ -306,7 +306,13 @@ class JournalEditor {
 
     updateTitle() {
         const title = document.getElementById('editor-title');
-        const formattedDate = this.formatDate(new Date(this.entryDate));
+
+        // Fix: Parse date string as local date to avoid timezone conversion
+        // Split the date string and create date with local timezone
+        const [year, month, day] = this.entryDate.split('-').map(Number);
+        const localDate = new Date(year, month - 1, day);
+
+        const formattedDate = this.formatDate(localDate);
         title.textContent = formattedDate;
     }
 
