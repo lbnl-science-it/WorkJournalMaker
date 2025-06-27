@@ -212,6 +212,12 @@ async def calendar_view(request: Request):
     return templates.TemplateResponse("calendar.html", {"request": request})
 
 
+@app.get("/summarize")
+async def summarization_page(request: Request):
+    """Summarization interface for generating journal summaries."""
+    return templates.TemplateResponse("summarization.html", {"request": request})
+
+
 @app.get("/settings")
 async def settings_page(request: Request):
     """Settings management interface."""
