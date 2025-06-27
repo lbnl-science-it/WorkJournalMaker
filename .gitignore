@@ -135,3 +135,4 @@ config.json
 .DS_Store
 local_summaries/
 *.db
+web/journal_index.db
