@@ -54,134 +54,7 @@ async def get_today_info(
         )
 
 
-@router.get("/{year}/{month}", response_model=CalendarMonth)
-async def get_calendar_month(
-    year: int,
-    month: int,
-    calendar_service: CalendarService = Depends(get_calendar_service)
-):
-    """Get calendar data for a specific month and year."""
-    try:
-        # Validate year and month
-        if not (1900 <= year <= 3000):
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Invalid year: {year}. Must be between 1900 and 3000."
-            )
-        if not (1 <= month <= 12):
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Invalid month: {month}. Must be between 1 and 12."
-            )
-        
-        calendar_data = await calendar_service.get_calendar_month(year, month)
-        return calendar_data
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, 
-            detail="Failed to retrieve calendar data"
-        )
-
-
-@router.get("/{year}/{month}/navigation")
-async def get_calendar_navigation(
-    year: int,
-    month: int,
-    calendar_service: CalendarService = Depends(get_calendar_service)
-):
-    """Get navigation information for calendar month view."""
-    try:
-        # Validate year and month
-        if not (1900 <= year <= 3000):
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Invalid year: {year}. Must be between 1900 and 3000."
-            )
-        if not (1 <= month <= 12):
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Invalid month: {month}. Must be between 1 and 12."
-            )
-        
-        (prev_year, prev_month), (next_year, next_month) = await calendar_service.get_adjacent_months(year, month)
-        
-        return {
-            "current": {"year": year, "month": month},
-            "previous": {"year": prev_year, "month": prev_month},
-            "next": {"year": next_year, "month": next_month},
-            "today": {
-                "year": date.today().year,
-                "month": date.today().month,
-                "day": date.today().day
-            }
-        }
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, 
-            detail="Failed to retrieve navigation data"
-        )
-
-
-@router.get("/date/{entry_date}/exists")
-async def check_entry_exists(
-    entry_date: date,
-    calendar_service: CalendarService = Depends(get_calendar_service)
-):
-    """Check if an entry exists for a specific date."""
-    try:
-        has_entry = await calendar_service.has_entry_for_date(entry_date)
-        
-        return {
-            "date": entry_date,
-            "has_entry": has_entry,
-            "formatted_date": entry_date.strftime("%B %d, %Y"),
-            "day_name": entry_date.strftime("%A")
-        }
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, 
-            detail="Failed to check entry existence"
-        )
-
-
-@router.get("/range/{start_date}/{end_date}", response_model=List[CalendarEntry])
-async def get_entries_in_range(
-    start_date: date,
-    end_date: date,
-    calendar_service: CalendarService = Depends(get_calendar_service)
-):
-    """Get all entries within a date range."""
-    try:
-        # Validate date range
-        if start_date > end_date:
-            raise HTTPException(
-                status_code=400, 
-                detail="Start date must be before or equal to end date"
-            )
-        
-        # Prevent overly large ranges
-        if (end_date - start_date).days > 365:
-            raise HTTPException(
-                status_code=400, 
-                detail="Date range cannot exceed 365 days"
-            )
-        
-        entries = await calendar_service.get_entries_for_date_range(start_date, end_date)
-        return entries
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, 
-            detail="Failed to retrieve entries in range"
-        )
-
+# Move specific routes before general ones to avoid path conflicts
 
 @router.get("/current")
 async def get_current_month(
@@ -195,7 +68,7 @@ async def get_current_month(
         
     except Exception as e:
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail="Failed to retrieve current month data"
         )
 
@@ -225,7 +98,7 @@ async def get_week_info(
         
     except Exception as e:
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail="Failed to retrieve week information"
         )
 
@@ -245,14 +118,14 @@ async def get_calendar_stats(
         # Validate year
         if not (1900 <= year <= 3000):
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Invalid year: {year}. Must be between 1900 and 3000."
             )
         
         # Validate month if specified
         if month is not None and not (1 <= month <= 12):
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Invalid month: {month}. Must be between 1 and 12."
             )
         
@@ -305,7 +178,7 @@ async def get_calendar_stats(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail="Failed to retrieve calendar statistics"
         )
 
@@ -320,7 +193,7 @@ async def get_year_overview(
         # Validate year
         if not (1900 <= year <= 3000):
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Invalid year: {year}. Must be between 1900 and 3000."
             )
         
@@ -357,6 +230,137 @@ async def get_year_overview(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail="Failed to retrieve year overview"
+        )
+
+
+@router.get("/date/{entry_date}/exists")
+async def check_entry_exists(
+    entry_date: date,
+    calendar_service: CalendarService = Depends(get_calendar_service)
+):
+    """Check if an entry exists for a specific date."""
+    try:
+        has_entry = await calendar_service.has_entry_for_date(entry_date)
+        
+        return {
+            "date": entry_date,
+            "has_entry": has_entry,
+            "formatted_date": entry_date.strftime("%B %d, %Y"),
+            "day_name": entry_date.strftime("%A")
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to check entry existence"
+        )
+
+
+@router.get("/range/{start_date}/{end_date}", response_model=List[CalendarEntry])
+async def get_entries_in_range(
+    start_date: date,
+    end_date: date,
+    calendar_service: CalendarService = Depends(get_calendar_service)
+):
+    """Get all entries within a date range."""
+    try:
+        # Validate date range
+        if start_date > end_date:
+            raise HTTPException(
+                status_code=400,
+                detail="Start date must be before or equal to end date"
+            )
+        
+        # Prevent overly large ranges
+        if (end_date - start_date).days > 365:
+            raise HTTPException(
+                status_code=400,
+                detail="Date range cannot exceed 365 days"
+            )
+        
+        entries = await calendar_service.get_entries_for_date_range(start_date, end_date)
+        return entries
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve entries in range"
+        )
+
+
+@router.get("/{year}/{month}", response_model=CalendarMonth)
+async def get_calendar_month(
+    year: int,
+    month: int,
+    calendar_service: CalendarService = Depends(get_calendar_service)
+):
+    """Get calendar data for a specific month and year."""
+    try:
+        # Validate year and month
+        if not (1900 <= year <= 3000):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid year: {year}. Must be between 1900 and 3000."
+            )
+        if not (1 <= month <= 12):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid month: {month}. Must be between 1 and 12."
+            )
+        
+        calendar_data = await calendar_service.get_calendar_month(year, month)
+        return calendar_data
+        
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve calendar data"
+        )
+
+
+@router.get("/{year}/{month}/navigation")
+async def get_calendar_navigation(
+    year: int,
+    month: int,
+    calendar_service: CalendarService = Depends(get_calendar_service)
+):
+    """Get navigation information for calendar month view."""
+    try:
+        # Validate year and month
+        if not (1900 <= year <= 3000):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid year: {year}. Must be between 1900 and 3000."
+            )
+        if not (1 <= month <= 12):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid month: {month}. Must be between 1 and 12."
+            )
+        
+        (prev_year, prev_month), (next_year, next_month) = await calendar_service.get_adjacent_months(year, month)
+        
+        return {
+            "current": {"year": year, "month": month},
+            "previous": {"year": prev_year, "month": prev_month},
+            "next": {"year": next_year, "month": next_month},
+            "today": {
+                "year": date.today().year,
+                "month": date.today().month,
+                "day": date.today().day
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve navigation data"
         )
