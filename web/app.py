@@ -152,8 +152,8 @@ app = FastAPI(
 
 # Security middleware
 app.add_middleware(
-    TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "*.localhost"]
+    TrustedHostMiddleware,
+    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0", "*.localhost"]
 )
 
 # CORS middleware for development
@@ -176,20 +176,56 @@ app.include_router(sync.router)
 app.include_router(calendar.router)
 app.include_router(summarization.router)
 
-# Static files and templates (will be created in later steps)
-# app.mount("/static", StaticFiles(directory="web/static"), name="static")
-# templates = Jinja2Templates(directory="web/templates")
+# Static files and templates
+static_dir = Path(__file__).parent / "static"
+templates_dir = Path(__file__).parent / "templates"
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+templates = Jinja2Templates(directory=str(templates_dir))
 
 
 @app.get("/")
-async def root():
-    """Root endpoint with basic application information."""
+async def dashboard(request: Request):
+    """Dashboard - main entry point for the web interface."""
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
+@app.get("/entry/{entry_date}")
+async def entry_editor(request: Request, entry_date: str):
+    """Entry editor interface for creating and editing journal entries."""
+    # Validate date format (basic validation)
+    try:
+        from datetime import datetime
+        datetime.strptime(entry_date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    return templates.TemplateResponse("entry_editor.html", {
+        "request": request,
+        "entry_date": entry_date
+    })
+
+
+@app.get("/calendar")
+async def calendar_view(request: Request):
+    """Calendar view interface for browsing journal entries."""
+    return templates.TemplateResponse("calendar.html", {"request": request})
+
+
+@app.get("/api")
+async def api_root():
+    """API root endpoint with basic application information."""
     return {
         "service": "Work Journal Maker Web Interface",
         "version": "1.0.0",
         "status": "running",
         "docs": "/api/docs"
     }
+
+
+@app.get("/test")
+async def test_page(request: Request):
+    """Test page for base templates and styling."""
+    return templates.TemplateResponse("test.html", {"request": request})
 
 
 if __name__ == "__main__":
