@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}{{ entry_date }} - Daily Work Journal{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/editor.css">
+{% endblock %}
+
+{% block content %}
+<div class="editor-container">
+    <!-- Editor Header -->
+    <header class="editor-header">
+        <div class="editor-nav">
+            <button class="btn-icon back-btn" id="back-btn" title="Back to Dashboard">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="m12 19-7-7 7-7" stroke="currentColor" stroke-width="2" />
+                    <path d="m19 12H5" stroke="currentColor" stroke-width="2" />
+                </svg>
+            </button>
+
+            <div class="editor-title-section">
+                <h1 class="editor-title" id="editor-title">Loading...</h1>
+                <div class="editor-subtitle" id="editor-subtitle">Entry for {{ entry_date }}</div>
+            </div>
+        </div>
+
+        <div class="editor-actions">
+            <button class="btn btn-secondary" id="preview-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" />
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                </svg>
+                Preview
+            </button>
+
+            <button class="btn btn-primary" id="save-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor"
+                        stroke-width="2" />
+                    <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" />
+                    <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" />
+                </svg>
+                Save
+            </button>
+        </div>
+    </header>
+
+    <!-- Editor Main Content -->
+    <main class="editor-main">
+        <div class="editor-workspace">
+            <!-- Writing Area -->
+            <div class="editor-pane" id="editor-pane">
+                <div class="editor-toolbar">
+                    <div class="toolbar-group">
+                        <button class="toolbar-btn" id="bold-btn" title="Bold (Ctrl+B)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" stroke="currentColor"
+                                    stroke-width="2" />
+                                <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" stroke="currentColor"
+                                    stroke-width="2" />
+                            </svg>
+                        </button>
+
+                        <button class="toolbar-btn" id="italic-btn" title="Italic (Ctrl+I)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <line x1="19" y1="4" x2="10" y2="4" stroke="currentColor" stroke-width="2" />
+                                <line x1="14" y1="20" x2="5" y2="20" stroke="currentColor" stroke-width="2" />
+                                <line x1="15" y1="4" x2="9" y2="20" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                        </button>
+
+                        <button class="toolbar-btn" id="heading-btn" title="Heading">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M6 12h12M6 4v16M18 4v16" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="toolbar-group">
+                        <button class="toolbar-btn" id="list-btn" title="Bullet List">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <line x1="8" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" />
+                                <line x1="8" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" />
+                                <line x1="8" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" />
+                                <line x1="3" y1="6" x2="3.01" y2="6" stroke="currentColor" stroke-width="2" />
+                                <line x1="3" y1="12" x2="3.01" y2="12" stroke="currentColor" stroke-width="2" />
+                                <line x1="3" y1="18" x2="3.01" y2="18" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                        </button>
+
+                        <button class="toolbar-btn" id="link-btn" title="Link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                                    stroke="currentColor" stroke-width="2" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                                    stroke="currentColor" stroke-width="2" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="toolbar-spacer"></div>
+
+                    <div class="toolbar-group">
+                        <button class="toolbar-btn" id="fullscreen-btn" title="Focus Mode (F11)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path
+                                    d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+                                    stroke="currentColor" stroke-width="2" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="editor-content">
+                    <textarea class="editor-textarea" id="editor-textarea"
+                        placeholder="Start writing your journal entry..." spellcheck="true"
+                        autocomplete="off"></textarea>
+                </div>
+            </div>
+
+            <!-- Preview Pane -->
+            <div class="preview-pane" id="preview-pane" style="display: none;">
+                <div class="preview-header">
+                    <h3>Preview</h3>
+                    <button class="btn-icon" id="close-preview-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" />
+                            <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="preview-content" id="preview-content">
+                    <p class="preview-placeholder">Start writing to see preview...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Editor Footer -->
+    <footer class="editor-footer">
+        <div class="editor-stats">
+            <div class="stat-item">
+                <span class="stat-label">Words:</span>
+                <span class="stat-value" id="word-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Characters:</span>
+                <span class="stat-value" id="char-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Lines:</span>
+                <span class="stat-value" id="line-count">1</span>
+            </div>
+        </div>
+
+        <div class="editor-status">
+            <div class="save-status" id="save-status">
+                <svg class="save-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor"
+                        stroke-width="2" />
+                </svg>
+                <span id="save-text">All changes saved</span>
+            </div>
+        </div>
+    </footer>
+</div>
+
+<!-- Keyboard Shortcuts Help -->
+<div class="shortcuts-help" id="shortcuts-help" style="display: none;">
+    <div class="shortcuts-content">
+        <h3>Keyboard Shortcuts</h3>
+        <div class="shortcuts-list">
+            <div class="shortcut-item">
+                <kbd>Ctrl</kbd> + <kbd>S</kbd>
+                <span>Save</span>
+            </div>
+            <div class="shortcut-item">
+                <kbd>Ctrl</kbd> + <kbd>B</kbd>
+                <span>Bold</span>
+            </div>
+            <div class="shortcut-item">
+                <kbd>Ctrl</kbd> + <kbd>I</kbd>
+                <span>Italic</span>
+            </div>
+            <div class="shortcut-item">
+                <kbd>F11</kbd>
+                <span>Focus Mode</span>
+            </div>
+            <div class="shortcut-item">
+                <kbd>Ctrl</kbd> + <kbd>P</kbd>
+                <span>Preview</span>
+            </div>
+        </div>
+        <button class="btn btn-secondary"
+            onclick="document.getElementById('shortcuts-help').style.display='none'">Close</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="/static/js/editor.js"></script>
+{% endblock %}
