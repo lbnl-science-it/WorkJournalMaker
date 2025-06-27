@@ -212,6 +212,12 @@ async def calendar_view(request: Request):
     return templates.TemplateResponse("calendar.html", {"request": request})
 
 
+@app.get("/settings")
+async def settings_page(request: Request):
+    """Settings management interface."""
+    return templates.TemplateResponse("settings.html", {"request": request})
+
+
 @app.get("/api")
 async def api_root():
     """API root endpoint with basic application information."""
