@@ -3386,7 +3386,7 @@ Create a comprehensive settings management system that extends the existing Conf
 
 Requirements:
 1. Create SettingsService extending existing ConfigManager
-2. Implement web-specific settings and preferences
+2. Implement web-specific settings and preferences. 
 3. Add settings UI with validation and real-time updates
 4. Maintain CLI configuration compatibility
 5. Include import/export functionality for settings
