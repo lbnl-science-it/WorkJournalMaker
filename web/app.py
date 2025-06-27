@@ -25,7 +25,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from config_manager import ConfigManager, AppConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, db_manager
-from web.api import health, entries, sync, calendar, summarization
+from web.api import health, entries, sync, calendar, summarization, settings
 from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
@@ -153,7 +153,7 @@ app = FastAPI(
 # Security middleware
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0", "*.localhost"]
+    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0", "*.localhost", "testserver"]
 )
 
 # CORS middleware for development
@@ -175,6 +175,7 @@ app.include_router(entries.router)
 app.include_router(sync.router)
 app.include_router(calendar.router)
 app.include_router(summarization.router)
+app.include_router(settings.router)
 
 # Static files and templates
 static_dir = Path(__file__).parent / "static"
