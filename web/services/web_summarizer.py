@@ -91,7 +91,7 @@ class WebSummarizationService(BaseService):
         self.llm_client = UnifiedLLMClient(config)
         self.file_discovery = FileDiscovery(config.processing.base_path)
         self.content_processor = ContentProcessor()
-        self.summary_generator = SummaryGenerator(config, logger, self.llm_client)
+        self.summary_generator = SummaryGenerator(self.llm_client)
         self.output_manager = OutputManager()
         
         # Task management
