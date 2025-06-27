@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Summarization - Daily Work Journal{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/summarization.css">
+{% endblock %}
+
+{% block content %}
+<div class="summarization-container">
+    <!-- Header -->
+    <header class="summarization-header">
+        <div class="header-content">
+            <h1 class="page-title">Generate Summary</h1>
+            <p class="page-subtitle">Create AI-powered summaries of your journal entries</p>
+        </div>
+    </header>
+
+    <!-- Summary Request Form -->
+    <section class="request-section">
+        <div class="request-card">
+            <h2 class="card-title">New Summary Request</h2>
+
+            <form class="summary-form" id="summary-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="start-date">Start Date</label>
+                        <input type="date" class="form-input" id="start-date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="end-date">End Date</label>
+                        <input type="date" class="form-input" id="end-date" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="summary-type">Summary Type</label>
+                    <select class="form-input" id="summary-type" required>
+                        <option value="">Select summary type...</option>
+                        <option value="weekly">Weekly Summary</option>
+                        <option value="monthly">Monthly Summary</option>
+                        <option value="custom">Custom Range Summary</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="generate-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                        Generate Summary
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Active Tasks -->
+    <section class="tasks-section" id="tasks-section" style="display: none;">
+        <h2 class="section-title">Active Tasks</h2>
+        <div class="tasks-container" id="tasks-container">
+            <!-- Active tasks will be populated here -->
+        </div>
+    </section>
+
+    <!-- Summary History -->
+    <section class="history-section">
+        <div class="section-header">
+            <h2 class="section-title">Recent Summaries</h2>
+            <button class="btn btn-secondary" id="refresh-history-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                </svg>
+                Refresh
+            </button>
+        </div>
+
+        <div class="history-container" id="history-container">
+            <div class="history-loading">
+                <div class="loading-spinner"></div>
+                <span>Loading summary history...</span>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Task Progress Modal -->
+<div class="modal-overlay" id="progress-modal" style="display: none;">
+    <div class="modal-content progress-modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="progress-title">Generating Summary</h3>
+            <button class="btn-icon" id="close-progress-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" />
+                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <div class="progress-container">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progress-bar">
+                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">0%</div>
+                </div>
+
+                <div class="progress-status" id="progress-status">Initializing...</div>
+
+                <div class="progress-details" id="progress-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Task ID:</span>
+                        <span class="detail-value" id="task-id-display">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Started:</span>
+                        <span class="detail-value" id="started-time">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Estimated Time:</span>
+                        <span class="detail-value" id="estimated-time">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="cancel-task-btn">Cancel Task</button>
+            <button class="btn btn-primary" id="view-result-btn" style="display: none;">View Result</button>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Result Modal -->
+<div class="modal-overlay" id="result-modal" style="display: none;">
+    <div class="modal-content result-modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="result-title">Summary Result</h3>
+            <button class="btn-icon" id="close-result-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" />
+                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <div class="result-content" id="result-content">
+                <!-- Summary result will be displayed here -->
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="copy-result-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
+                        stroke-width="2" />
+                </svg>
+                Copy to Clipboard
+            </button>
+            <button class="btn btn-primary" id="download-result-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
+                    <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" />
+                    <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" />
+                </svg>
+                Download
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/summarization.js"></script>
+{% endblock %}
