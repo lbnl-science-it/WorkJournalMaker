@@ -5,10 +5,16 @@ This module contains Pydantic models for journal entry operations,
 validation, and API responses.
 """
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, field_serializer
 from datetime import date as Date, datetime as DateTime, timedelta
 from typing import Optional, List, Dict, Any, Union
 from enum import Enum
+import sys
+from pathlib import Path
+
+# Add parent directory for imports
+sys.path.append(str(Path(__file__).parent.parent))
+from utils.timezone_utils import to_local, format_local_datetime
 
 
 class EntryStatus(str, Enum):
@@ -61,6 +67,21 @@ class JournalEntryResponse(JournalEntryBase):
     modified_at: Optional[DateTime] = None
     last_accessed_at: Optional[DateTime] = None
     file_modified_at: Optional[DateTime] = None
+    
+    @field_serializer('created_at', 'modified_at', 'last_accessed_at', 'file_modified_at', when_used='json')
+    def serialize_datetime(self, dt: Optional[DateTime]) -> Optional[str]:
+        """Serialize datetime to local timezone ISO string."""
+        if dt is None:
+            return None
+        
+        # If already timezone-aware, use as-is; otherwise convert from UTC
+        if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+            # Already timezone-aware, return ISO string
+            return dt.isoformat()
+        else:
+            # Naive datetime, assume UTC and convert to local
+            local_dt = to_local(dt)
+            return local_dt.isoformat()
     
     class Config:
         from_attributes = True
