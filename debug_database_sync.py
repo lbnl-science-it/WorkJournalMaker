@@ -194,8 +194,8 @@ async def reset_database_and_sync():
             print(f"   ✓ Deleted {result.rowcount} existing entries")
         
         # Import sync service
-        from web.services.sync_service import SyncService
-        sync_service = SyncService(config, logger, db_manager)
+        from web.services.sync_service import DatabaseSyncService
+        sync_service = DatabaseSyncService(config, logger, db_manager)
         
         # Perform full sync
         print("\n2. Performing full database sync...")
@@ -203,11 +203,14 @@ async def reset_database_and_sync():
         
         if result.success:
             print(f"   ✓ Full sync completed successfully")
-            print(f"   ✓ Files processed: {result.files_processed}")
+            print(f"   ✓ Entries processed: {result.entries_processed}")
             print(f"   ✓ Entries added: {result.entries_added}")
             print(f"   ✓ Entries updated: {result.entries_updated}")
+            if hasattr(result, 'entries_removed'):
+                print(f"   ✓ Entries removed: {result.entries_removed}")
         else:
-            print(f"   ✗ Full sync failed: {result.error}")
+            error_msg = result.errors[0] if result.errors else "Unknown error"
+            print(f"   ✗ Full sync failed: {error_msg}")
             return False
         
         # Verify sync
