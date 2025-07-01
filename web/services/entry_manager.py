@@ -27,6 +27,7 @@ from web.models.journal import (
     RecentEntriesResponse, EntryListRequest
 )
 from web.services.base_service import BaseService
+from web.utils.timezone_utils import now_utc, to_local
 from sqlalchemy import select, update, delete, and_, or_
 from sqlalchemy.exc import IntegrityError
 
@@ -480,16 +481,22 @@ class EntryManager(BaseService):
             if include_content:
                 content = await self.get_entry_content(db_entry.date)
             
+            # Convert timestamps to local timezone before creating response
+            created_at_local = to_local(db_entry.created_at) if db_entry.created_at else None
+            modified_at_local = to_local(db_entry.modified_at) if db_entry.modified_at else None
+            last_accessed_at_local = to_local(getattr(db_entry, 'last_accessed_at', None)) if getattr(db_entry, 'last_accessed_at', None) else None
+            file_modified_at_local = to_local(getattr(db_entry, 'file_modified_at', None)) if getattr(db_entry, 'file_modified_at', None) else None
+            
             return JournalEntryResponse(
                 date=db_entry.date,
                 content=content,
                 file_path=db_entry.file_path,
                 week_ending_date=db_entry.week_ending_date,
                 metadata=metadata,
-                created_at=db_entry.created_at,
-                modified_at=db_entry.modified_at,
-                last_accessed_at=getattr(db_entry, 'last_accessed_at', None),
-                file_modified_at=getattr(db_entry, 'file_modified_at', None)
+                created_at=created_at_local,
+                modified_at=modified_at_local,
+                last_accessed_at=last_accessed_at_local,
+                file_modified_at=file_modified_at_local
             )
         except Exception as e:
             self.logger.error(f"Failed to convert db entry to response: {str(e)}")
@@ -503,7 +510,7 @@ class EntryManager(BaseService):
                     update(JournalEntryIndex)
                     .where(JournalEntryIndex.date == entry_date)
                     .values(
-                        last_accessed_at=datetime.utcnow(),
+                        last_accessed_at=now_utc(),
                         access_count=JournalEntryIndex.access_count + 1
                     )
                 )

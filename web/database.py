@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text, Float, Index
 from datetime import datetime
+from .utils.timezone_utils import now_utc, now_local
 import aiosqlite
 import json
 import os
@@ -43,10 +44,10 @@ class JournalEntryIndex(Base):
     last_accessed_at = Column(DateTime)
     access_count = Column(Integer, default=0)
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    modified_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    synced_at = Column(DateTime, default=datetime.utcnow)
+    # Timestamps (timezone-aware)
+    created_at = Column(DateTime, default=now_utc, index=True)
+    modified_at = Column(DateTime, default=now_utc, onupdate=now_utc)
+    synced_at = Column(DateTime, default=now_utc)
 
 
 class WebSettings(Base):
@@ -58,8 +59,8 @@ class WebSettings(Base):
     value = Column(Text, nullable=False)
     value_type = Column(String, nullable=False)  # 'string', 'integer', 'boolean', 'json'
     description = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    modified_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_utc)
+    modified_at = Column(DateTime, default=now_utc, onupdate=now_utc)
 
 
 class SyncStatus(Base):

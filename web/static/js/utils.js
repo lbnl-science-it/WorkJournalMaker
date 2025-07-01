@@ -25,6 +25,30 @@ class Utils {
             return new Date(year, month - 1, day); // month is 0-indexed
         }
 
+        // Handle ISO datetime strings (YYYY-MM-DDTHH:MM:SS or similar)
+        if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}[T ]/)) {
+            // TIMEZONE FIX: Parse datetime strings as local time to avoid UTC conversion issues
+            // The backend now sends timezone-aware timestamps already converted to local time
+            const date = new Date(dateStr);
+
+            // If it's a valid date, return it
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+
+            // Fallback: manual parsing to avoid timezone issues
+            try {
+                const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+                if (match) {
+                    const [, year, month, day, hour, minute, second] = match.map(Number);
+                    // Create date in local timezone (no UTC conversion)
+                    return new Date(year, month - 1, day, hour, minute, second);
+                }
+            } catch (e) {
+                console.warn('Failed to parse datetime manually:', dateStr, e);
+            }
+        }
+
         // For other formats, use standard Date constructor
         return new Date(dateStr);
     }
