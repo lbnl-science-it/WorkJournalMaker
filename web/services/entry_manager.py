@@ -76,7 +76,8 @@ class EntryManager(BaseService):
             file_path = self._construct_file_path(entry_date)
             
             if not file_path.exists():
-                self.logger.debug(f"Entry file does not exist: {file_path}")
+                # Use the internal logger for debug messages
+                self.logger.logger.info(f"Entry file does not exist: {file_path}")
                 return None
             
             # Read file content asynchronously
@@ -509,4 +510,4 @@ class EntryManager(BaseService):
                 await session.execute(update_stmt)
                 await session.commit()
         except Exception as e:
-            self.logger.debug(f"Failed to update entry access for {entry_date}: {str(e)}")
+            self.logger.logger.info(f"Failed to update entry access for {entry_date}: {str(e)}")
