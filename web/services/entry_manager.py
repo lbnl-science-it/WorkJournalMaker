@@ -27,6 +27,7 @@ from web.models.journal import (
     RecentEntriesResponse, EntryListRequest
 )
 from web.services.base_service import BaseService
+from web.utils.timezone_utils import now_utc, to_local
 from sqlalchemy import select, update, delete, and_, or_
 from sqlalchemy.exc import IntegrityError
 
@@ -76,7 +77,8 @@ class EntryManager(BaseService):
             file_path = self._construct_file_path(entry_date)
             
             if not file_path.exists():
-                self.logger.debug(f"Entry file does not exist: {file_path}")
+                # Use the internal logger for debug messages
+                self.logger.logger.info(f"Entry file does not exist: {file_path}")
                 return None
             
             # Read file content asynchronously
@@ -372,8 +374,8 @@ class EntryManager(BaseService):
         Returns:
             Path to the entry file
         """
-        # Calculate week ending date using existing logic
-        week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+        # Find actual week ending date from directory structure
+        week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
         
         # Use existing FileDiscovery method to construct path
         return self.file_discovery._construct_file_path(entry_date, week_ending_date)
@@ -400,8 +402,8 @@ class EntryManager(BaseService):
             # Calculate metadata
             metadata = self._calculate_entry_metadata(content or "")
             
-            # Calculate week ending date using existing logic
-            week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+            # Find actual week ending date from directory structure
+            week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
             
             # Check if entry exists in database
             stmt = select(JournalEntryIndex).where(JournalEntryIndex.date == entry_date)
@@ -479,16 +481,22 @@ class EntryManager(BaseService):
             if include_content:
                 content = await self.get_entry_content(db_entry.date)
             
+            # Convert timestamps to local timezone before creating response
+            created_at_local = to_local(db_entry.created_at) if db_entry.created_at else None
+            modified_at_local = to_local(db_entry.modified_at) if db_entry.modified_at else None
+            last_accessed_at_local = to_local(getattr(db_entry, 'last_accessed_at', None)) if getattr(db_entry, 'last_accessed_at', None) else None
+            file_modified_at_local = to_local(getattr(db_entry, 'file_modified_at', None)) if getattr(db_entry, 'file_modified_at', None) else None
+            
             return JournalEntryResponse(
                 date=db_entry.date,
                 content=content,
                 file_path=db_entry.file_path,
                 week_ending_date=db_entry.week_ending_date,
                 metadata=metadata,
-                created_at=db_entry.created_at,
-                modified_at=db_entry.modified_at,
-                last_accessed_at=getattr(db_entry, 'last_accessed_at', None),
-                file_modified_at=getattr(db_entry, 'file_modified_at', None)
+                created_at=created_at_local,
+                modified_at=modified_at_local,
+                last_accessed_at=last_accessed_at_local,
+                file_modified_at=file_modified_at_local
             )
         except Exception as e:
             self.logger.error(f"Failed to convert db entry to response: {str(e)}")
@@ -502,11 +510,11 @@ class EntryManager(BaseService):
                     update(JournalEntryIndex)
                     .where(JournalEntryIndex.date == entry_date)
                     .values(
-                        last_accessed_at=datetime.utcnow(),
+                        last_accessed_at=now_utc(),
                         access_count=JournalEntryIndex.access_count + 1
                     )
                 )
                 await session.execute(update_stmt)
                 await session.commit()
         except Exception as e:
-            self.logger.debug(f"Failed to update entry access for {entry_date}: {str(e)}")
+            self.logger.logger.info(f"Failed to update entry access for {entry_date}: {str(e)}")
