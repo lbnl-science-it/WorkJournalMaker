@@ -377,7 +377,7 @@ async def _run_single_entry_sync(sync_service: DatabaseSyncService, entry_date: 
     try:
         result = await sync_service.sync_single_entry(entry_date)
         if result.success:
-            sync_service.logger.debug(f"Background entry sync completed for {entry_date}")
+            sync_service.logger.logger.info(f"Background entry sync completed for {entry_date}")
         else:
             sync_service.logger.warning(f"Background entry sync failed for {entry_date}: {result.errors}")
     except Exception as e:
