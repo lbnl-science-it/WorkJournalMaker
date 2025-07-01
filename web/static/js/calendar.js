@@ -353,7 +353,7 @@ class CalendarView {
 
                     content.innerHTML = `
                         <div class="entry-meta">
-                            <small>${entry.metadata.word_count} words • ${Utils.formatDate(new Date(entry.modified_at || entry.created_at), 'short')}</small>
+                            <small>${entry.metadata.word_count} words • ${Utils.formatDate(Utils.parseDate(entry.modified_at || entry.created_at), 'short')}</small>
                         </div>
                         <div class="entry-text">${preview.replace(/\n/g, '<br>')}</div>
                     `;
