@@ -154,7 +154,7 @@ class CalendarView {
 
         container.innerHTML = this.recentEntries.map(entry => `
             <div class="recent-item" onclick="calendar.selectDate('${entry.date}')">
-                <div class="recent-date">${Utils.formatDate(new Date(entry.date), 'short')}</div>
+                <div class="recent-date">${Utils.formatDate(Utils.parseDate(entry.date), 'short')}</div>
                 <div class="recent-preview">${this.getEntryPreview(entry)}</div>
             </div>
         `).join('');
@@ -327,8 +327,9 @@ class CalendarView {
         // Show panel
         panel.style.display = 'flex';
 
-        // Update title
-        const date = new Date(dateStr);
+        // Update title - fix timezone issue by parsing date components
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const date = new Date(year, month - 1, day); // month is 0-indexed
         title.textContent = Utils.formatDate(date, 'long');
 
         // Show loading

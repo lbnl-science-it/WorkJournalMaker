@@ -15,6 +15,20 @@ class Utils {
         return date.toLocaleDateString('en-US', options[format] || options.long);
     }
 
+    // Parse date string correctly to avoid timezone issues
+    static parseDate(dateStr) {
+        if (!dateStr) return new Date();
+
+        // Handle ISO date strings (YYYY-MM-DD) by parsing components
+        if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day); // month is 0-indexed
+        }
+
+        // For other formats, use standard Date constructor
+        return new Date(dateStr);
+    }
+
     // Toast notifications
     static showToast(message, type = 'info', duration = 5000) {
         const container = document.getElementById('toast-container');
