@@ -176,7 +176,7 @@ class CalendarService(BaseService):
     
     def get_week_ending_date(self, entry_date: date) -> date:
         """Get week ending date using existing FileDiscovery logic."""
-        return self.file_discovery._calculate_week_ending_for_date(entry_date)
+        return self.file_discovery._find_week_ending_for_date(entry_date)
     
     async def get_today_info(self) -> Dict[str, Any]:
         """Get information about today's date and entry status."""
@@ -203,7 +203,7 @@ class CalendarService(BaseService):
                         }
             
             # Calculate week ending date using existing logic
-            week_ending = self.file_discovery._calculate_week_ending_for_date(today)
+            week_ending = self.file_discovery._find_week_ending_for_date(today)
             
             return {
                 "today": today,
