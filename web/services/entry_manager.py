@@ -373,8 +373,8 @@ class EntryManager(BaseService):
         Returns:
             Path to the entry file
         """
-        # Calculate week ending date using existing logic
-        week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+        # Find actual week ending date from directory structure
+        week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
         
         # Use existing FileDiscovery method to construct path
         return self.file_discovery._construct_file_path(entry_date, week_ending_date)
@@ -401,8 +401,8 @@ class EntryManager(BaseService):
             # Calculate metadata
             metadata = self._calculate_entry_metadata(content or "")
             
-            # Calculate week ending date using existing logic
-            week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+            # Find actual week ending date from directory structure
+            week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
             
             # Check if entry exists in database
             stmt = select(JournalEntryIndex).where(JournalEntryIndex.date == entry_date)
