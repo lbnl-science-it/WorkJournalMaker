@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from web.services.work_week_service import (
-    WorkWeekService, WorkWeekConfig, WorkWeekPreset
+    WorkWeekService, WorkWeekConfig, WorkWeekPreset, ValidationError, ValidationResult
 )
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger
@@ -683,6 +683,407 @@ class TestWorkWeekServiceMaintenance:
             "1"  # Valid day
         )
         assert is_valid == True
+
+
+class TestWorkWeekValidationAndErrorHandling:
+    """Test comprehensive validation and error handling functionality."""
+    
+    def test_validation_result_basic(self):
+        """Test ValidationResult basic functionality."""
+        result = ValidationResult()
+        assert result.is_valid == True
+        assert result.errors == []
+        assert result.warnings == []
+        assert result.has_corrections == False
+        
+        result.add_error("Test error")
+        assert result.is_valid == False
+        assert "Test error" in result.errors
+        
+        result.add_warning("Test warning")
+        assert "Test warning" in result.warnings
+        
+        result_dict = result.to_dict()
+        assert result_dict['is_valid'] == False
+        assert result_dict['errors'] == ["Test error"]
+        assert result_dict['warnings'] == ["Test warning"]
+    
+    def test_validation_error_exception(self):
+        """Test ValidationError exception functionality."""
+        error = ValidationError("Test message", field="start_day", suggested_fix="Use 1-7")
+        
+        assert str(error) == "Test message"
+        assert error.field == "start_day"
+        assert error.suggested_fix == "Use 1-7"
+        assert error.user_message == "Test message"
+    
+    def test_comprehensive_validation_valid_config(self, work_week_service):
+        """Test comprehensive validation with valid configuration."""
+        config = WorkWeekConfig(
+            preset=WorkWeekPreset.MONDAY_FRIDAY,
+            start_day=1,
+            end_day=5,
+            timezone="UTC"
+        )
+        
+        result = work_week_service._perform_comprehensive_validation(config)
+        assert result.is_valid == True
+        assert len(result.errors) == 0
+        assert result.corrected_config is None
+    
+    def test_comprehensive_validation_invalid_day_ranges(self, work_week_service):
+        """Test comprehensive validation with invalid day ranges."""
+        config = WorkWeekConfig(
+            preset=WorkWeekPreset.CUSTOM,
+            start_day=0,  # Invalid
+            end_day=5,
+            timezone=None
+        )
+        
+        result = work_week_service._perform_comprehensive_validation(config)
+        assert result.is_valid == False
+        assert len(result.errors) > 0
+        assert "Start day must be 1-7" in result.errors[0]
+    
+    def test_comprehensive_validation_same_day_correction(self, work_week_service):
+        """Test comprehensive validation auto-corrects same start/end day."""
+        config = WorkWeekConfig(
+            preset=WorkWeekPreset.CUSTOM,
+            start_day=3,
+            end_day=3,  # Same as start
+            timezone=None
+        )
+        
+        result = work_week_service._perform_comprehensive_validation(config)
+        assert result.is_valid == True
+        assert result.has_corrections == True
+        assert result.corrected_config.start_day == 3
+        assert result.corrected_config.end_day == 4  # Auto-corrected
+        assert len(result.warnings) > 0
+        assert "Auto-corrected end day" in result.warnings[0]
+    
+    def test_comprehensive_validation_preset_mismatch(self, work_week_service):
+        """Test comprehensive validation corrects preset mismatch."""
+        config = WorkWeekConfig(
+            preset=WorkWeekPreset.MONDAY_FRIDAY,
+            start_day=7,  # Sunday (doesn't match preset)
+            end_day=4,    # Thursday (doesn't match preset)
+            timezone=None
+        )
+        
+        result = work_week_service._perform_comprehensive_validation(config)
+        assert result.is_valid == True
+        assert result.has_corrections == True
+        assert result.corrected_config.preset == WorkWeekPreset.CUSTOM
+        assert len(result.warnings) > 0
+        assert "Changed to Custom preset" in result.warnings[0]
+    
+    def test_strict_validation_mode(self, work_week_service):
+        """Test strict validation mode returns ValidationResult."""
+        config = WorkWeekConfig(
+            preset=WorkWeekPreset.CUSTOM,
+            start_day=2,
+            end_day=2,  # Same as start - should be corrected
+            timezone=None
+        )
+        
+        result = work_week_service.validate_work_week_config(config, strict=True)
+        assert isinstance(result, ValidationResult)
+        assert result.is_valid == True
+        assert result.has_corrections == True
+        assert result.corrected_config.end_day == 3  # Auto-corrected
+    
+    def test_non_strict_validation_mode(self, work_week_service):
+        """Test non-strict validation mode returns corrected config."""
+        config = WorkWeekConfig(
+            preset=WorkWeekPreset.CUSTOM,
+            start_day=2,
+            end_day=2,  # Same as start - should be corrected
+            timezone=None
+        )
+        
+        result = work_week_service.validate_work_week_config(config, strict=False)
+        assert isinstance(result, WorkWeekConfig)
+        assert result.start_day == 2
+        assert result.end_day == 3  # Auto-corrected
+    
+    def test_ui_validation_valid_input(self, work_week_service):
+        """Test UI validation with valid input."""
+        config_dict = {
+            'preset': 'monday-friday',
+            'start_day': 1,
+            'end_day': 5,
+            'timezone': 'UTC'
+        }
+        
+        result = work_week_service.validate_config_for_ui(config_dict)
+        assert result.is_valid == True
+        assert len(result.errors) == 0
+    
+    def test_ui_validation_missing_fields(self, work_week_service):
+        """Test UI validation with missing required fields."""
+        config_dict = {
+            'preset': 'monday-friday',
+            # Missing start_day and end_day
+            'timezone': 'UTC'
+        }
+        
+        result = work_week_service.validate_config_for_ui(config_dict)
+        assert result.is_valid == False
+        assert len(result.errors) >= 2  # Should have errors for missing fields
+        assert any("Missing required field: start_day" in error for error in result.errors)
+        assert any("Missing required field: end_day" in error for error in result.errors)
+    
+    def test_ui_validation_invalid_types(self, work_week_service):
+        """Test UI validation with invalid field types."""
+        config_dict = {
+            'preset': 'monday-friday',
+            'start_day': 'invalid',  # Should be number
+            'end_day': 5.5,         # Should be integer
+            'timezone': 123         # Should be string
+        }
+        
+        result = work_week_service.validate_config_for_ui(config_dict)
+        assert result.is_valid == False
+        assert len(result.errors) > 0
+        assert any("must be a number" in error for error in result.errors)
+    
+    def test_ui_validation_invalid_preset(self, work_week_service):
+        """Test UI validation with invalid preset."""
+        config_dict = {
+            'preset': 'invalid-preset',
+            'start_day': 1,
+            'end_day': 5,
+            'timezone': 'UTC'
+        }
+        
+        result = work_week_service.validate_config_for_ui(config_dict)
+        assert result.is_valid == False
+        assert any("Invalid preset" in error for error in result.errors)
+    
+    def test_ui_validation_invalid_day_ranges(self, work_week_service):
+        """Test UI validation with invalid day ranges."""
+        config_dict = {
+            'preset': 'custom',
+            'start_day': 0,   # Invalid
+            'end_day': 8,     # Invalid
+            'timezone': 'UTC'
+        }
+        
+        result = work_week_service.validate_config_for_ui(config_dict)
+        assert result.is_valid == False
+        assert len(result.errors) >= 2
+        assert any("Start Day must be 1-7" in error for error in result.errors)
+        assert any("End Day must be 1-7" in error for error in result.errors)
+    
+    def test_validation_help_text(self, work_week_service):
+        """Test validation help text generation."""
+        help_text = work_week_service.get_validation_help_text()
+        
+        required_keys = [
+            'preset', 'start_day', 'end_day', 'timezone', 
+            'weekend_handling', 'work_week_length', 'same_day_error', 'preset_mismatch'
+        ]
+        
+        for key in required_keys:
+            assert key in help_text
+            assert isinstance(help_text[key], str)
+            assert len(help_text[key]) > 0
+    
+    def test_work_week_length_calculation(self, work_week_service):
+        """Test work week length calculation."""
+        # Normal work week (Monday-Friday)
+        length = work_week_service._calculate_work_week_length(1, 5)
+        assert length == 5
+        
+        # Work week spanning weekend (Friday-Tuesday)
+        length = work_week_service._calculate_work_week_length(5, 2)
+        assert length == 5  # Fri, Sat, Sun, Mon, Tue
+        
+        # Six-day work week (Monday-Saturday)
+        length = work_week_service._calculate_work_week_length(1, 6)
+        assert length == 6
+        
+        # Single day work week
+        length = work_week_service._calculate_work_week_length(3, 3)
+        assert length == 1
+    
+    def test_work_week_length_validation(self, work_week_service):
+        """Test work week length validation."""
+        # Valid lengths
+        assert work_week_service._validate_work_week_length(
+            WorkWeekConfig(preset=WorkWeekPreset.CUSTOM, start_day=1, end_day=5)
+        )[0] == True
+        
+        # Invalid: same day (1 day) - should still be valid but will be corrected
+        assert work_week_service._validate_work_week_length(
+            WorkWeekConfig(preset=WorkWeekPreset.CUSTOM, start_day=3, end_day=3)
+        )[0] == True
+        
+        # Edge case: 6-day work week (valid)
+        assert work_week_service._validate_work_week_length(
+            WorkWeekConfig(preset=WorkWeekPreset.CUSTOM, start_day=1, end_day=6)
+        )[0] == True
+    
+    @pytest.mark.asyncio
+    async def test_error_handling_database_failure(self, work_week_service):
+        """Test error handling when database operations fail."""
+        # Mock database to raise exception
+        work_week_service.db_manager.get_session.side_effect = Exception("Database connection failed")
+        
+        # Should fall back to default configuration
+        config = await work_week_service.get_user_work_week_config("test_user")
+        assert config.preset == WorkWeekPreset.MONDAY_FRIDAY
+        assert config.start_day == 1
+        assert config.end_day == 5
+    
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_entry_date(self, work_week_service):
+        """Test error handling with invalid entry dates."""
+        # Mock user config
+        work_week_service.get_user_work_week_config = AsyncMock(
+            return_value=WorkWeekConfig.from_preset(WorkWeekPreset.MONDAY_FRIDAY)
+        )
+        
+        # Test with None
+        result = await work_week_service.calculate_week_ending_date(None)
+        assert isinstance(result, date)
+        
+        # Test with invalid type
+        result = await work_week_service.calculate_week_ending_date("invalid")
+        assert isinstance(result, date)
+    
+    @pytest.mark.asyncio
+    async def test_update_config_validation_error(self, work_week_service):
+        """Test update configuration with validation errors."""
+        # Create invalid config
+        invalid_config = WorkWeekConfig(
+            preset=WorkWeekPreset.CUSTOM,
+            start_day=0,  # Invalid
+            end_day=5,
+            timezone=None
+        )
+        
+        # Should raise ValidationError
+        with pytest.raises(ValidationError):
+            await work_week_service.update_work_week_config(invalid_config)
+    
+    @pytest.mark.asyncio
+    async def test_update_config_database_retry_logic(self, work_week_service):
+        """Test update configuration database retry logic."""
+        valid_config = WorkWeekConfig.from_preset(WorkWeekPreset.MONDAY_FRIDAY)
+        
+        # Mock database to fail first few attempts then succeed
+        mock_session = AsyncMock()
+        call_count = 0
+        
+        def mock_get_session():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise Exception(f"Database error {call_count}")
+            return mock_session
+        
+        work_week_service.db_manager.get_session.return_value.__aenter__.return_value = mock_session
+        work_week_service._update_config_in_database = AsyncMock()
+        
+        # First call should fail and retry
+        work_week_service._update_config_in_database.side_effect = [
+            Exception("Database error 1"),
+            Exception("Database error 2"),
+            None  # Success on third attempt
+        ]
+        
+        # Should eventually succeed
+        result = await work_week_service.update_work_week_config(valid_config)
+        assert result.preset == WorkWeekPreset.MONDAY_FRIDAY
+        
+        # Verify it was called 3 times (2 failures + 1 success)
+        assert work_week_service._update_config_in_database.call_count == 3
+    
+    def test_normalize_entry_date_validation(self, work_week_service):
+        """Test entry date normalization with validation."""
+        # Valid date
+        test_date = date(2025, 1, 15)
+        result = work_week_service._normalize_entry_date(test_date)
+        assert result == test_date
+        
+        # Valid datetime
+        test_datetime = datetime(2025, 1, 15, 14, 30)
+        result = work_week_service._normalize_entry_date(test_datetime)
+        assert result == test_date
+        
+        # Invalid: None
+        with pytest.raises(ValueError):
+            work_week_service._normalize_entry_date(None)
+        
+        # Invalid: string
+        with pytest.raises(ValueError):
+            work_week_service._normalize_entry_date("2025-01-15")
+    
+    def test_week_ending_date_validation(self, work_week_service):
+        """Test week ending date validation."""
+        entry_date = date(2025, 1, 15)  # Wednesday
+        
+        # Valid week ending (within 7 days)
+        valid_week_ending = date(2025, 1, 17)  # Friday
+        assert work_week_service._is_valid_week_ending_date(valid_week_ending, entry_date) == True
+        
+        # Invalid week ending (too far in future)
+        invalid_week_ending = date(2025, 1, 25)  # 10 days later
+        assert work_week_service._is_valid_week_ending_date(invalid_week_ending, entry_date) == False
+        
+        # Invalid week ending (too far in past)
+        invalid_week_ending = date(2025, 1, 5)  # 10 days earlier
+        assert work_week_service._is_valid_week_ending_date(invalid_week_ending, entry_date) == False
+    
+    def test_enhanced_health_status(self, work_week_service):
+        """Test enhanced health status reporting."""
+        health = work_week_service.get_service_health_status()
+        
+        # Basic health check fields
+        assert health['service_name'] == 'WorkWeekService'
+        assert health['status'] == 'healthy'
+        assert 'cache_size' in health
+        assert 'validation_test' in health
+        assert 'calculation_test' in health
+        
+        # Validation test should pass
+        assert health['validation_test']['status'] == 'passed'
+        
+        # Calculation test should have valid results
+        assert 'test_date' in health['calculation_test']
+        assert 'calculated_week_ending' in health['calculation_test']
+    
+    def test_enhanced_health_status_with_warnings(self, work_week_service):
+        """Test health status with warnings for large cache."""
+        # Fill cache with many entries to trigger warning
+        config = WorkWeekConfig.from_preset(WorkWeekPreset.MONDAY_FRIDAY)
+        for i in range(101):  # More than 100 entries
+            work_week_service._cache_config(f"user_{i}", config)
+        
+        health = work_week_service.get_service_health_status()
+        assert 'warnings' in health
+        assert any('cache is large' in warning for warning in health['warnings'])
+    
+    @pytest.mark.asyncio
+    async def test_database_repair_and_recovery(self, work_week_service):
+        """Test database repair and recovery functionality."""
+        # Mock database session
+        mock_session = AsyncMock()
+        work_week_service.db_manager.get_session.return_value.__aenter__.return_value = mock_session
+        
+        # Test repair functionality
+        repair_result = await work_week_service.validate_and_repair_database_settings()
+        
+        assert 'validated_settings' in repair_result
+        assert 'repaired_settings' in repair_result
+        assert 'errors' in repair_result
+        
+        # Should be lists
+        assert isinstance(repair_result['validated_settings'], list)
+        assert isinstance(repair_result['repaired_settings'], list)
+        assert isinstance(repair_result['errors'], list)
 
 
 if __name__ == "__main__":
