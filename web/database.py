@@ -7,7 +7,7 @@ while maintaining the file system as the primary data store.
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text, Float, Index
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text, Float, Index, update
 from datetime import datetime
 from .utils.timezone_utils import now_utc, now_local
 import aiosqlite
@@ -63,6 +63,20 @@ class WebSettings(Base):
     modified_at = Column(DateTime, default=now_utc, onupdate=now_utc)
 
 
+class WorkWeekSettings(Base):
+    """Work week configuration settings for users."""
+    __tablename__ = "work_week_settings"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, nullable=False, index=True, default="default")  # For multi-user support later
+    work_week_preset = Column(String, nullable=False, default="monday_friday")  # 'monday_friday', 'sunday_thursday', 'custom'
+    work_week_start_day = Column(Integer, nullable=False, default=1)  # 1=Monday, 2=Tuesday, ..., 7=Sunday
+    work_week_end_day = Column(Integer, nullable=False, default=5)    # 1=Monday, 2=Tuesday, ..., 7=Sunday
+    timezone = Column(String, nullable=False, default="UTC")
+    created_at = Column(DateTime, default=now_utc)
+    modified_at = Column(DateTime, default=now_utc, onupdate=now_utc)
+
+
 class SyncStatus(Base):
     """Track synchronization status between file system and database."""
     __tablename__ = "sync_status"
@@ -84,6 +98,8 @@ class SyncStatus(Base):
 Index('idx_journal_entries_date_content', JournalEntryIndex.date, JournalEntryIndex.has_content)
 Index('idx_journal_entries_week_ending', JournalEntryIndex.week_ending_date)
 Index('idx_sync_status_type_started', SyncStatus.sync_type, SyncStatus.started_at)
+Index('idx_work_week_settings_user', WorkWeekSettings.user_id)
+Index('idx_work_week_settings_preset', WorkWeekSettings.work_week_preset)
 
 
 class DatabaseManager:
@@ -116,6 +132,9 @@ class DatabaseManager:
             
         # Initialize default settings
         await self._initialize_default_settings()
+        
+        # Initialize default work week settings
+        await self._initialize_default_work_week_settings()
     
     async def _initialize_default_settings(self):
         """Initialize default web settings."""
@@ -144,6 +163,25 @@ class DatabaseManager:
                     )
                     session.add(setting)
             await session.commit()
+    
+    async def _initialize_default_work_week_settings(self):
+        """Initialize default work week settings."""
+        async with self.get_session() as session:
+            from sqlalchemy import select
+            stmt = select(WorkWeekSettings).where(WorkWeekSettings.user_id == "default")
+            result = await session.execute(stmt)
+            existing = result.scalar_one_or_none()
+            
+            if not existing:
+                default_work_week = WorkWeekSettings(
+                    user_id="default",
+                    work_week_preset="monday_friday",
+                    work_week_start_day=1,  # Monday
+                    work_week_end_day=5,    # Friday
+                    timezone="UTC"
+                )
+                session.add(default_work_week)
+                await session.commit()
     
     def _parse_setting_value(self, value: str, value_type: str) -> Union[str, int, bool, float, Dict[str, Any]]:
         """Parse setting value based on its type."""
@@ -331,6 +369,305 @@ class DatabaseManager:
                 "error": str(e),
                 "database_path": self.database_path
             }
+    
+    # Work Week Settings Methods
+    
+    async def get_work_week_settings(self, user_id: str = "default") -> Optional[Dict[str, Any]]:
+        """Get work week settings for a user."""
+        try:
+            async with self.get_session() as session:
+                from sqlalchemy import select
+                stmt = select(WorkWeekSettings).where(WorkWeekSettings.user_id == user_id)
+                result = await session.execute(stmt)
+                settings = result.scalar_one_or_none()
+                
+                if settings:
+                    return {
+                        "user_id": settings.user_id,
+                        "work_week_preset": settings.work_week_preset,
+                        "work_week_start_day": settings.work_week_start_day,
+                        "work_week_end_day": settings.work_week_end_day,
+                        "timezone": settings.timezone,
+                        "created_at": settings.created_at,
+                        "modified_at": settings.modified_at
+                    }
+                return None
+        except Exception as e:
+            return None
+    
+    async def update_work_week_settings(self, user_id: str = "default", 
+                                      preset: str = None, 
+                                      start_day: int = None, 
+                                      end_day: int = None, 
+                                      timezone: str = None) -> bool:
+        """Update work week settings for a user."""
+        try:
+            async with self.get_session() as session:
+                from sqlalchemy import select, update
+                
+                # Check if settings exist
+                stmt = select(WorkWeekSettings).where(WorkWeekSettings.user_id == user_id)
+                result = await session.execute(stmt)
+                existing = result.scalar_one_or_none()
+                
+                if existing:
+                    # Update existing settings
+                    update_data = {"modified_at": now_utc()}
+                    if preset is not None:
+                        update_data["work_week_preset"] = preset
+                    if start_day is not None:
+                        update_data["work_week_start_day"] = start_day
+                    if end_day is not None:
+                        update_data["work_week_end_day"] = end_day
+                    if timezone is not None:
+                        update_data["timezone"] = timezone
+                    
+                    update_stmt = (
+                        update(WorkWeekSettings)
+                        .where(WorkWeekSettings.user_id == user_id)
+                        .values(**update_data)
+                    )
+                    await session.execute(update_stmt)
+                else:
+                    # Create new settings
+                    new_settings = WorkWeekSettings(
+                        user_id=user_id,
+                        work_week_preset=preset or "monday_friday",
+                        work_week_start_day=start_day or 1,
+                        work_week_end_day=end_day or 5,
+                        timezone=timezone or "UTC"
+                    )
+                    session.add(new_settings)
+                
+                await session.commit()
+                return True
+        except Exception as e:
+            return False
+    
+    async def validate_work_week_settings(self, preset: str, start_day: int, end_day: int) -> Dict[str, Any]:
+        """Validate work week settings and return validation result."""
+        validation_result = {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+            "auto_corrections": {}
+        }
+        
+        # Validate preset
+        valid_presets = ["monday_friday", "sunday_thursday", "custom"]
+        if preset not in valid_presets:
+            validation_result["valid"] = False
+            validation_result["errors"].append(f"Invalid preset '{preset}'. Must be one of: {', '.join(valid_presets)}")
+        
+        # Validate day values
+        if not (1 <= start_day <= 7):
+            validation_result["valid"] = False
+            validation_result["errors"].append("Start day must be between 1 (Monday) and 7 (Sunday)")
+        
+        if not (1 <= end_day <= 7):
+            validation_result["valid"] = False
+            validation_result["errors"].append("End day must be between 1 (Monday) and 7 (Sunday)")
+        
+        # Check if start and end days are the same
+        if start_day == end_day:
+            validation_result["valid"] = False
+            validation_result["errors"].append("Start day and end day cannot be the same")
+            
+            # Auto-correct: if Monday-Friday preset, fix the days
+            if preset == "monday_friday":
+                validation_result["auto_corrections"]["start_day"] = 1
+                validation_result["auto_corrections"]["end_day"] = 5
+                validation_result["warnings"].append("Auto-corrected to Monday-Friday work week")
+            elif preset == "sunday_thursday":
+                validation_result["auto_corrections"]["start_day"] = 7  # Sunday
+                validation_result["auto_corrections"]["end_day"] = 4   # Thursday
+                validation_result["warnings"].append("Auto-corrected to Sunday-Thursday work week")
+        
+        return validation_result
+    
+    async def create_work_week_migration(self) -> Dict[str, Any]:
+        """Create migration for existing installations without work week settings."""
+        migration_result = {
+            "success": False,
+            "users_migrated": 0,
+            "errors": []
+        }
+        
+        try:
+            async with self.get_session() as session:
+                from sqlalchemy import select
+                
+                # Check if WorkWeekSettings table exists and has data
+                stmt = select(WorkWeekSettings)
+                result = await session.execute(stmt)
+                existing_settings = result.scalars().all()
+                
+                if not existing_settings:
+                    # Create default work week settings for the default user
+                    default_work_week = WorkWeekSettings(
+                        user_id="default",
+                        work_week_preset="monday_friday",
+                        work_week_start_day=1,  # Monday
+                        work_week_end_day=5,    # Friday
+                        timezone="UTC"
+                    )
+                    session.add(default_work_week)
+                    await session.commit()
+                    migration_result["users_migrated"] = 1
+                
+                migration_result["success"] = True
+                
+        except Exception as e:
+            migration_result["errors"].append(str(e))
+        
+        return migration_result
+    
+    async def migrate_week_ending_dates(self, work_week_service, batch_size: int = 100) -> Dict[str, Any]:
+        """Migrate existing journal entries to use calculated week ending dates."""
+        migration_result = {
+            "success": False,
+            "entries_processed": 0,
+            "entries_updated": 0,
+            "entries_with_errors": 0,
+            "errors": [],
+            "batches_processed": 0
+        }
+        
+        try:
+            async with self.get_session() as session:
+                from sqlalchemy import select, func
+                
+                # Get total count for progress tracking
+                count_stmt = select(func.count(JournalEntryIndex.id))
+                total_entries = await session.scalar(count_stmt)
+                
+                if total_entries == 0:
+                    migration_result["success"] = True
+                    return migration_result
+                
+                # Process entries in batches
+                offset = 0
+                batch_count = 0
+                
+                while offset < total_entries:
+                    batch_count += 1
+                    
+                    # Get batch of entries
+                    batch_stmt = (
+                        select(JournalEntryIndex)
+                        .order_by(JournalEntryIndex.date)
+                        .offset(offset)
+                        .limit(batch_size)
+                    )
+                    batch_result = await session.execute(batch_stmt)
+                    batch_entries = batch_result.scalars().all()
+                    
+                    if not batch_entries:
+                        break
+                    
+                    # Process each entry in the batch
+                    for entry in batch_entries:
+                        try:
+                            # Calculate new week ending date
+                            new_week_ending = await work_week_service.calculate_week_ending_date(entry.date)
+                            
+                            # Update if different
+                            if entry.week_ending_date != new_week_ending:
+                                update_stmt = (
+                                    update(JournalEntryIndex)
+                                    .where(JournalEntryIndex.id == entry.id)
+                                    .values(
+                                        week_ending_date=new_week_ending,
+                                        modified_at=now_utc(),
+                                        synced_at=now_utc()
+                                    )
+                                )
+                                await session.execute(update_stmt)
+                                migration_result["entries_updated"] += 1
+                            
+                            migration_result["entries_processed"] += 1
+                            
+                        except Exception as e:
+                            migration_result["entries_with_errors"] += 1
+                            migration_result["errors"].append({
+                                "entry_date": entry.date.isoformat(),
+                                "error": str(e)
+                            })
+                    
+                    # Commit batch
+                    await session.commit()
+                    migration_result["batches_processed"] = batch_count
+                    
+                    # Move to next batch
+                    offset += batch_size
+                
+                migration_result["success"] = True
+                
+        except Exception as e:
+            migration_result["errors"].append({"general": str(e)})
+        
+        return migration_result
+    
+    async def validate_week_ending_dates_integrity(self) -> Dict[str, Any]:
+        """Validate the integrity of week ending dates in the database."""
+        validation_result = {
+            "success": False,
+            "total_entries": 0,
+            "valid_entries": 0,
+            "invalid_entries": 0,
+            "missing_week_endings": 0,
+            "invalid_date_ranges": 0,
+            "errors": []
+        }
+        
+        try:
+            async with self.get_session() as session:
+                from sqlalchemy import select, func, and_
+                
+                # Get all entries
+                stmt = select(JournalEntryIndex).order_by(JournalEntryIndex.date)
+                result = await session.execute(stmt)
+                entries = result.scalars().all()
+                
+                validation_result["total_entries"] = len(entries)
+                
+                for entry in entries:
+                    try:
+                        # Check if week ending date exists
+                        if entry.week_ending_date is None:
+                            validation_result["missing_week_endings"] += 1
+                            validation_result["errors"].append({
+                                "entry_date": entry.date.isoformat(),
+                                "issue": "Missing week ending date"
+                            })
+                            continue
+                        
+                        # Check if week ending date is reasonable (within 7 days of entry date)
+                        date_diff = abs((entry.week_ending_date - entry.date).days)
+                        if date_diff > 7:
+                            validation_result["invalid_date_ranges"] += 1
+                            validation_result["errors"].append({
+                                "entry_date": entry.date.isoformat(),
+                                "week_ending_date": entry.week_ending_date.isoformat(),
+                                "issue": f"Week ending date is {date_diff} days from entry date"
+                            })
+                            continue
+                        
+                        validation_result["valid_entries"] += 1
+                        
+                    except Exception as e:
+                        validation_result["invalid_entries"] += 1
+                        validation_result["errors"].append({
+                            "entry_date": entry.date.isoformat() if entry.date else "unknown",
+                            "issue": f"Validation error: {str(e)}"
+                        })
+                
+                validation_result["success"] = True
+                
+        except Exception as e:
+            validation_result["errors"].append({"general": str(e)})
+        
+        return validation_result
 
 
 # Global database manager instance
