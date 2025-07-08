@@ -20,7 +20,10 @@ from web.services.settings_service import SettingsService
 from web.models.settings import (
     WebSettingResponse, WebSettingCreate, WebSettingUpdate,
     SettingsCollection, SettingsExport, SettingsImport,
-    SettingsCategoryResponse, SettingsBulkUpdateRequest, SettingsBulkUpdateResponse
+    SettingsCategoryResponse, SettingsBulkUpdateRequest, SettingsBulkUpdateResponse,
+    WorkWeekConfigRequest, WorkWeekConfigResponse, WorkWeekPresetsResponse,
+    WorkWeekValidationRequest, WorkWeekValidationResponse, WorkWeekUpdateResponse,
+    WorkWeekPresetInfo
 )
 
 # Initialize dependencies (will be initialized in dependency functions)
@@ -98,6 +101,197 @@ async def settings_health_check(
             "error": str(e),
             "database_connected": False
         }
+
+# Work Week Settings Endpoints (must come before generic /{key} route)
+
+def _get_day_name(day_num: int) -> str:
+    """Convert day number to name."""
+    day_names = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 
+                 5: 'Friday', 6: 'Saturday', 7: 'Sunday'}
+    return day_names.get(day_num, 'Unknown')
+
+async def _build_work_week_config_response(settings: Dict[str, Any]) -> WorkWeekConfigResponse:
+    """Build work week configuration response from settings."""
+    preset = settings.get('preset', 'monday_friday')
+    start_day = settings.get('start_day', 1)
+    end_day = settings.get('end_day', 5)
+    timezone = settings.get('timezone', 'UTC')
+    
+    # Validate configuration
+    is_valid = True
+    validation_errors = []
+    
+    if start_day == end_day:
+        is_valid = False
+        validation_errors.append("Start day and end day cannot be the same")
+    
+    if not (1 <= start_day <= 7):
+        is_valid = False
+        validation_errors.append("Start day must be between 1 and 7")
+    
+    if not (1 <= end_day <= 7):
+        is_valid = False
+        validation_errors.append("End day must be between 1 and 7")
+    
+    return WorkWeekConfigResponse(
+        preset=preset,
+        start_day=start_day,
+        end_day=end_day,
+        timezone=timezone,
+        start_day_name=_get_day_name(start_day),
+        end_day_name=_get_day_name(end_day),
+        is_valid=is_valid,
+        validation_errors=validation_errors
+    )
+
+@router.get("/work-week", response_model=WorkWeekConfigResponse)
+async def get_work_week_configuration(
+    settings_service: SettingsService = Depends(get_settings_service)
+):
+    """Get current work week configuration."""
+    try:
+        settings = await settings_service.get_work_week_settings()
+        return await _build_work_week_config_response(settings)
+    except Exception as e:
+        if logger:
+            logger.logger.error(f"Failed to get work week configuration: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve work week configuration: {str(e)}"
+        )
+
+@router.post("/work-week", response_model=WorkWeekUpdateResponse)
+async def update_work_week_configuration(
+    config_request: WorkWeekConfigRequest,
+    settings_service: SettingsService = Depends(get_settings_service)
+):
+    """Update work week configuration."""
+    try:
+        # Update configuration
+        result = await settings_service.update_work_week_configuration(
+            preset=config_request.preset,
+            start_day=config_request.start_day,
+            end_day=config_request.end_day,
+            timezone=config_request.timezone
+        )
+        
+        # Get current configuration
+        current_settings = await settings_service.get_work_week_settings()
+        current_config = await _build_work_week_config_response(current_settings)
+        
+        return WorkWeekUpdateResponse(
+            success=result['success'],
+            updated_settings=result['updated_settings'],
+            errors=result['errors'],
+            current_config=current_config
+        )
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        if logger:
+            logger.logger.error(f"Failed to update work week configuration: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update work week configuration: {str(e)}"
+        )
+
+@router.get("/work-week/presets", response_model=WorkWeekPresetsResponse)
+async def get_work_week_presets(
+    settings_service: SettingsService = Depends(get_settings_service)
+):
+    """Get available work week presets."""
+    try:
+        presets_data = await settings_service.get_work_week_presets()
+        current_settings = await settings_service.get_work_week_settings()
+        
+        # Convert to API response format
+        presets = {}
+        for key, preset_info in presets_data.items():
+            presets[key] = WorkWeekPresetInfo(
+                name=preset_info['name'],
+                description=preset_info['description'],
+                start_day=preset_info['start_day'],
+                end_day=preset_info['end_day'],
+                start_day_name=preset_info['start_day_name'],
+                end_day_name=preset_info['end_day_name']
+            )
+        
+        return WorkWeekPresetsResponse(
+            presets=presets,
+            current_preset=current_settings.get('preset', 'monday_friday')
+        )
+        
+    except Exception as e:
+        if logger:
+            logger.logger.error(f"Failed to get work week presets: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve work week presets: {str(e)}"
+        )
+
+@router.post("/work-week/validate", response_model=WorkWeekValidationResponse)
+async def validate_work_week_configuration(
+    validation_request: WorkWeekValidationRequest,
+    settings_service: SettingsService = Depends(get_settings_service)
+):
+    """Validate work week configuration without saving."""
+    try:
+        preset = validation_request.preset
+        start_day = validation_request.start_day
+        end_day = validation_request.end_day
+        
+        # Get defaults for preset if custom days not provided
+        if preset != 'custom':
+            presets_data = await settings_service.get_work_week_presets()
+            if preset in presets_data:
+                start_day = start_day or presets_data[preset]['start_day']
+                end_day = end_day or presets_data[preset]['end_day']
+        
+        # Validate custom configuration if we have both days
+        if start_day is not None and end_day is not None:
+            validation_result = await settings_service.validate_custom_work_week(start_day, end_day)
+        else:
+            validation_result = {
+                'valid': preset in ['monday_friday', 'sunday_thursday', 'custom'],
+                'errors': [] if preset in ['monday_friday', 'sunday_thursday', 'custom'] else ['Invalid preset'],
+                'warnings': [],
+                'auto_corrections': {}
+            }
+        
+        # Apply auto-corrections if any
+        if validation_result.get('auto_corrections'):
+            start_day = validation_result['auto_corrections'].get('start_day', start_day)
+            end_day = validation_result['auto_corrections'].get('end_day', end_day)
+        
+        # Build preview configuration
+        current_settings = await settings_service.get_work_week_settings()
+        preview_settings = {
+            'preset': preset,
+            'start_day': start_day or current_settings.get('start_day', 1),
+            'end_day': end_day or current_settings.get('end_day', 5),
+            'timezone': current_settings.get('timezone', 'UTC')
+        }
+        preview_config = await _build_work_week_config_response(preview_settings)
+        
+        return WorkWeekValidationResponse(
+            valid=validation_result['valid'],
+            errors=validation_result['errors'],
+            warnings=validation_result['warnings'],
+            auto_corrections=validation_result['auto_corrections'],
+            preview=preview_config
+        )
+        
+    except Exception as e:
+        if logger:
+            logger.logger.error(f"Failed to validate work week configuration: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to validate work week configuration: {str(e)}"
+        )
 
 @router.get("/{key}", response_model=WebSettingResponse)
 async def get_setting(
@@ -228,7 +422,7 @@ async def import_settings(
 ):
     """Import settings from exported data."""
     try:
-        imported_settings = await settings_service.import_settings(import_data.settings)
+        imported_settings = await settings_service.import_settings({"settings": import_data.settings})
         return imported_settings
     except ValueError as e:
         raise HTTPException(
@@ -301,3 +495,5 @@ async def validate_filesystem_path(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid path: {str(e)}"
         )
+
+
