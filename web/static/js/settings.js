@@ -2,6 +2,7 @@
  * Settings Management JavaScript
  * 
  * Handles the settings interface, validation, and API interactions
+ * Includes comprehensive work week configuration functionality
  */
 
 class SettingsManager {
@@ -10,6 +11,15 @@ class SettingsManager {
         this.categories = {};
         this.changedSettings = new Set();
         this.currentCategory = 'filesystem';
+        
+        // Work week specific properties
+        this.workWeekConfig = {
+            preset: 'MONDAY_FRIDAY',
+            start_day: 1,
+            end_day: 5,
+            timezone: 'America/New_York'
+        };
+        this.workWeekValidationErrors = [];
 
         this.init();
     }
@@ -20,6 +30,7 @@ class SettingsManager {
             await this.loadCategories();
             this.setupEventListeners();
             this.renderSettings();
+            await this.initializeWorkWeekSettings();
             this.showCategory(this.currentCategory);
         } catch (error) {
             console.error('Failed to initialize settings:', error);
@@ -673,6 +684,631 @@ class SettingsManager {
             reader.onerror = reject;
             reader.readAsText(file);
         });
+    }
+
+    // ==========================================
+    // WORK WEEK CONFIGURATION FUNCTIONALITY
+    // ==========================================
+
+    /**
+     * Initialize work week settings functionality
+     */
+    async initializeWorkWeekSettings() {
+        try {
+            await this.loadCurrentWorkWeekConfig();
+            this.setupWorkWeekEventListeners();
+            this.updateWorkWeekPreview();
+        } catch (error) {
+            console.error('Failed to initialize work week settings:', error);
+        }
+    }
+
+    /**
+     * Setup event listeners for work week controls
+     */
+    setupWorkWeekEventListeners() {
+        // Preset selection
+        const presetSelect = document.getElementById('work-week-preset');
+        if (presetSelect) {
+            presetSelect.addEventListener('change', this.handlePresetChange.bind(this));
+        }
+
+        // Custom day selectors
+        const startDaySelect = document.getElementById('work-week-start-day');
+        const endDaySelect = document.getElementById('work-week-end-day');
+        
+        [startDaySelect, endDaySelect].forEach(select => {
+            if (select) {
+                select.addEventListener('change', this.handleCustomConfigurationChange.bind(this));
+            }
+        });
+
+        // Save button
+        const saveButton = document.getElementById('save-work-week-btn');
+        if (saveButton) {
+            saveButton.addEventListener('click', this.saveWorkWeekConfiguration.bind(this));
+        }
+
+        // Reset button
+        const resetButton = document.getElementById('reset-work-week-btn');
+        if (resetButton) {
+            resetButton.addEventListener('click', this.resetWorkWeekConfiguration.bind(this));
+        }
+    }
+
+    /**
+     * Handle preset selection changes
+     */
+    handlePresetChange(event) {
+        const preset = event.target.value;
+        this.workWeekConfig.preset = preset;
+
+        const customFields = document.getElementById('custom-work-week-fields');
+        
+        if (preset === 'CUSTOM') {
+            // Show custom fields
+            if (customFields) {
+                customFields.style.display = 'block';
+                customFields.classList.add('active');
+                this.addSlideAnimation(customFields, 'show');
+            }
+        } else {
+            // Hide custom fields and set preset values
+            if (customFields) {
+                this.addSlideAnimation(customFields, 'hide');
+                setTimeout(() => {
+                    customFields.style.display = 'none';
+                    customFields.classList.remove('active');
+                }, 300);
+            }
+
+            // Set preset values
+            if (preset === 'MONDAY_FRIDAY') {
+                this.workWeekConfig.start_day = 1;
+                this.workWeekConfig.end_day = 5;
+            } else if (preset === 'SUNDAY_THURSDAY') {
+                this.workWeekConfig.start_day = 7;
+                this.workWeekConfig.end_day = 4;
+            }
+
+            // Update custom selectors
+            this.updateCustomDaySelectors();
+        }
+
+        this.updateWorkWeekPreview();
+        this.validateCustomConfiguration();
+    }
+
+    /**
+     * Handle custom configuration changes
+     */
+    handleCustomConfigurationChange(event) {
+        const field = event.target.id;
+        const value = parseInt(event.target.value);
+
+        if (field === 'work-week-start-day') {
+            this.workWeekConfig.start_day = value;
+        } else if (field === 'work-week-end-day') {
+            this.workWeekConfig.end_day = value;
+        }
+
+        this.updateWorkWeekPreview();
+        this.validateCustomConfiguration();
+    }
+
+    /**
+     * Validate custom work week configuration
+     */
+    validateCustomConfiguration() {
+        this.workWeekValidationErrors = [];
+        const { start_day, end_day, preset } = this.workWeekConfig;
+
+        // Only validate custom configurations
+        if (preset !== 'CUSTOM') {
+            this.updateWorkWeekValidationDisplay();
+            return true;
+        }
+
+        // Start and end day must be different
+        if (start_day === end_day) {
+            this.workWeekValidationErrors.push({
+                field: 'work-week',
+                message: 'Start day and end day must be different',
+                suggestion: 'Choose different days for your work week'
+            });
+        }
+
+        // Days must be 1-7
+        if (start_day < 1 || start_day > 7) {
+            this.workWeekValidationErrors.push({
+                field: 'start-day',
+                message: 'Start day must be between 1-7 (1=Monday, 7=Sunday)'
+            });
+        }
+
+        if (end_day < 1 || end_day > 7) {
+            this.workWeekValidationErrors.push({
+                field: 'end-day',
+                message: 'End day must be between 1-7 (1=Monday, 7=Sunday)'
+            });
+        }
+
+        this.updateWorkWeekValidationDisplay();
+        return this.workWeekValidationErrors.length === 0;
+    }
+
+    /**
+     * Update validation display for work week settings
+     */
+    updateWorkWeekValidationDisplay() {
+        const validationContainer = document.getElementById('work-week-validation');
+        const saveButton = document.getElementById('save-work-week-btn');
+
+        if (!validationContainer) return;
+
+        if (this.workWeekValidationErrors.length > 0) {
+            validationContainer.innerHTML = `
+                <div class="validation-errors">
+                    <div class="validation-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        Please fix the following issues:
+                    </div>
+                    ${this.workWeekValidationErrors.map(error => 
+                        `<div class="validation-error">
+                            <span class="error-message">${error.message}</span>
+                            ${error.suggestion ? `<span class="error-suggestion">${error.suggestion}</span>` : ''}
+                        </div>`
+                    ).join('')}
+                </div>
+            `;
+            validationContainer.classList.add('has-errors');
+            
+            if (saveButton) {
+                saveButton.disabled = true;
+                saveButton.classList.add('disabled');
+            }
+        } else {
+            validationContainer.innerHTML = `
+                <div class="validation-success">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    Work week configuration is valid
+                </div>
+            `;
+            validationContainer.classList.remove('has-errors');
+            validationContainer.classList.add('has-success');
+            
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.classList.remove('disabled');
+            }
+        }
+    }
+
+    /**
+     * Update work week preview
+     */
+    updateWorkWeekPreview() {
+        const previewContainer = document.getElementById('work-week-preview');
+        if (!previewContainer) return;
+
+        const { preset, start_day, end_day } = this.workWeekConfig;
+        const dayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        let previewHtml = '';
+
+        if (preset === 'MONDAY_FRIDAY') {
+            previewHtml = `
+                <div class="preview-header">
+                    <h4>Work Week: Monday - Friday</h4>
+                    <span class="preset-badge">Standard</span>
+                </div>
+                <div class="preview-details">
+                    <div class="work-days">
+                        <strong>Work days:</strong> Monday, Tuesday, Wednesday, Thursday, Friday
+                    </div>
+                    <div class="weekend-assignment">
+                        <strong>Weekend assignment:</strong>
+                        <ul>
+                            <li>Saturday entries → Previous week</li>
+                            <li>Sunday entries → Next week</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="preview-example">
+                    <strong>Example:</strong> An entry created on Saturday Nov 16 will be saved to the Nov 8-15 work week directory.
+                </div>
+            `;
+        } else if (preset === 'SUNDAY_THURSDAY') {
+            previewHtml = `
+                <div class="preview-header">
+                    <h4>Work Week: Sunday - Thursday</h4>
+                    <span class="preset-badge">Middle East</span>
+                </div>
+                <div class="preview-details">
+                    <div class="work-days">
+                        <strong>Work days:</strong> Sunday, Monday, Tuesday, Wednesday, Thursday
+                    </div>
+                    <div class="weekend-assignment">
+                        <strong>Weekend assignment:</strong>
+                        <ul>
+                            <li>Friday entries → Next week</li>
+                            <li>Saturday entries → Next week</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="preview-example">
+                    <strong>Example:</strong> An entry created on Friday Nov 15 will be saved to the Nov 17-21 work week directory.
+                </div>
+            `;
+        } else if (preset === 'CUSTOM') {
+            const startDayName = dayNames[start_day] || 'Invalid';
+            const endDayName = dayNames[end_day] || 'Invalid';
+            
+            // Generate work days list
+            const workDays = this.generateWorkDaysList(start_day, end_day);
+            const weekendDays = this.generateWeekendAssignmentLogic(start_day, end_day);
+            
+            previewHtml = `
+                <div class="preview-header">
+                    <h4>Custom Work Week: ${startDayName} - ${endDayName}</h4>
+                    <span class="preset-badge">Custom</span>
+                </div>
+                <div class="preview-details">
+                    <div class="work-days">
+                        <strong>Work days:</strong> ${workDays}
+                    </div>
+                    <div class="weekend-assignment">
+                        <strong>Weekend assignment:</strong>
+                        <ul>
+                            ${weekendDays}
+                        </ul>
+                    </div>
+                </div>
+                <div class="preview-example">
+                    <strong>Note:</strong> Weekend entries will be assigned to the nearest work week based on your custom schedule.
+                </div>
+            `;
+        }
+
+        previewContainer.innerHTML = previewHtml;
+        this.addPreviewAnimation(previewContainer);
+    }
+
+    /**
+     * Generate work days list for custom configurations
+     */
+    generateWorkDaysList(startDay, endDay) {
+        const dayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const workDays = [];
+
+        if (startDay <= endDay) {
+            // Normal week (e.g., Mon-Fri)
+            for (let i = startDay; i <= endDay; i++) {
+                workDays.push(dayNames[i]);
+            }
+        } else {
+            // Week wraps around (e.g., Thu-Tue)
+            for (let i = startDay; i <= 7; i++) {
+                workDays.push(dayNames[i]);
+            }
+            for (let i = 1; i <= endDay; i++) {
+                workDays.push(dayNames[i]);
+            }
+        }
+
+        return workDays.join(', ');
+    }
+
+    /**
+     * Generate weekend assignment logic for custom configurations
+     */
+    generateWeekendAssignmentLogic(startDay, endDay) {
+        const dayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const weekendAssignments = [];
+
+        for (let day = 1; day <= 7; day++) {
+            const isWorkDay = (startDay <= endDay) ? 
+                (day >= startDay && day <= endDay) : 
+                (day >= startDay || day <= endDay);
+
+            if (!isWorkDay) {
+                const dayName = dayNames[day];
+                // Simplified logic: days before work week go to previous, days after go to next
+                const assignment = (day < startDay) ? 'Previous week' : 'Next week';
+                weekendAssignments.push(`<li>${dayName} entries → ${assignment}</li>`);
+            }
+        }
+
+        return weekendAssignments.join('');
+    }
+
+    /**
+     * Load current work week configuration from API
+     */
+    async loadCurrentWorkWeekConfig() {
+        try {
+            const response = await fetch('/api/settings/work-week');
+            if (!response.ok) {
+                // If endpoint doesn't exist yet, use defaults
+                if (response.status === 404) {
+                    console.info('Work week settings not yet configured, using defaults');
+                    return;
+                }
+                throw new Error('Failed to load work week config');
+            }
+
+            const config = await response.json();
+            this.workWeekConfig = { ...this.workWeekConfig, ...config };
+
+            // Update form fields
+            this.updateWorkWeekFormFields();
+
+        } catch (error) {
+            console.error('Failed to load work week configuration:', error);
+            // Use defaults on error
+        }
+    }
+
+    /**
+     * Update form fields with current configuration
+     */
+    updateWorkWeekFormFields() {
+        const presetSelect = document.getElementById('work-week-preset');
+        const startDaySelect = document.getElementById('work-week-start-day');
+        const endDaySelect = document.getElementById('work-week-end-day');
+
+        if (presetSelect) {
+            presetSelect.value = this.workWeekConfig.preset;
+        }
+
+        if (startDaySelect) {
+            startDaySelect.value = this.workWeekConfig.start_day;
+        }
+
+        if (endDaySelect) {
+            endDaySelect.value = this.workWeekConfig.end_day;
+        }
+
+        // Update custom day selectors
+        this.updateCustomDaySelectors();
+
+        // Trigger preset change to show/hide custom fields
+        if (presetSelect) {
+            this.handlePresetChange({ target: { value: this.workWeekConfig.preset } });
+        }
+    }
+
+    /**
+     * Update custom day selectors values
+     */
+    updateCustomDaySelectors() {
+        const startDaySelect = document.getElementById('work-week-start-day');
+        const endDaySelect = document.getElementById('work-week-end-day');
+
+        if (startDaySelect) {
+            startDaySelect.value = this.workWeekConfig.start_day;
+        }
+
+        if (endDaySelect) {
+            endDaySelect.value = this.workWeekConfig.end_day;
+        }
+    }
+
+    /**
+     * Save work week configuration
+     */
+    async saveWorkWeekConfiguration() {
+        try {
+            if (!this.validateCustomConfiguration()) {
+                Utils.showToast('Please fix validation errors before saving', 'warning');
+                return;
+            }
+
+            this.showLoading('Saving work week configuration...');
+
+            const response = await fetch('/api/settings/work-week', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(this.workWeekConfig)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || 'Failed to save work week configuration');
+            }
+
+            const result = await response.json();
+            
+            Utils.showToast('Work week configuration saved successfully', 'success');
+            
+            // Update local config with server response
+            if (result.config) {
+                this.workWeekConfig = { ...this.workWeekConfig, ...result.config };
+            }
+
+            // Add success animation
+            this.addSuccessAnimation(document.getElementById('work-week-settings'));
+
+        } catch (error) {
+            console.error('Failed to save work week configuration:', error);
+            Utils.showToast(`Failed to save work week configuration: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    /**
+     * Reset work week configuration to defaults
+     */
+    async resetWorkWeekConfiguration() {
+        try {
+            const confirmed = confirm('Are you sure you want to reset the work week configuration to defaults?');
+            if (!confirmed) return;
+
+            this.showLoading('Resetting work week configuration...');
+
+            const response = await fetch('/api/settings/work-week/reset', {
+                method: 'POST'
+            });
+
+            if (!response.ok) throw new Error('Failed to reset work week configuration');
+
+            const defaultConfig = await response.json();
+            this.workWeekConfig = { ...this.workWeekConfig, ...defaultConfig };
+
+            // Update form fields
+            this.updateWorkWeekFormFields();
+            this.updateWorkWeekPreview();
+            this.validateCustomConfiguration();
+
+            Utils.showToast('Work week configuration reset to defaults', 'success');
+
+        } catch (error) {
+            console.error('Failed to reset work week configuration:', error);
+            Utils.showToast('Failed to reset work week configuration', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    /**
+     * Validate configuration with API
+     */
+    async validateWorkWeekConfiguration(config = null) {
+        try {
+            const configToValidate = config || this.workWeekConfig;
+
+            const response = await fetch('/api/settings/work-week/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(configToValidate)
+            });
+
+            if (!response.ok) throw new Error('Validation request failed');
+
+            return await response.json();
+
+        } catch (error) {
+            console.error('Failed to validate work week configuration:', error);
+            return { 
+                valid: false, 
+                errors: ['Failed to validate configuration'],
+                suggestions: []
+            };
+        }
+    }
+
+    /**
+     * Get available work week presets
+     */
+    async getWorkWeekPresets() {
+        try {
+            const response = await fetch('/api/settings/work-week/presets');
+            if (!response.ok) throw new Error('Failed to load presets');
+
+            return await response.json();
+
+        } catch (error) {
+            console.error('Failed to load work week presets:', error);
+            // Return fallback presets
+            return {
+                presets: [
+                    { 
+                        value: 'MONDAY_FRIDAY', 
+                        label: 'Monday - Friday', 
+                        description: 'Standard business week (5 days)',
+                        start_day: 1,
+                        end_day: 5
+                    },
+                    { 
+                        value: 'SUNDAY_THURSDAY', 
+                        label: 'Sunday - Thursday', 
+                        description: 'Middle East business week (5 days)',
+                        start_day: 7,
+                        end_day: 4
+                    },
+                    { 
+                        value: 'CUSTOM', 
+                        label: 'Custom', 
+                        description: 'Define your own work week schedule',
+                        start_day: null,
+                        end_day: null
+                    }
+                ]
+            };
+        }
+    }
+
+    // ==========================================
+    // ANIMATION AND UI HELPERS
+    // ==========================================
+
+    /**
+     * Add slide animation to elements
+     */
+    addSlideAnimation(element, direction) {
+        if (!element) return;
+
+        element.style.transition = 'all 0.3s ease-in-out';
+        
+        if (direction === 'show') {
+            element.style.maxHeight = '0';
+            element.style.opacity = '0';
+            element.style.overflow = 'hidden';
+            
+            setTimeout(() => {
+                element.style.maxHeight = '500px';
+                element.style.opacity = '1';
+            }, 10);
+        } else if (direction === 'hide') {
+            element.style.maxHeight = element.scrollHeight + 'px';
+            element.style.opacity = '1';
+            
+            setTimeout(() => {
+                element.style.maxHeight = '0';
+                element.style.opacity = '0';
+            }, 10);
+        }
+    }
+
+    /**
+     * Add preview animation
+     */
+    addPreviewAnimation(element) {
+        if (!element) return;
+
+        element.style.transition = 'all 0.2s ease-in-out';
+        element.style.transform = 'scale(0.98)';
+        element.style.opacity = '0.7';
+
+        setTimeout(() => {
+            element.style.transform = 'scale(1)';
+            element.style.opacity = '1';
+        }, 50);
+    }
+
+    /**
+     * Add success animation
+     */
+    addSuccessAnimation(element) {
+        if (!element) return;
+
+        element.style.transition = 'all 0.3s ease-in-out';
+        element.style.transform = 'scale(1.02)';
+        element.style.backgroundColor = 'var(--success-bg, #d4edda)';
+
+        setTimeout(() => {
+            element.style.transform = 'scale(1)';
+            element.style.backgroundColor = '';
+        }, 500);
     }
 }
 
