@@ -31,6 +31,7 @@ from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
 from web.services.web_summarizer import WebSummarizationService
 from web.services.scheduler import SyncScheduler
+from web.services.work_week_service import WorkWeekService
 
 
 def create_logger_with_config(log_config: LogConfig) -> JournalSummarizerLogger:
@@ -45,6 +46,7 @@ class WorkJournalWebApp:
         self.config: Optional[AppConfig] = None
         self.logger: Optional[JournalSummarizerLogger] = None
         self.db_manager: DatabaseManager = db_manager
+        self.work_week_service: Optional[WorkWeekService] = None
         self.entry_manager: Optional[EntryManager] = None
         self.calendar_service: Optional[CalendarService] = None
         self.summarization_service: Optional[WebSummarizationService] = None
@@ -65,9 +67,13 @@ class WorkJournalWebApp:
             await self.db_manager.initialize()
             self.logger.logger.info("Database initialized successfully")
             
-            # Initialize EntryManager service
-            self.entry_manager = EntryManager(self.config, self.logger, self.db_manager)
-            self.logger.logger.info("EntryManager service initialized successfully")
+            # Initialize WorkWeekService for proper directory organization
+            self.work_week_service = WorkWeekService(self.config, self.logger, self.db_manager)
+            self.logger.logger.info("WorkWeekService initialized successfully")
+            
+            # Initialize EntryManager service with WorkWeekService dependency
+            self.entry_manager = EntryManager(self.config, self.logger, self.db_manager, self.work_week_service)
+            self.logger.logger.info("EntryManager service initialized successfully with work week integration")
             
             # Initialize CalendarService
             self.calendar_service = CalendarService(self.config, self.logger, self.db_manager)
@@ -129,6 +135,7 @@ async def lifespan(app: FastAPI):
     app.state.config = web_app.config
     app.state.logger = web_app.logger
     app.state.db_manager = web_app.db_manager
+    app.state.work_week_service = web_app.work_week_service
     app.state.entry_manager = web_app.entry_manager
     app.state.calendar_service = web_app.calendar_service
     app.state.summarization_service = web_app.summarization_service

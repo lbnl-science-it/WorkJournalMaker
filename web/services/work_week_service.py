@@ -9,10 +9,11 @@ calculations with configurable work schedules and intelligent weekend handling.
 import asyncio
 from datetime import datetime, timezone, date, timedelta
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
 import sys
+import re
 
 # Add parent directory for imports
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -30,6 +31,45 @@ class WorkWeekPreset(Enum):
     MONDAY_FRIDAY = "monday-friday"
     SUNDAY_THURSDAY = "sunday-thursday"
     CUSTOM = "custom"
+
+
+class ValidationError(Exception):
+    """Custom exception for work week validation errors."""
+    def __init__(self, message: str, field: Optional[str] = None, suggested_fix: Optional[str] = None):
+        super().__init__(message)
+        self.field = field
+        self.suggested_fix = suggested_fix
+        self.user_message = message
+
+
+class ValidationResult:
+    """Result of work week configuration validation."""
+    def __init__(self, is_valid: bool = True, errors: Optional[List[str]] = None, 
+                 warnings: Optional[List[str]] = None, corrected_config: Optional['WorkWeekConfig'] = None):
+        self.is_valid = is_valid
+        self.errors = errors or []
+        self.warnings = warnings or []
+        self.corrected_config = corrected_config
+        self.has_corrections = corrected_config is not None
+    
+    def add_error(self, error: str):
+        """Add validation error."""
+        self.errors.append(error)
+        self.is_valid = False
+    
+    def add_warning(self, warning: str):
+        """Add validation warning."""
+        self.warnings.append(warning)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API responses."""
+        return {
+            'is_valid': self.is_valid,
+            'errors': self.errors,
+            'warnings': self.warnings,
+            'has_corrections': self.has_corrections,
+            'corrected_config': self.corrected_config.to_dict() if self.corrected_config else None
+        }
 
 
 @dataclass
@@ -215,68 +255,48 @@ class WorkWeekService(BaseService):
             self._log_operation_error("update_work_week_config", e, user_id=user_id)
             raise
     
-    def validate_work_week_config(self, config: WorkWeekConfig) -> WorkWeekConfig:
+    def validate_work_week_config(self, config: WorkWeekConfig, strict: bool = False) -> Union[WorkWeekConfig, ValidationResult]:
         """
-        Validate and auto-correct work week configuration.
+        Validate and auto-correct work week configuration with comprehensive error handling.
         
         Args:
             config: Configuration to validate
+            strict: If True, returns ValidationResult with detailed validation info
             
         Returns:
-            WorkWeekConfig: Validated and potentially corrected configuration
+            WorkWeekConfig if strict=False (default), ValidationResult if strict=True
         """
         try:
-            self._log_operation_start("validate_work_week_config", preset=config.preset.value)
+            self._log_operation_start("validate_work_week_config", preset=config.preset.value, strict=strict)
             
-            # Validate day ranges first
-            if not (1 <= config.start_day <= 7):
-                raise ValueError(f"Invalid start_day: {config.start_day}. Must be 1-7.")
-            if not (1 <= config.end_day <= 7):
-                raise ValueError(f"Invalid end_day: {config.end_day}. Must be 1-7.")
+            validation_result = self._perform_comprehensive_validation(config)
             
-            # Auto-correct if start and end day are the same
-            if config.start_day == config.end_day:
-                self.logger.logger.warning(
-                    f"Work week start and end day are the same ({config.start_day}), auto-correcting"
-                )
-                # Extend end day to next day
-                new_end_day = (config.end_day % 7) + 1
-                config = WorkWeekConfig(
-                    preset=WorkWeekPreset.CUSTOM,
-                    start_day=config.start_day,
-                    end_day=new_end_day,
-                    timezone=config.timezone
-                )
+            if strict:
+                self._log_operation_success("validate_work_week_config (strict)", 
+                                          is_valid=validation_result.is_valid,
+                                          has_corrections=validation_result.has_corrections)
+                return validation_result
             
-            # Validate preset consistency
-            if config.preset == WorkWeekPreset.MONDAY_FRIDAY:
-                if config.start_day != 1 or config.end_day != 5:
-                    self.logger.logger.info(
-                        "Configuration doesn't match Monday-Friday preset, changing to custom"
-                    )
-                    config = WorkWeekConfig(
-                        preset=WorkWeekPreset.CUSTOM,
-                        start_day=config.start_day,
-                        end_day=config.end_day,
-                        timezone=config.timezone
-                    )
-            elif config.preset == WorkWeekPreset.SUNDAY_THURSDAY:
-                if config.start_day != 7 or config.end_day != 4:
-                    self.logger.logger.info(
-                        "Configuration doesn't match Sunday-Thursday preset, changing to custom"
-                    )
-                    config = WorkWeekConfig(
-                        preset=WorkWeekPreset.CUSTOM,
-                        start_day=config.start_day,
-                        end_day=config.end_day,
-                        timezone=config.timezone
-                    )
+            # Non-strict mode: return corrected config or original if valid
+            final_config = validation_result.corrected_config or config
             
-            self._log_operation_success("validate_work_week_config", preset=config.preset.value)
-            return config
+            # Log any warnings from validation
+            for warning in validation_result.warnings:
+                self.logger.logger.warning(f"Work week validation: {warning}")
+            
+            # Log any errors that were auto-corrected
+            if validation_result.has_corrections:
+                self.logger.logger.info("Work week configuration auto-corrected")
+            
+            self._log_operation_success("validate_work_week_config", preset=final_config.preset.value)
+            return final_config
             
         except Exception as e:
             self._log_operation_error("validate_work_week_config", e)
+            if strict:
+                result = ValidationResult(is_valid=False)
+                result.add_error(f"Validation failed: {str(e)}")
+                return result
             # Return default configuration on validation error
             return self.get_default_work_week_config()
     
@@ -692,8 +712,13 @@ class WorkWeekService(BaseService):
             return repair_log
             
         except Exception as e:
+            self.logger.logger.error(f"Database validation and repair failed: {str(e)}", 
+                                   extra={'operation': 'validate_and_repair_database_settings'})
             self._log_operation_error("validate_and_repair_database_settings", e)
-            repair_log['errors'].append({'general': str(e)})
+            repair_log['errors'].append({
+                'general': str(e),
+                'suggestion': 'Check database connectivity and permissions'
+            })
             return repair_log
     
     def _validate_database_setting(self, key: str, value: str) -> bool:
@@ -710,6 +735,238 @@ class WorkWeekService(BaseService):
             return True
         except (ValueError, TypeError):
             return False
+    
+    def _perform_comprehensive_validation(self, config: WorkWeekConfig) -> ValidationResult:
+        """
+        Perform comprehensive validation with detailed error reporting and auto-correction.
+        
+        Args:
+            config: Configuration to validate
+            
+        Returns:
+            ValidationResult: Detailed validation results
+        """
+        result = ValidationResult()
+        corrected_config = None
+        
+        try:
+            # Step 1: Validate basic day ranges
+            day_validation = self._validate_day_ranges(config)
+            if not day_validation[0]:
+                result.add_error(day_validation[1])
+                return result
+            
+            # Step 2: Validate and auto-correct same start/end day
+            same_day_result = self._validate_and_correct_same_day(config)
+            if same_day_result['corrected']:
+                corrected_config = same_day_result['config']
+                result.add_warning(same_day_result['message'])
+                config = corrected_config
+            
+            # Step 3: Validate preset consistency
+            preset_result = self._validate_preset_consistency(config)
+            if preset_result['corrected']:
+                corrected_config = preset_result['config']
+                result.add_warning(preset_result['message'])
+                config = corrected_config
+            
+            # Step 4: Validate timezone
+            timezone_validation = self._validate_timezone(config)
+            if not timezone_validation[0]:
+                result.add_warning(timezone_validation[1])
+            
+            # Step 5: Validate work week length
+            length_validation = self._validate_work_week_length(config)
+            if not length_validation[0]:
+                result.add_warning(length_validation[1])
+            
+            # Set corrected config if any corrections were made
+            if corrected_config:
+                result.corrected_config = corrected_config
+            
+            return result
+            
+        except Exception as e:
+            result.add_error(f"Validation process failed: {str(e)}")
+            return result
+    
+    def _validate_day_ranges(self, config: WorkWeekConfig) -> Tuple[bool, str]:
+        """Validate that start and end days are in valid range (1-7)."""
+        if not (1 <= config.start_day <= 7):
+            return False, f"Start day must be 1-7 (1=Monday, 7=Sunday), got {config.start_day}"
+        if not (1 <= config.end_day <= 7):
+            return False, f"End day must be 1-7 (1=Monday, 7=Sunday), got {config.end_day}"
+        return True, "Day ranges valid"
+    
+    def _validate_and_correct_same_day(self, config: WorkWeekConfig) -> Dict[str, Any]:
+        """Validate and auto-correct if start and end day are the same."""
+        if config.start_day == config.end_day:
+            # Auto-correct by extending to next day
+            new_end_day = (config.end_day % 7) + 1
+            corrected_config = WorkWeekConfig(
+                preset=WorkWeekPreset.CUSTOM,
+                start_day=config.start_day,
+                end_day=new_end_day,
+                timezone=config.timezone
+            )
+            day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            return {
+                'corrected': True,
+                'config': corrected_config,
+                'message': f"Start and end day were the same ({day_names[config.start_day-1]}). "
+                          f"Auto-corrected end day to {day_names[new_end_day-1]}. "
+                          f"Preset changed to Custom."
+            }
+        return {'corrected': False}
+    
+    def _validate_preset_consistency(self, config: WorkWeekConfig) -> Dict[str, Any]:
+        """Validate that preset matches the actual start/end day configuration."""
+        if config.preset == WorkWeekPreset.MONDAY_FRIDAY:
+            if config.start_day != 1 or config.end_day != 5:
+                corrected_config = WorkWeekConfig(
+                    preset=WorkWeekPreset.CUSTOM,
+                    start_day=config.start_day,
+                    end_day=config.end_day,
+                    timezone=config.timezone
+                )
+                return {
+                    'corrected': True,
+                    'config': corrected_config,
+                    'message': "Configuration doesn't match Monday-Friday preset. Changed to Custom preset."
+                }
+        elif config.preset == WorkWeekPreset.SUNDAY_THURSDAY:
+            if config.start_day != 7 or config.end_day != 4:
+                corrected_config = WorkWeekConfig(
+                    preset=WorkWeekPreset.CUSTOM,
+                    start_day=config.start_day,
+                    end_day=config.end_day,
+                    timezone=config.timezone
+                )
+                return {
+                    'corrected': True,
+                    'config': corrected_config,
+                    'message': "Configuration doesn't match Sunday-Thursday preset. Changed to Custom preset."
+                }
+        return {'corrected': False}
+    
+    def _validate_timezone(self, config: WorkWeekConfig) -> Tuple[bool, str]:
+        """Validate timezone setting."""
+        if config.timezone:
+            try:
+                # Basic timezone validation
+                if not isinstance(config.timezone, str) or len(config.timezone.strip()) == 0:
+                    return False, "Timezone must be a non-empty string"
+                # Additional timezone format validation could be added here
+                return True, "Timezone valid"
+            except Exception:
+                return False, "Invalid timezone format"
+        return True, "No timezone specified (will use system default)"
+    
+    def _validate_work_week_length(self, config: WorkWeekConfig) -> Tuple[bool, str]:
+        """Validate that work week has reasonable length."""
+        work_days = self._calculate_work_week_length(config.start_day, config.end_day)
+        if work_days < 1:
+            return False, "Work week must have at least 1 day"
+        if work_days > 6:
+            return False, "Work week cannot be longer than 6 days (need at least 1 weekend day)"
+        if work_days == 7:
+            return False, "Work week cannot be 7 days (no weekend days available)"
+        return True, f"Work week length ({work_days} days) is valid"
+    
+    def _calculate_work_week_length(self, start_day: int, end_day: int) -> int:
+        """Calculate the number of days in the work week."""
+        if start_day <= end_day:
+            return end_day - start_day + 1
+        else:
+            # Work week spans weekend
+            return (7 - start_day + 1) + end_day
+    
+    def validate_config_for_ui(self, config_dict: Dict[str, Any]) -> ValidationResult:
+        """
+        Validate work week configuration from UI with user-friendly messages.
+        
+        Args:
+            config_dict: Configuration dictionary from UI
+            
+        Returns:
+            ValidationResult: Detailed validation results for UI display
+        """
+        try:
+            self._log_operation_start("validate_config_for_ui")
+            
+            # Step 1: Validate input structure
+            structure_result = self._validate_input_structure(config_dict)
+            if not structure_result.is_valid:
+                return structure_result
+            
+            # Step 2: Create WorkWeekConfig from input
+            try:
+                config = WorkWeekConfig.from_dict(config_dict)
+            except Exception as e:
+                result = ValidationResult(is_valid=False)
+                result.add_error(f"Invalid configuration format: {str(e)}")
+                return result
+            
+            # Step 3: Perform comprehensive validation
+            validation_result = self._perform_comprehensive_validation(config)
+            
+            self._log_operation_success("validate_config_for_ui", 
+                                      is_valid=validation_result.is_valid)
+            return validation_result
+            
+        except Exception as e:
+            self._log_operation_error("validate_config_for_ui", e)
+            result = ValidationResult(is_valid=False)
+            result.add_error(f"Validation failed: {str(e)}")
+            return result
+    
+    def _validate_input_structure(self, config_dict: Dict[str, Any]) -> ValidationResult:
+        """Validate the structure of input configuration dictionary."""
+        result = ValidationResult()
+        required_fields = ['preset', 'start_day', 'end_day']
+        
+        for field in required_fields:
+            if field not in config_dict:
+                result.add_error(f"Missing required field: {field}")
+            elif config_dict[field] is None:
+                result.add_error(f"Field '{field}' cannot be null")
+        
+        # Validate field types
+        if 'preset' in config_dict and config_dict['preset']:
+            if not isinstance(config_dict['preset'], str):
+                result.add_error("Preset must be a string")
+            elif config_dict['preset'] not in [p.value for p in WorkWeekPreset]:
+                valid_presets = [p.value for p in WorkWeekPreset]
+                result.add_error(f"Invalid preset '{config_dict['preset']}'. Must be one of: {', '.join(valid_presets)}")
+        
+        for day_field in ['start_day', 'end_day']:
+            if day_field in config_dict and config_dict[day_field] is not None:
+                try:
+                    day_val = int(config_dict[day_field])
+                    if not (1 <= day_val <= 7):
+                        result.add_error(f"{day_field.replace('_', ' ').title()} must be 1-7 (1=Monday, 7=Sunday)")
+                except (ValueError, TypeError):
+                    result.add_error(f"{day_field.replace('_', ' ').title()} must be a number")
+        
+        return result
+    
+    def get_validation_help_text(self) -> Dict[str, str]:
+        """
+        Get help text for work week validation rules.
+        
+        Returns:
+            Dict containing help text for each validation rule
+        """
+        return {
+            'preset': 'Choose a preset work week or select Custom to define your own',
+            'start_day': 'First day of your work week (1=Monday, 2=Tuesday, ..., 7=Sunday)',
+            'end_day': 'Last day of your work week (1=Monday, 2=Tuesday, ..., 7=Sunday)',
+            'timezone': 'Your local timezone (optional, defaults to system timezone)',
+            'weekend_handling': 'Weekend entries: Saturday → previous work week, Sunday → next work week',
+            'work_week_length': 'Work week must be 1-6 days (at least 1 weekend day required)',
+            'same_day_error': 'Start and end day cannot be the same',
+            'preset_mismatch': 'If days don\'t match preset, configuration will be changed to Custom'
+        }
     
     def get_service_health_status(self) -> Dict[str, Any]:
         """
