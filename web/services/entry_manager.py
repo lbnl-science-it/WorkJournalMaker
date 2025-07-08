@@ -27,6 +27,7 @@ from web.models.journal import (
     RecentEntriesResponse, EntryListRequest
 )
 from web.services.base_service import BaseService
+from web.services.work_week_service import WorkWeekService
 from web.utils.timezone_utils import now_utc, to_local
 from sqlalchemy import select, update, delete, and_, or_
 from sqlalchemy.exc import IntegrityError
@@ -42,7 +43,7 @@ class EntryManager(BaseService):
     """
     
     def __init__(self, config: AppConfig, logger: JournalSummarizerLogger, 
-                 db_manager: DatabaseManager):
+                 db_manager: DatabaseManager, work_week_service: Optional[WorkWeekService] = None):
         """
         Initialize EntryManager with core dependencies.
         
@@ -50,11 +51,15 @@ class EntryManager(BaseService):
             config: Application configuration
             logger: Logger instance
             db_manager: Database manager instance
+            work_week_service: Optional work week service for directory calculations
         """
         super().__init__(config, logger, db_manager)
         
         # Initialize FileDiscovery with existing configuration
         self.file_discovery = FileDiscovery(config.processing.base_path)
+        
+        # Initialize WorkWeekService if provided, otherwise create one
+        self.work_week_service = work_week_service or WorkWeekService(config, logger, db_manager)
         
         # Cache for frequently accessed data
         self._entry_cache = {}
@@ -366,7 +371,7 @@ class EntryManager(BaseService):
     
     def _construct_file_path(self, entry_date: date) -> Path:
         """
-        Construct file path for a given date using existing FileDiscovery logic.
+        Construct file path for a given date using work week calculations with fallback.
         
         Args:
             entry_date: Date of the entry
@@ -374,8 +379,13 @@ class EntryManager(BaseService):
         Returns:
             Path to the entry file
         """
-        # Find actual week ending date from directory structure
-        week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
+        try:
+            # Try to get week ending date from work week service
+            week_ending_date = asyncio.run(self.work_week_service.calculate_week_ending_date(entry_date))
+        except Exception as e:
+            self.logger.logger.warning(f"Failed to calculate work week ending date for {entry_date}, using fallback: {str(e)}")
+            # Fallback to existing file discovery logic
+            week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
         
         # Use existing FileDiscovery method to construct path
         return self.file_discovery._construct_file_path(entry_date, week_ending_date)
@@ -389,7 +399,7 @@ class EntryManager(BaseService):
     
     async def _sync_entry_to_database_session(self, session, entry_date: date, 
                                             file_path: Path, content: Optional[str] = None) -> None:
-        """Sync a single entry to database within an existing session."""
+        """Sync a single entry to database within an existing session with work week calculations."""
         try:
             # Get file stats
             file_stats = file_path.stat() if file_path.exists() else None
@@ -402,8 +412,14 @@ class EntryManager(BaseService):
             # Calculate metadata
             metadata = self._calculate_entry_metadata(content or "")
             
-            # Find actual week ending date from directory structure
-            week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
+            # Calculate week ending date using work week service with fallback
+            try:
+                week_ending_date = await self.work_week_service.calculate_week_ending_date(entry_date)
+                self.logger.logger.debug(f"Calculated week ending date for {entry_date}: {week_ending_date}")
+            except Exception as e:
+                self.logger.logger.warning(f"Failed to calculate work week ending date for {entry_date}, using fallback: {str(e)}")
+                # Fallback to existing file discovery logic for compatibility
+                week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
             
             # Check if entry exists in database
             stmt = select(JournalEntryIndex).where(JournalEntryIndex.date == entry_date)
@@ -411,7 +427,7 @@ class EntryManager(BaseService):
             existing_entry = result.scalar_one_or_none()
             
             if existing_entry:
-                # Update existing entry
+                # Update existing entry with new week ending date calculation
                 update_stmt = (
                     update(JournalEntryIndex)
                     .where(JournalEntryIndex.date == entry_date)
@@ -424,13 +440,13 @@ class EntryManager(BaseService):
                         has_content=metadata["has_content"],
                         file_size_bytes=file_stats.st_size if file_stats else 0,
                         file_modified_at=datetime.fromtimestamp(file_stats.st_mtime) if file_stats else None,
-                        modified_at=datetime.utcnow(),
-                        synced_at=datetime.utcnow()
+                        modified_at=now_utc(),
+                        synced_at=now_utc()
                     )
                 )
                 await session.execute(update_stmt)
             else:
-                # Create new entry
+                # Create new entry with calculated week ending date
                 new_entry = JournalEntryIndex(
                     date=entry_date,
                     file_path=str(file_path),
@@ -441,9 +457,9 @@ class EntryManager(BaseService):
                     has_content=metadata["has_content"],
                     file_size_bytes=file_stats.st_size if file_stats else 0,
                     file_modified_at=datetime.fromtimestamp(file_stats.st_mtime) if file_stats else None,
-                    created_at=datetime.utcnow(),
-                    modified_at=datetime.utcnow(),
-                    synced_at=datetime.utcnow()
+                    created_at=now_utc(),
+                    modified_at=now_utc(),
+                    synced_at=now_utc()
                 )
                 session.add(new_entry)
                 
