@@ -1,0 +1,26 @@
+{
+  "python_today": "2025-06-30",
+  "utc_now": "2025-07-01T02:17:44.840398+00:00",
+  "local_now": "2025-06-30T19:17:44.840400",
+  "timezone_offset_hours": -6.999999999444444,
+  "recent_entries": [
+    {
+      "date": "2025-06-27",
+      "created_at": "2025-06-27T19:44:16.507029",
+      "modified_at": "2025-06-28T00:11:09.762194",
+      "file_path": "/Users/TYFong/Desktop/worklogs/worklogs_2025/worklogs_2025-06/week_ending_2025-06-27/worklog_2025-06-27.txt"
+    },
+    {
+      "date": "2025-06-26",
+      "created_at": "2025-06-27T22:46:42.851349",
+      "modified_at": "2025-06-27T22:46:42.851611",
+      "file_path": "/Users/TYFong/Desktop/worklogs/worklogs_2025/worklogs_2025-06/week_ending_2025-06-27/worklog_2025-06-26.txt"
+    },
+    {
+      "date": "2025-06-25",
+      "created_at": "2025-06-27T22:46:42.847333",
+      "modified_at": "2025-06-27T22:46:42.847338",
+      "file_path": "/Users/TYFong/Desktop/worklogs/worklogs_2025/worklogs_2025-06/week_ending_2025-06-27/worklog_2025-06-25.txt"
+    }
+  ]
+}
