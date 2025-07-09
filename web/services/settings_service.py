@@ -259,6 +259,40 @@ class SettingsService(BaseService):
                 description='LLM request timeout in seconds',
                 category='llm',
                 validation_rules={'min': 30, 'max': 300}
+            ),
+            
+            # Work Week Settings
+            'work_week.preset': SettingDefinition(
+                key='work_week.preset',
+                default_value='monday_friday',
+                value_type='string',
+                description='Work week preset configuration',
+                category='work_week',
+                validation_rules={'options': ['monday_friday', 'sunday_thursday', 'custom']}
+            ),
+            'work_week.start_day': SettingDefinition(
+                key='work_week.start_day',
+                default_value=1,
+                value_type='integer',
+                description='Work week start day (1=Monday, 2=Tuesday, ..., 7=Sunday)',
+                category='work_week',
+                validation_rules={'min': 1, 'max': 7}
+            ),
+            'work_week.end_day': SettingDefinition(
+                key='work_week.end_day',
+                default_value=5,
+                value_type='integer',
+                description='Work week end day (1=Monday, 2=Tuesday, ..., 7=Sunday)',
+                category='work_week',
+                validation_rules={'min': 1, 'max': 7}
+            ),
+            'work_week.timezone': SettingDefinition(
+                key='work_week.timezone',
+                default_value='UTC',
+                value_type='string',
+                description='Timezone for work week calculations',
+                category='work_week',
+                validation_rules={'max_length': 50}
             )
         }
     
@@ -672,6 +706,10 @@ class SettingsService(BaseService):
             if rules['path_must_exist'] and not path.exists():
                 return False
         
+        # Work week specific validations
+        if definition.key.startswith('work_week.'):
+            return self._validate_work_week_setting(definition.key, value)
+        
         return True
     
     async def _create_default_setting(self, session, definition: SettingDefinition):
@@ -689,3 +727,194 @@ class SettingsService(BaseService):
             
         except Exception as e:
             self.logger.logger.error(f"Failed to create default setting {definition.key}: {str(e)}")
+    
+    # Work Week Settings Methods
+    
+    def _validate_work_week_setting(self, key: str, value: Any) -> bool:
+        """Validate work week specific settings."""
+        try:
+            if key == 'work_week.preset':
+                return value in ['monday_friday', 'sunday_thursday', 'custom']
+            elif key in ['work_week.start_day', 'work_week.end_day']:
+                return isinstance(value, int) and 1 <= value <= 7
+            elif key == 'work_week.timezone':
+                # Basic timezone validation - could be enhanced with pytz
+                return isinstance(value, str) and len(value.strip()) > 0
+            return True
+        except Exception:
+            return False
+    
+    async def get_work_week_settings(self, user_id: str = "default") -> Dict[str, Any]:
+        """Get work week settings for a user."""
+        try:
+            # Get work week settings from database through work week service integration
+            work_week_keys = ['work_week.preset', 'work_week.start_day', 'work_week.end_day', 'work_week.timezone']
+            settings = {}
+            
+            for key in work_week_keys:
+                setting = await self.get_setting(key)
+                if setting:
+                    settings[key.replace('work_week.', '')] = setting.parsed_value
+                else:
+                    # Use default from definition
+                    if key in self.setting_definitions:
+                        settings[key.replace('work_week.', '')] = self.setting_definitions[key].default_value
+            
+            return settings
+            
+        except Exception as e:
+            self.logger.logger.error(f"Failed to get work week settings: {str(e)}")
+            return {}
+    
+    async def update_work_week_preset(self, preset: str, user_id: str = "default") -> bool:
+        """Update work week preset and adjust start/end days accordingly."""
+        try:
+            # Update preset setting
+            preset_result = await self.update_setting('work_week.preset', preset)
+            if not preset_result:
+                return False
+            
+            # Auto-adjust start/end days based on preset
+            if preset == 'monday_friday':
+                await self.update_setting('work_week.start_day', '1')  # Monday
+                await self.update_setting('work_week.end_day', '5')    # Friday
+            elif preset == 'sunday_thursday':
+                await self.update_setting('work_week.start_day', '7')  # Sunday
+                await self.update_setting('work_week.end_day', '4')    # Thursday
+            # For 'custom', don't change start/end days
+            
+            return True
+            
+        except Exception as e:
+            self.logger.logger.error(f"Failed to update work week preset: {str(e)}")
+            return False
+    
+    async def validate_custom_work_week(self, start_day: int, end_day: int) -> Dict[str, Any]:
+        """Validate custom work week configuration."""
+        validation_result = {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+            "auto_corrections": {}
+        }
+        
+        try:
+            # Validate day values
+            if not (1 <= start_day <= 7):
+                validation_result["valid"] = False
+                validation_result["errors"].append("Start day must be between 1 (Monday) and 7 (Sunday)")
+            
+            if not (1 <= end_day <= 7):
+                validation_result["valid"] = False
+                validation_result["errors"].append("End day must be between 1 (Monday) and 7 (Sunday)")
+            
+            # Check if start and end days are the same
+            if start_day == end_day:
+                validation_result["valid"] = False
+                validation_result["errors"].append("Start day and end day cannot be the same")
+                
+                # Auto-correct to Monday-Friday
+                validation_result["auto_corrections"]["start_day"] = 1
+                validation_result["auto_corrections"]["end_day"] = 5
+                validation_result["warnings"].append("Auto-corrected to Monday-Friday work week")
+            
+            return validation_result
+            
+        except Exception as e:
+            self.logger.logger.error(f"Failed to validate custom work week: {str(e)}")
+            return {
+                "valid": False,
+                "errors": [f"Validation error: {str(e)}"],
+                "warnings": [],
+                "auto_corrections": {}
+            }
+    
+    async def get_work_week_presets(self) -> Dict[str, Dict[str, Any]]:
+        """Get available work week presets with their configurations."""
+        return {
+            'monday_friday': {
+                'name': 'Monday - Friday',
+                'description': 'Traditional Monday to Friday work week',
+                'start_day': 1,
+                'end_day': 5,
+                'start_day_name': 'Monday',
+                'end_day_name': 'Friday'
+            },
+            'sunday_thursday': {
+                'name': 'Sunday - Thursday', 
+                'description': 'Sunday to Thursday work week (common in Middle East)',
+                'start_day': 7,
+                'end_day': 4,
+                'start_day_name': 'Sunday',
+                'end_day_name': 'Thursday'
+            },
+            'custom': {
+                'name': 'Custom',
+                'description': 'Define your own work week schedule',
+                'start_day': None,
+                'end_day': None,
+                'start_day_name': 'Custom',
+                'end_day_name': 'Custom'
+            }
+        }
+    
+    async def update_work_week_configuration(self, preset: str, start_day: int = None, 
+                                           end_day: int = None, timezone: str = None) -> Dict[str, Any]:
+        """Update complete work week configuration."""
+        try:
+            result = {
+                'success': True,
+                'updated_settings': {},
+                'errors': []
+            }
+            
+            # Validate configuration if custom
+            if preset == 'custom' and start_day is not None and end_day is not None:
+                validation = await self.validate_custom_work_week(start_day, end_day)
+                if not validation['valid']:
+                    # If auto-corrections are available, apply them and continue
+                    if validation['auto_corrections']:
+                        start_day = validation['auto_corrections'].get('start_day', start_day)
+                        end_day = validation['auto_corrections'].get('end_day', end_day)
+                        result['errors'].extend(validation['warnings'])  # Add warnings as informational
+                    else:
+                        # No auto-corrections available, fail
+                        result['success'] = False
+                        result['errors'] = validation['errors']
+                        return result
+                
+                # Apply auto-corrections if any (already handled above for invalid cases)
+                if validation['valid'] and validation['auto_corrections']:
+                    start_day = validation['auto_corrections'].get('start_day', start_day)
+                    end_day = validation['auto_corrections'].get('end_day', end_day)
+            
+            # Update preset
+            if await self.update_work_week_preset(preset):
+                result['updated_settings']['preset'] = preset
+            
+            # Update custom days if provided
+            if start_day is not None:
+                start_result = await self.update_setting('work_week.start_day', str(start_day))
+                if start_result:
+                    result['updated_settings']['start_day'] = start_day
+            
+            if end_day is not None:
+                end_result = await self.update_setting('work_week.end_day', str(end_day))
+                if end_result:
+                    result['updated_settings']['end_day'] = end_day
+            
+            # Update timezone if provided
+            if timezone is not None:
+                tz_result = await self.update_setting('work_week.timezone', timezone)
+                if tz_result:
+                    result['updated_settings']['timezone'] = timezone
+            
+            return result
+            
+        except Exception as e:
+            self.logger.logger.error(f"Failed to update work week configuration: {str(e)}")
+            return {
+                'success': False,
+                'updated_settings': {},
+                'errors': [str(e)]
+            }

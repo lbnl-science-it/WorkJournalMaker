@@ -23,6 +23,7 @@ from logger import JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, JournalEntryIndex
 from web.models.journal import CalendarEntry, CalendarMonth, EntryStatus
 from web.services.base_service import BaseService
+from web.utils.timezone_utils import now_local, to_local
 from sqlalchemy import select, and_, extract
 
 
@@ -91,7 +92,7 @@ class CalendarService(BaseService):
                 month=month,
                 month_name=calendar.month_name[month],
                 entries=calendar_entries,
-                today=date.today()
+                today=now_local().date()
             )
             
             self._log_operation_success("get_calendar_month", year=year, month=month, entries=len(calendar_entries))
@@ -176,11 +177,11 @@ class CalendarService(BaseService):
     
     def get_week_ending_date(self, entry_date: date) -> date:
         """Get week ending date using existing FileDiscovery logic."""
-        return self.file_discovery._calculate_week_ending_for_date(entry_date)
+        return self.file_discovery._find_week_ending_for_date(entry_date)
     
     async def get_today_info(self) -> Dict[str, Any]:
         """Get information about today's date and entry status."""
-        today = date.today()
+        today = now_local().date()
         
         try:
             # Check if today has an entry
@@ -203,7 +204,7 @@ class CalendarService(BaseService):
                         }
             
             # Calculate week ending date using existing logic
-            week_ending = self.file_discovery._calculate_week_ending_for_date(today)
+            week_ending = self.file_discovery._find_week_ending_for_date(today)
             
             return {
                 "today": today,
@@ -266,11 +267,11 @@ class CalendarService(BaseService):
             )
             return {}
     
-    async def _generate_calendar_grid(self, year: int, month: int, 
+    async def _generate_calendar_grid(self, year: int, month: int,
                                     entries_dict: Dict[date, Dict[str, Any]]) -> List[CalendarDay]:
         """Generate calendar grid with entry indicators."""
         calendar_days = []
-        today = date.today()
+        today = now_local().date()
         
         # Get calendar days for the month
         month_calendar = self.calendar_instance.monthdayscalendar(year, month)
