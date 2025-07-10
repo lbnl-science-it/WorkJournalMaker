@@ -11,6 +11,9 @@ class SettingsManager {
         this.categories = {};
         this.changedSettings = new Set();
         this.currentCategory = 'filesystem';
+        this.saveInProgress = false;
+        this.saveStartTime = null;
+        this.lastRequestId = null;
         
         // Work week specific properties
         this.workWeekConfig = {
@@ -417,19 +420,36 @@ class SettingsManager {
 
     async saveChangedSettings() {
         if (this.changedSettings.size === 0) return;
+        
+        // Prevent multiple concurrent save operations
+        if (this.saveInProgress) {
+            Utils.showToast('Save operation already in progress', 'warning');
+            return;
+        }
 
         try {
+            this.saveInProgress = true;
+            this.saveStartTime = Date.now();
             this.showLoading('Saving settings...');
 
             const settingsToSave = {};
             this.changedSettings.forEach(key => {
-                const input = document.querySelector(`[data-key="${key}"]`);
-                if (input) {
-                    let value = input.value;
-                    if (input.type === 'checkbox') {
-                        value = input.checked.toString();
+                // Look for the actual input element within the setting item
+                const settingItem = document.querySelector(`[data-key="${key}"]`);
+                if (settingItem) {
+                    // Find the input element within this setting item
+                    const input = settingItem.querySelector('.setting-input, .setting-select, .setting-checkbox, .setting-range');
+                    if (input) {
+                        let value = input.value;
+                        if (input.type === 'checkbox') {
+                            value = input.checked.toString();
+                        }
+                        settingsToSave[key] = value;
+                    } else {
+                        console.warn(`No input element found within setting item for key: ${key}`);
                     }
-                    settingsToSave[key] = value;
+                } else {
+                    console.warn(`No setting item found for key: ${key}`);
                 }
             });
 
@@ -443,30 +463,14 @@ class SettingsManager {
                 })
             });
 
-            if (!response.ok) throw new Error('Failed to save settings');
-
-            const result = await response.json();
-
-            // Update status for saved settings
-            Object.keys(result.updated_settings).forEach(key => {
-                this.updateSettingStatus(key, 'saved');
-                this.changedSettings.delete(key);
-            });
-
-            // Show errors for failed settings
-            result.validation_errors?.forEach(error => {
-                this.updateSettingStatus(error.key, 'error');
-                Utils.showToast(`${error.key}: ${error.error}`, 'error');
-            });
-
-            if (result.success_count > 0) {
-                Utils.showToast(`Saved ${result.success_count} settings`, 'success');
-            }
+            const result = this.handleApiResponse(response);
+            await this.processSettingsSaveResult(await result, response.status);
 
         } catch (error) {
-            console.error('Failed to save settings:', error);
-            Utils.showToast('Failed to save settings', 'error');
+            this.handleSaveError(error);
         } finally {
+            this.saveInProgress = false;
+            this.saveStartTime = null;
             this.hideLoading();
         }
     }
@@ -669,7 +673,17 @@ class SettingsManager {
     showLoading(message = 'Loading...') {
         const overlay = document.getElementById('loading-overlay');
         const text = overlay.querySelector('.loading-text');
-        if (text) text.textContent = message;
+        if (text) {
+            text.textContent = message;
+            
+            // Add timing information for save operations
+            if (this.saveStartTime && message.includes('Saving')) {
+                const elapsed = Date.now() - this.saveStartTime;
+                if (elapsed > 1000) {
+                    text.textContent += ` (${Math.round(elapsed / 1000)}s)`;
+                }
+            }
+        }
         overlay.classList.add('active');
     }
 
@@ -1099,7 +1113,7 @@ class SettingsManager {
     }
 
     /**
-     * Save work week configuration
+     * Save work week configuration with enhanced error handling
      */
     async saveWorkWeekConfiguration() {
         try {
@@ -1108,6 +1122,7 @@ class SettingsManager {
                 return;
             }
 
+            const saveStartTime = Date.now();
             this.showLoading('Saving work week configuration...');
 
             const response = await fetch('/api/settings/work-week', {
@@ -1118,26 +1133,47 @@ class SettingsManager {
                 body: JSON.stringify(this.workWeekConfig)
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                throw new Error(errorData?.message || 'Failed to save work week configuration');
-            }
+            const result = await this.handleApiResponse(response);
+            const processingTime = result.processing_time_ms || (Date.now() - saveStartTime);
+            const timingInfo = processingTime < 1000 ? 
+                `${Math.round(processingTime)}ms` : 
+                `${(processingTime / 1000).toFixed(1)}s`;
 
-            const result = await response.json();
-            
-            Utils.showToast('Work week configuration saved successfully', 'success');
-            
-            // Update local config with server response
-            if (result.config) {
-                this.workWeekConfig = { ...this.workWeekConfig, ...result.config };
-            }
+            if (response.ok) {
+                Utils.showToast(`Work week configuration saved successfully (${timingInfo})`, 'success');
+                
+                // Update local config with server response
+                if (result.current_config) {
+                    this.workWeekConfig = { ...this.workWeekConfig, ...result.current_config };
+                }
 
-            // Add success animation
-            this.addSuccessAnimation(document.getElementById('work-week-settings'));
+                // Add success animation
+                this.addSuccessAnimation(document.getElementById('work-week-settings'));
+                
+                if (result.request_id) {
+                    console.log(`Work week save completed - Request ID: ${result.request_id}`);
+                }
+            } else {
+                // Handle API error responses
+                const errorMsg = result.detail?.message || result.message || 'Failed to save work week configuration';
+                throw new Error(errorMsg);
+            }
 
         } catch (error) {
             console.error('Failed to save work week configuration:', error);
-            Utils.showToast(`Failed to save work week configuration: ${error.message}`, 'error');
+            
+            let errorMessage = 'Failed to save work week configuration';
+            if (error.message.includes('HTTP 400')) {
+                errorMessage = 'Invalid work week configuration. Please check your settings.';
+            } else if (error.message.includes('HTTP 503')) {
+                errorMessage = 'Service temporarily unavailable. Please try again.';
+            } else if (error.message.includes('Network') || error.name === 'TypeError') {
+                errorMessage = 'Network error: Could not connect to server';
+            } else if (error.message !== 'Failed to save work week configuration') {
+                errorMessage = `Save failed: ${error.message}`;
+            }
+            
+            Utils.showToast(errorMessage, 'error', { duration: 5000 });
         } finally {
             this.hideLoading();
         }
@@ -1310,6 +1346,173 @@ class SettingsManager {
             element.style.backgroundColor = '';
         }, 500);
     }
+
+    // ==========================================
+    // ENHANCED API RESPONSE HANDLING
+    // ==========================================
+
+    /**
+     * Handle API response with enhanced error handling
+     */
+    async handleApiResponse(response) {
+        try {
+            const result = await response.json();
+            
+            // Store request metadata
+            this.lastRequestId = result.request_id;
+            
+            return result;
+        } catch (parseError) {
+            // Handle cases where response isn't JSON
+            if (response.status >= 400) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            throw new Error('Invalid response format');
+        }
+    }
+
+    /**
+     * Process settings save result with enhanced feedback
+     */
+    async processSettingsSaveResult(result, statusCode) {
+        const processingTime = result.processing_time_ms || (Date.now() - this.saveStartTime);
+        
+        // Update status for saved settings
+        if (result.updated_settings) {
+            Object.keys(result.updated_settings).forEach(key => {
+                this.updateSettingStatus(key, 'saved');
+                this.changedSettings.delete(key);
+            });
+        }
+
+        // Handle validation errors with detailed feedback
+        if (result.validation_errors && result.validation_errors.length > 0) {
+            this.handleValidationErrors(result.validation_errors);
+        }
+
+        // Show appropriate success/error messages based on status code
+        this.showSaveResultMessage(result, statusCode, processingTime);
+    }
+
+    /**
+     * Handle validation errors with detailed feedback
+     */
+    handleValidationErrors(validationErrors) {
+        validationErrors.forEach(error => {
+            this.updateSettingStatus(error.key, 'error');
+            
+            // Show detailed error message
+            const errorMsg = this.formatErrorMessage(error);
+            Utils.showToast(errorMsg, 'error', { duration: 5000 });
+        });
+    }
+
+    /**
+     * Format error message with additional context
+     */
+    formatErrorMessage(error) {
+        const settingLabel = this.formatSettingLabel(error.key);
+        let message = `${settingLabel}: ${error.error || error.message}`;
+        
+        // Add validation details if available
+        if (error.details) {
+            message += ` (${error.details})`;
+        }
+        
+        // Add suggestion if available
+        if (error.suggestion) {
+            message += `. Suggestion: ${error.suggestion}`;
+        }
+        
+        return message;
+    }
+
+    /**
+     * Show save result message with operation details
+     */
+    showSaveResultMessage(result, statusCode, processingTime) {
+        const timingInfo = processingTime < 1000 ? 
+            `${Math.round(processingTime)}ms` : 
+            `${(processingTime / 1000).toFixed(1)}s`;
+
+        if (statusCode === 200) {
+            // Complete success
+            const message = `Successfully saved ${result.success_count} setting${result.success_count !== 1 ? 's' : ''} (${timingInfo})`;
+            Utils.showToast(message, 'success', { duration: 3000 });
+        } else if (statusCode === 207) {
+            // Partial success
+            const successMsg = `Saved ${result.success_count} setting${result.success_count !== 1 ? 's' : ''}`;
+            const errorMsg = `${result.error_count} failed`;
+            const message = `${successMsg}, ${errorMsg} (${timingInfo})`;
+            Utils.showToast(message, 'warning', { duration: 4000 });
+        } else if (statusCode === 400) {
+            // Complete failure
+            Utils.showToast(`Failed to save settings: Validation errors (${timingInfo})`, 'error', { duration: 4000 });
+        }
+
+        // Add request ID to console for debugging
+        if (result.request_id) {
+            console.log(`Settings save operation completed - Request ID: ${result.request_id}`);
+        }
+    }
+
+    /**
+     * Handle save errors with network/timeout scenarios
+     */
+    handleSaveError(error) {
+        console.error('Failed to save settings:', error);
+        
+        let errorMessage = 'Failed to save settings';
+        let toastType = 'error';
+        let duration = 4000;
+        
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            // Network error
+            errorMessage = 'Network error: Could not connect to server';
+            duration = 6000;
+        } else if (error.name === 'AbortError') {
+            // Timeout error
+            errorMessage = 'Request timed out: Settings save took too long';
+            duration = 6000;
+        } else if (error.message.includes('HTTP 503')) {
+            // Service unavailable
+            errorMessage = 'Database temporarily unavailable. Please try again in a moment.';
+            toastType = 'warning';
+            duration = 6000;
+        } else if (error.message.includes('HTTP 408')) {
+            // Request timeout
+            errorMessage = 'Save operation timed out. Please try again.';
+            duration = 6000;
+        } else if (error.message.includes('HTTP')) {
+            // Other HTTP errors
+            errorMessage = `Server error: ${error.message}`;
+        }
+        
+        // Add timing information if available
+        if (this.saveStartTime) {
+            const elapsed = Date.now() - this.saveStartTime;
+            errorMessage += ` (after ${Math.round(elapsed / 1000)}s)`;
+        }
+        
+        Utils.showToast(errorMessage, toastType, { duration });
+        
+        // Mark all changed settings as error state
+        this.changedSettings.forEach(key => {
+            this.updateSettingStatus(key, 'error');
+        });
+    }
+}
+
+// Enhanced Utils.showToast to support duration options
+if (typeof Utils !== 'undefined' && Utils.showToast) {
+    const originalShowToast = Utils.showToast;
+    Utils.showToast = function(message, type = 'info', options = {}) {
+        if (typeof options === 'number') {
+            // Backward compatibility: if options is a number, treat as duration
+            options = { duration: options };
+        }
+        return originalShowToast.call(this, message, type, options);
+    };
 }
 
 // Initialize settings manager when DOM is loaded
