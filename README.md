@@ -86,7 +86,7 @@ After familiarizing yourself with the web interface, explore CLI functionality:
 ## Configuration Customization
 
 ### Default Paths
-- CURRENTLY LOCKED TO THESE FOLDERS, WORKING ON A FIX
+- Working now (2025-07-10)
 - **Input**: `~/Desktop/worklogs/` (journal files)
 - **Output**: `~/Desktop/worklogs/summaries/` (generated summaries)
 - **Logs**: `~/Desktop/worklogs/summaries/error_logs/`
