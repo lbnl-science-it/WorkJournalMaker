@@ -147,7 +147,7 @@ class WorkWeekService(BaseService):
     
     async def get_user_work_week_config(self, user_id: Optional[str] = None) -> WorkWeekConfig:
         """
-        Retrieve user's work week configuration.
+        Retrieve user's work week configuration using SettingsService.
         
         Args:
             user_id: User identifier (optional, defaults to system-wide config)
@@ -165,49 +165,36 @@ class WorkWeekService(BaseService):
                 self._log_operation_success("get_user_work_week_config (cached)", user_id=user_id)
                 return config
             
-            # Load from database
-            async with self.db_manager.get_session() as session:
-                # Get work week settings from database
-                preset_stmt = select(WebSettings).where(WebSettings.key == self.WORK_WEEK_PRESET_KEY)
-                start_day_stmt = select(WebSettings).where(WebSettings.key == self.WORK_WEEK_START_DAY_KEY)
-                end_day_stmt = select(WebSettings).where(WebSettings.key == self.WORK_WEEK_END_DAY_KEY)
-                timezone_stmt = select(WebSettings).where(WebSettings.key == self.WORK_WEEK_TIMEZONE_KEY)
-                
-                preset_result = await session.execute(preset_stmt)
-                start_day_result = await session.execute(start_day_stmt)
-                end_day_result = await session.execute(end_day_stmt)
-                timezone_result = await session.execute(timezone_stmt)
-                
-                preset_setting = preset_result.scalar_one_or_none()
-                start_day_setting = start_day_result.scalar_one_or_none()
-                end_day_setting = end_day_result.scalar_one_or_none()
-                timezone_setting = timezone_result.scalar_one_or_none()
-                
-                # Build configuration from database settings or use defaults
-                if preset_setting:
-                    try:
-                        preset = WorkWeekPreset(preset_setting.value)
-                    except ValueError:
-                        preset = WorkWeekPreset.MONDAY_FRIDAY
-                else:
-                    preset = WorkWeekPreset.MONDAY_FRIDAY
-                
-                start_day = int(start_day_setting.value) if start_day_setting else 1
-                end_day = int(end_day_setting.value) if end_day_setting else 5
-                user_timezone = timezone_setting.value if timezone_setting else None
-                
-                config = WorkWeekConfig(
-                    preset=preset,
-                    start_day=start_day,
-                    end_day=end_day,
-                    timezone=user_timezone
-                )
-                
-                # Cache the configuration
-                self._cache_config(cache_key, config)
-                
-                self._log_operation_success("get_user_work_week_config", user_id=user_id, preset=preset.value)
-                return config
+            # Use SettingsService to get work week settings (handles defaults properly)
+            from web.services.settings_service import SettingsService
+            settings_service = SettingsService(self.config, self.logger, self.db_manager)
+            
+            # Get work week settings through SettingsService
+            work_week_settings = await settings_service.get_work_week_settings(user_id or "default")
+            
+            # Build configuration from settings service response
+            preset_value = work_week_settings.get('preset', 'monday_friday')
+            try:
+                preset = WorkWeekPreset(preset_value)
+            except ValueError:
+                preset = WorkWeekPreset.MONDAY_FRIDAY
+            
+            start_day = work_week_settings.get('start_day', 1)
+            end_day = work_week_settings.get('end_day', 5)
+            user_timezone = work_week_settings.get('timezone', None)
+            
+            config = WorkWeekConfig(
+                preset=preset,
+                start_day=start_day,
+                end_day=end_day,
+                timezone=user_timezone
+            )
+            
+            # Cache the configuration
+            self._cache_config(cache_key, config)
+            
+            self._log_operation_success("get_user_work_week_config", user_id=user_id, preset=preset.value)
+            return config
                 
         except Exception as e:
             self._log_operation_error("get_user_work_week_config", e, user_id=user_id)
