@@ -16,15 +16,16 @@ graph TD
     A --> F[Step 4: Database Schema]
     F --> G[Step 5: Settings Service Integration]
     G --> H[Step 6: Settings API Endpoints]
-    H --> I[Step 10: Settings UI Components]
-    I --> J[Step 11: Settings JavaScript]
-    I --> K[Step 12: CSS Styling]
-    D --> L[Step 13: Integration Testing]
-    E --> L
-    J --> L
-    K --> L
-    L --> M[Step 14: Performance Testing]
-    L --> N[Step 15: User Acceptance Testing]
+    H --> I[Step 9: Database Synchronization Updates]
+    I --> J[Step 10: Settings UI Components]
+    J --> K[Step 11: Settings JavaScript]
+    J --> L[Step 12: CSS Styling]
+    D --> M[Step 13: Integration Testing]
+    E --> M
+    K --> M
+    L --> M
+    M --> N[Step 14: Performance Testing]
+    N --> O[Step 15: User Acceptance Testing]
 ```
 
 ## Parallel Implementation Strategy
