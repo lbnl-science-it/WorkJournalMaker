@@ -56,8 +56,12 @@ class EntryManager(BaseService):
         """
         super().__init__(config, logger, db_manager)
         
-        # Initialize FileDiscovery with existing configuration
-        self.file_discovery = FileDiscovery(config.processing.base_path)
+        # Store original config as fallback
+        self._original_config = config
+        
+        # Initialize FileDiscovery with dynamic base path (will be updated)
+        self.file_discovery = None
+        self._current_base_path = None
         
         # Initialize WorkWeekService if provided, otherwise create one
         self.work_week_service = work_week_service or WorkWeekService(config, logger, db_manager)
@@ -66,6 +70,62 @@ class EntryManager(BaseService):
         self._entry_cache = {}
         self._cache_ttl = 300  # 5 minutes
         
+        # Settings cache
+        self._settings_cache = {}
+        self._settings_cache_expiry = None
+        self._settings_cache_ttl = 300  # 5 minutes
+        
+    
+    async def _get_current_settings(self) -> Dict[str, Any]:
+        """Get current settings from database with caching."""
+        from datetime import timezone
+        
+        # Check cache
+        now = datetime.now(timezone.utc)
+        if (self._settings_cache_expiry and 
+            now < self._settings_cache_expiry and 
+            self._settings_cache):
+            return self._settings_cache
+        
+        try:
+            # Get settings from SettingsService
+            from web.services.settings_service import SettingsService
+            settings_service = SettingsService(self._original_config, self.logger, self.db_manager)
+            
+            # Get filesystem settings
+            base_path_setting = await settings_service.get_setting('filesystem.base_path')
+            output_path_setting = await settings_service.get_setting('filesystem.output_path')
+            
+            current_settings = {
+                'base_path': base_path_setting.parsed_value if base_path_setting else self._original_config.processing.base_path,
+                'output_path': output_path_setting.parsed_value if output_path_setting else self._original_config.processing.output_path
+            }
+            
+            # Cache settings
+            self._settings_cache = current_settings
+            self._settings_cache_expiry = now + timedelta(seconds=self._settings_cache_ttl)
+            
+            return current_settings
+            
+        except Exception as e:
+            self.logger.logger.warning(f"Failed to get current settings, using defaults: {e}")
+            return {
+                'base_path': self._original_config.processing.base_path,
+                'output_path': self._original_config.processing.output_path
+            }
+    
+    async def _ensure_file_discovery_initialized(self):
+        """Ensure FileDiscovery is initialized with current base path."""
+        current_settings = await self._get_current_settings()
+        current_base_path = current_settings['base_path']
+        
+        # Initialize or update FileDiscovery if base path changed
+        if (self.file_discovery is None or 
+            self._current_base_path != current_base_path):
+            
+            self.file_discovery = FileDiscovery(current_base_path)
+            self._current_base_path = current_base_path
+            self.logger.logger.info(f"FileDiscovery initialized with base path: {current_base_path}")
     async def get_entry_content(self, entry_date: date) -> Optional[str]:
         """
         Get content for a specific journal entry date.
@@ -82,6 +142,9 @@ class EntryManager(BaseService):
         self._log_operation_start("get_entry_content", date=entry_date)
         
         try:
+            # Ensure FileDiscovery is initialized with current settings
+            await self._ensure_file_discovery_initialized()
+            
             # Construct file path using work week calculations when available
             file_path = await self._construct_file_path_async(entry_date)
             
@@ -125,6 +188,9 @@ class EntryManager(BaseService):
                                 content_length=len(content))
         
         try:
+            # Ensure FileDiscovery is initialized with current settings
+            await self._ensure_file_discovery_initialized()
+            
             # Use work week calculations for file path construction
             file_path = await self._construct_file_path_async(entry_date)
             

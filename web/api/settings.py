@@ -8,6 +8,8 @@ while maintaining compatibility with CLI configuration.
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Dict, Any, Optional, List
 import sys
+import json
+from datetime import datetime
 from pathlib import Path
 
 # Add parent directory for imports
@@ -348,15 +350,168 @@ async def bulk_update_settings(
     bulk_request: SettingsBulkUpdateRequest,
     settings_service: SettingsService = Depends(get_settings_service)
 ):
-    """Update multiple settings at once."""
+    """Update multiple settings at once with enhanced error handling and logging."""
+    operation_start = datetime.now()
+    request_id = f"api_{operation_start.strftime('%H%M%S')}_{id(bulk_request)}"
+    
+    if logger:
+        logger.logger.info(
+            f"[API] Bulk update request received {request_id}",
+            extra={
+                'request_id': request_id,
+                'settings_count': len(bulk_request.settings),
+                'settings_keys': list(bulk_request.settings.keys()),
+                'client_ip': 'unknown',  # Could be enhanced with actual client IP
+                'timestamp': operation_start.isoformat()
+            }
+        )
+    
     try:
+        # Call the service method with comprehensive logging
         result = await settings_service.bulk_update_settings(bulk_request.settings)
-        return result
+        
+        # Determine appropriate HTTP status code based on result
+        if result.error_count == 0:
+            # All settings updated successfully
+            status_code = status.HTTP_200_OK
+            if logger:
+                logger.logger.info(
+                    f"[API] Bulk update completed successfully {request_id}",
+                    extra={
+                        'request_id': request_id,
+                        'success_count': result.success_count,
+                        'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                    }
+                )
+        elif result.success_count > 0:
+            # Partial success - some settings updated, some failed
+            status_code = status.HTTP_207_MULTI_STATUS
+            if logger:
+                logger.logger.warning(
+                    f"[API] Bulk update partially successful {request_id}",
+                    extra={
+                        'request_id': request_id,
+                        'success_count': result.success_count,
+                        'error_count': result.error_count,
+                        'failed_settings': [error.key for error in result.validation_errors],
+                        'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                    }
+                )
+        else:
+            # Complete failure - no settings updated
+            status_code = status.HTTP_400_BAD_REQUEST
+            if logger:
+                logger.logger.error(
+                    f"[API] Bulk update completely failed {request_id}",
+                    extra={
+                        'request_id': request_id,
+                        'error_count': result.error_count,
+                        'failed_settings': [error.key for error in result.validation_errors],
+                        'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                    }
+                )
+        
+        # Add metadata to response
+        response_data = result.dict()
+        response_data['request_id'] = request_id
+        response_data['processing_time_ms'] = (datetime.now() - operation_start).total_seconds() * 1000
+        response_data['timestamp'] = datetime.now().isoformat()
+        
+        # Create response with appropriate status code
+        from fastapi import Response
+        response = Response(
+            content=json.dumps(response_data, default=str),
+            media_type="application/json",
+            status_code=status_code
+        )
+        
+        return result  # FastAPI will handle the serialization, but we've logged the status
+        
+    except ValueError as ve:
+        # Validation errors
+        if logger:
+            logger.logger.error(
+                f"[API] Bulk update validation error {request_id}: {str(ve)}",
+                extra={
+                    'request_id': request_id,
+                    'error_type': 'validation_error',
+                    'error_message': str(ve),
+                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                }
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                'error': 'Validation failed',
+                'message': str(ve),
+                'request_id': request_id,
+                'timestamp': datetime.now().isoformat()
+            }
+        )
+    except ConnectionError as ce:
+        # Database connection errors
+        if logger:
+            logger.logger.error(
+                f"[API] Bulk update database connection error {request_id}: {str(ce)}",
+                extra={
+                    'request_id': request_id,
+                    'error_type': 'database_connection_error',
+                    'error_message': str(ce),
+                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                }
+            )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                'error': 'Database connection failed',
+                'message': 'Unable to connect to settings database',
+                'request_id': request_id,
+                'timestamp': datetime.now().isoformat(),
+                'retry_after': 30  # Suggest retry after 30 seconds
+            }
+        )
+    except TimeoutError as te:
+        # Operation timeout errors
+        if logger:
+            logger.logger.error(
+                f"[API] Bulk update timeout error {request_id}: {str(te)}",
+                extra={
+                    'request_id': request_id,
+                    'error_type': 'timeout_error',
+                    'error_message': str(te),
+                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                }
+            )
+        raise HTTPException(
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+            detail={
+                'error': 'Operation timeout',
+                'message': 'Settings update operation took too long',
+                'request_id': request_id,
+                'timestamp': datetime.now().isoformat()
+            }
+        )
     except Exception as e:
-        logger.logger.error if logger else print(f"Failed to bulk update settings: {str(e)}")
+        # Generic server errors
+        if logger:
+            logger.logger.error(
+                f"[API] Bulk update internal error {request_id}: {str(e)}",
+                extra={
+                    'request_id': request_id,
+                    'error_type': 'internal_server_error',
+                    'error_message': str(e),
+                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                },
+                exc_info=True
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to bulk update settings: {str(e)}"
+            detail={
+                'error': 'Internal server error',
+                'message': 'An unexpected error occurred while updating settings',
+                'request_id': request_id,
+                'timestamp': datetime.now().isoformat()
+            }
         )
 
 @router.post("/{key}/reset", response_model=WebSettingResponse)
