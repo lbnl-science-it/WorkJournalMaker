@@ -23,3 +23,8 @@ greenlet>=3.0.0
 # Additional utilities
 python-dateutil>=2.8.0
 aiofiles>=23.0.0
+
+# Executable build dependencies
+pyinstaller
+waitress
+appdirs

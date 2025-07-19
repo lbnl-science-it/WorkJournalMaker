@@ -12,6 +12,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from web.resource_utils import resource_path
 from contextlib import asynccontextmanager
 import sys
 import time
@@ -58,11 +59,13 @@ class WorkJournalWebApp:
             # Initialize configuration
             config_manager = ConfigManager()
             self.config = config_manager.get_config()
-            
+
             # Initialize logging
+            from web.resource_utils import setup_logging
+            setup_logging()
             self.logger = create_logger_with_config(self.config.logging)
             self.logger.logger.info("Starting Work Journal Web Application...")
-            
+
             # Initialize database
             await self.db_manager.initialize()
             self.logger.logger.info("Database initialized successfully")
@@ -185,10 +188,8 @@ app.include_router(summarization.router)
 app.include_router(settings.router)
 
 # Static files and templates
-static_dir = Path(__file__).parent / "static"
-templates_dir = Path(__file__).parent / "templates"
-app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-templates = Jinja2Templates(directory=str(templates_dir))
+app.mount("/static", StaticFiles(directory=resource_path("web/static")), name="static")
+templates = Jinja2Templates(directory=resource_path("web/templates"))
 
 
 @app.get("/")

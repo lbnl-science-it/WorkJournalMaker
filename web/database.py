@@ -105,36 +105,52 @@ Index('idx_work_week_settings_preset', WorkWeekSettings.work_week_preset)
 class DatabaseManager:
     """Manages database operations and migrations."""
     
-    def __init__(self, database_path: str = "web/journal_index.db"):
+    def __init__(self, database_path: str = None):
+        from web.resource_utils import get_user_data_dir
+
+        if database_path is None:
+            # Use the user data directory for the database
+            database_path = os.path.join(get_user_data_dir(), 'journal.db')
+        else:
+            # If a path is provided, use it as is
+            database_path = database_path
+
         self.database_path = database_path
         self.engine = None
         self.SessionLocal = None
         
     async def initialize(self):
         """Initialize database with proper async setup."""
-        # Ensure directory exists
-        Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
-        
-        self.engine = create_async_engine(
-            f"sqlite+aiosqlite:///{self.database_path}",
-            echo=False,  # Set to True for SQL debugging
-            pool_pre_ping=True
-        )
-        self.SessionLocal = async_sessionmaker(
-            self.engine, 
-            class_=AsyncSession, 
-            expire_on_commit=False
-        )
-        
-        # Create tables
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            
-        # Initialize default settings
-        await self._initialize_default_settings()
-        
-        # Initialize default work week settings
-        await self._initialize_default_work_week_settings()
+        import logging
+
+        try:
+            # Ensure directory exists
+            Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
+
+            self.engine = create_async_engine(
+                f"sqlite+aiosqlite:///{self.database_path}",
+                echo=False,  # Set to True for SQL debugging
+                pool_pre_ping=True
+            )
+            self.SessionLocal = async_sessionmaker(
+                self.engine,
+                class_=AsyncSession,
+                expire_on_commit=False
+            )
+
+            # Create tables
+            async with self.engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+
+            # Initialize default settings
+            await self._initialize_default_settings()
+
+            # Initialize default work week settings
+            await self._initialize_default_work_week_settings()
+
+        except Exception as e:
+            logging.error(f"Error initializing database: {str(e)}", exc_info=True)
+            raise
     
     async def _initialize_default_settings(self):
         """Initialize default web settings."""
