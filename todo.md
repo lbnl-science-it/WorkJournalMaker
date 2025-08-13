@@ -34,10 +34,10 @@
   - [x] Test cross-platform log file locations
 
 ### Phase 2: Desktop Runner (Steps 5-7)
-- [ ] **Step 5**: Desktop Application Core
-  - [ ] Create `tests/test_desktop_app.py` with integration tests
-  - [ ] Implement `desktop/desktop_app.py` orchestrating all components
-  - [ ] Test complete startup/shutdown sequences
+- [x] **Step 5**: Desktop Application Core ✅
+  - [x] Create `tests/test_desktop_app.py` with integration tests
+  - [x] Implement `desktop/desktop_app.py` orchestrating all components
+  - [x] Test complete startup/shutdown sequences
   
 - [ ] **Step 6**: Entry Point Script
   - [ ] Create `tests/test_server_runner.py` with signal handling tests
@@ -133,7 +133,8 @@
 2. ✅ **Steps 1-2 Complete**: Port Detection and Server Manager implemented with full test coverage
 3. ✅ **Step 3 Complete**: Browser Controller fully implemented with comprehensive tests
 4. ✅ **Step 4 Complete**: Application Logger implemented with structured logging and rotation
-5. ⏳ **Next Priority**: Begin Phase 2 - Desktop Runner (Step 5: Desktop Application Core)
+5. ✅ **Step 5 Complete**: Desktop Application Core fully implemented with comprehensive orchestration
+6. ⏳ **Next Priority**: Step 6 - Entry Point Script (PyInstaller entry point)
 
 ### Implementation Strategy
 - **Strict TDD**: Write failing tests first, minimal implementation, refactor
