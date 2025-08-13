@@ -39,10 +39,10 @@
   - [x] Implement `desktop/desktop_app.py` orchestrating all components
   - [x] Test complete startup/shutdown sequences
   
-- [ ] **Step 6**: Entry Point Script
-  - [ ] Create `tests/test_server_runner.py` with signal handling tests
-  - [ ] Implement `server_runner.py` as PyInstaller entry point
-  - [ ] Add command line interface and graceful shutdown
+- [x] **Step 6**: Entry Point Script ✅
+  - [x] Create `tests/test_server_runner.py` with signal handling tests
+  - [x] Implement `server_runner.py` as PyInstaller entry point
+  - [x] Add command line interface and graceful shutdown
   
 - [ ] **Step 7**: Server Readiness Checker
   - [ ] Create `tests/test_readiness_checker.py` with HTTP health check tests
@@ -134,7 +134,8 @@
 3. ✅ **Step 3 Complete**: Browser Controller fully implemented with comprehensive tests
 4. ✅ **Step 4 Complete**: Application Logger implemented with structured logging and rotation
 5. ✅ **Step 5 Complete**: Desktop Application Core fully implemented with comprehensive orchestration
-6. ⏳ **Next Priority**: Step 6 - Entry Point Script (PyInstaller entry point)
+6. ✅ **Step 6 Complete**: Entry Point Script implemented with full CLI and signal handling
+7. ⏳ **Next Priority**: Step 7 - Server Readiness Checker (HTTP health check component)
 
 ### Implementation Strategy
 - **Strict TDD**: Write failing tests first, minimal implementation, refactor
