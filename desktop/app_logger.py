@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional, List, Any
 from logging.handlers import RotatingFileHandler
 
+from desktop.platform_compat import get_platform_compat
+
 
 class AppLogger:
     """Cross-platform application logger with structured logging and rotation.
@@ -48,10 +50,21 @@ class AppLogger:
             raise ValueError("Invalid log level")
             
         self.app_name = app_name
-        self.log_dir = Path(log_dir) if log_dir else self.get_default_log_directory()
         self.max_bytes = max_bytes
         self.backup_count = backup_count
         self.log_level = log_level
+        
+        # Get platform compatibility utilities FIRST
+        self._platform_compat = None  # Initialize to None first
+        try:
+            self._platform_compat = get_platform_compat()
+        except Exception as e:
+            # Fallback if platform_compat fails
+            print(f"Warning: Failed to initialize platform compatibility: {e}")
+            self._platform_compat = None
+        
+        # Now we can safely set log_dir (which may call get_default_log_directory)
+        self.log_dir = Path(log_dir) if log_dir else self.get_default_log_directory()
         
         # Initialize logger
         self.logger = logging.getLogger(app_name)
@@ -105,29 +118,17 @@ class AppLogger:
         Returns:
             Path object for the default log directory
         """
-        system = platform.system()
-        home = Path.home()
-        
-        if system == 'Windows':
-            # Use LOCALAPPDATA if available, otherwise fallback to user home
-            local_app_data = os.environ.get('LOCALAPPDATA')
-            if local_app_data:
-                return Path(local_app_data) / self.app_name / "logs"
-            else:
-                return home / self.app_name / "logs"
-        
-        elif system == 'Darwin':  # macOS
-            # Use ~/Library/Logs/AppName
-            return home / "Library" / "Logs" / self.app_name
-        
-        else:  # Linux and other Unix-like systems
-            # Use XDG Base Directory Specification
-            xdg_data_home = os.environ.get('XDG_DATA_HOME')
-            if xdg_data_home:
-                return Path(xdg_data_home) / self.app_name / "logs"
-            else:
-                # Fallback to ~/.local/share/AppName/logs
-                return home / ".local" / "share" / self.app_name / "logs"
+        # Use platform compatibility layer for consistent log directory handling
+        if self._platform_compat is not None:
+            return self._platform_compat.path_utils.get_logs_dir(self.app_name)
+        else:
+            # Fallback to simple platform-specific logic
+            if platform.system() == "Darwin":  # macOS
+                return Path.home() / "Library" / "Logs" / self.app_name
+            elif platform.system() == "Windows":
+                return Path.home() / "AppData" / "Local" / self.app_name / "Logs"
+            else:  # Linux/Unix
+                return Path.home() / ".local" / "share" / self.app_name / "logs"
     
     def get_log_files(self) -> List[Path]:
         """Get list of all log files in the log directory.

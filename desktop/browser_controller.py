@@ -7,6 +7,8 @@ import webbrowser
 from typing import Optional, Dict, List, Any
 from urllib.parse import urlparse
 
+from desktop.platform_compat import get_platform_compat
+
 
 class BrowserController:
     """Cross-platform browser controller for opening web applications.
@@ -39,6 +41,9 @@ class BrowserController:
         self.preferred_browser = preferred_browser
         self.timeout = timeout
         self.retry_attempts = retry_attempts
+        
+        # Get platform compatibility utilities
+        self._platform_compat = get_platform_compat()
     
     def open_browser(self, url: str) -> bool:
         """Open the specified URL in a browser.
@@ -143,23 +148,24 @@ class BrowserController:
             'version': platform.version()
         }
     
-    def get_available_browsers(self, browser_names: List[str]) -> List[str]:
-        """Get list of available browsers from given list.
+    def get_available_browsers(self, browser_names: Optional[List[str]] = None) -> List[str]:
+        """Get list of available browsers from given list or platform defaults.
         
         Args:
-            browser_names: List of browser names to check
+            browser_names: List of browser names to check (uses platform defaults if None)
             
         Returns:
             List of available browser names
         """
+        if browser_names is None:
+            # Use platform-specific default browsers
+            browser_names = self._platform_compat.browser_utils.get_default_browsers()
+        
         available = []
         
         for browser_name in browser_names:
-            try:
-                webbrowser.get(browser_name)
+            if self._platform_compat.browser_utils.is_browser_available(browser_name):
                 available.append(browser_name)
-            except webbrowser.Error:
-                continue
                 
         return available
     
