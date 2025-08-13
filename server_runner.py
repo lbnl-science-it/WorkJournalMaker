@@ -9,6 +9,7 @@ import time
 from typing import Optional, Tuple
 
 from desktop.desktop_app import DesktopApp
+from desktop.platform_compat import get_platform_compat
 
 
 def parse_args(args: Optional[list] = None) -> argparse.Namespace:
@@ -168,6 +169,9 @@ class ServerRunner:
         self._shutdown_requested = False
         self._signal_count = 0
         
+        # Get platform compatibility utilities
+        self._platform_compat = get_platform_compat()
+        
         # Create desktop application
         try:
             self.desktop_app = DesktopApp(
@@ -190,17 +194,16 @@ class ServerRunner:
     
     def setup_signal_handlers(self) -> None:
         """Set up signal handlers for graceful shutdown."""
-        try:
-            signal.signal(signal.SIGINT, self._signal_handler)
-            
-            # SIGTERM is not available on Windows
-            if not self.is_windows():
-                signal.signal(signal.SIGTERM, self._signal_handler)
-                
-        except (OSError, ValueError) as e:
-            # Signal setup may fail in some environments (e.g., threads)
-            # Log the issue but don't crash the application
-            print(f"Warning: Could not set up signal handlers: {e}")
+        # Use platform compatibility layer for cross-platform signal handling
+        supported_signals = self._platform_compat.signal_utils.get_supported_signals()
+        
+        for sig in supported_signals:
+            success = self._platform_compat.signal_utils.setup_signal_handler(sig, self._signal_handler)
+            if not success:
+                print(f"Warning: Could not set up handler for signal {sig}")
+        
+        if not supported_signals:
+            print("Warning: No supported signals found for graceful shutdown")
     
     def _signal_handler(self, signum: int, frame) -> None:
         """Handle shutdown signals.
@@ -308,7 +311,7 @@ class ServerRunner:
         Returns:
             True if on Windows, False otherwise
         """
-        return sys.platform.startswith('win')
+        return self._platform_compat.is_windows()
     
     def is_macos(self) -> bool:
         """Check if running on macOS platform.
@@ -316,7 +319,7 @@ class ServerRunner:
         Returns:
             True if on macOS, False otherwise
         """
-        return sys.platform == 'darwin'
+        return self._platform_compat.is_macos()
 
 
 def main() -> None:
