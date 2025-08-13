@@ -1,0 +1,97 @@
+# -*- mode: python ; coding: utf-8 -*-
+# PyInstaller spec file for WorkJournalMaker
+# Generated automatically by build_config.py
+
+
+a = Analysis(
+    ['server_runner.py'],
+    pathex=['/Users/TYFong/code/WorkJournalMaker'],
+    binaries=[],
+    datas=[
+        ('/Users/TYFong/code/WorkJournalMaker/web/static', 'web/static'),
+    ('/Users/TYFong/code/WorkJournalMaker/web/templates', 'web/templates')
+    ],
+    hiddenimports=[
+        'uvicorn.lifespan.on',
+    'uvicorn.lifespan.off',
+    'uvicorn.protocols.websockets.auto',
+    'uvicorn.protocols.websockets.websockets_impl',
+    'uvicorn.protocols.http.auto',
+    'uvicorn.protocols.http.h11_impl',
+    'uvicorn.loops.auto',
+    'uvicorn.loops.asyncio',
+    'fastapi.routing',
+    'fastapi.responses',
+    'fastapi.encoders',
+    'fastapi.exceptions',
+    'starlette.routing',
+    'starlette.responses',
+    'starlette.middleware',
+    'starlette.staticfiles',
+    'sqlalchemy.ext.declarative',
+    'sqlalchemy.sql.default_comparator',
+    'aiosqlite',
+    'jinja2.ext',
+    'google.genai',
+    'google.genai.models',
+    'google.genai.client',
+    'google.auth',
+    'google.oauth2',
+    'boto3',
+    'botocore',
+    'botocore.client',
+    'botocore.session'
+    ],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[
+        'tkinter',
+    '_tkinter',
+    'matplotlib',
+    'matplotlib.pyplot',
+    'PyQt5',
+    'PyQt6',
+    'PySide2',
+    'PySide6',
+    'pytest',
+    'pytest_cov',
+    'pytest_mock',
+    'coverage',
+    'black',
+    'flake8',
+    'mypy',
+    'sphinx',
+    'jupyter',
+    'notebook',
+    'ipython'
+    ],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=None,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=None)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='WorkJournalMaker',
+    debug=false,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=false,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
