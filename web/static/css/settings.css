@@ -543,3 +543,356 @@
     background-color: var(--color-surface);
     color: var(--color-text-tertiary);
 }
+
+/* Sync Section Styles */
+.sync-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+/* Sync Cards */
+.sync-status-card,
+.sync-controls-card,
+.sync-history-card,
+.sync-scheduler-card {
+    background-color: var(--color-surface-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    transition: all var(--transition-normal);
+}
+
+.sync-status-card:hover,
+.sync-controls-card:hover,
+.sync-history-card:hover,
+.sync-scheduler-card:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+/* Card Headers */
+.sync-status-header,
+.sync-controls-header,
+.sync-history-header,
+.sync-scheduler-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+}
+
+.sync-status-header h3,
+.sync-controls-header h3,
+.sync-history-header h3,
+.sync-scheduler-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.sync-controls-header p,
+.sync-scheduler-header p {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: var(--space-1) 0 0 0;
+}
+
+/* Sync Controls */
+.sync-controls-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+.sync-control-group {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--space-4);
+    align-items: center;
+    padding: var(--space-4);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.control-info h4 {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-1) 0;
+}
+
+.control-info p {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.control-input {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.control-input input {
+    width: 80px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    text-align: center;
+}
+
+.control-input label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.control-action button {
+    min-width: 180px;
+}
+
+/* Sync Status Display */
+.sync-status-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.sync-status-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.status-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.status-value {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.status-value.in-progress {
+    color: var(--color-warning);
+}
+
+.status-value.success {
+    color: var(--color-success);
+}
+
+.status-value.error {
+    color: var(--color-error);
+}
+
+/* Sync History */
+.sync-history-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.sync-history-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.history-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.history-status.running {
+    background-color: var(--color-warning);
+    animation: pulse 2s infinite;
+}
+
+.history-status.completed {
+    background-color: var(--color-success);
+}
+
+.history-status.failed {
+    background-color: var(--color-error);
+}
+
+.history-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.history-type {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.history-details {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.history-timestamp {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    font-family: var(--font-mono);
+}
+
+.history-stats {
+    display: flex;
+    gap: var(--space-2);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+/* Scheduler Controls */
+.sync-scheduler-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.scheduler-status {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-4);
+    align-items: center;
+    padding: var(--space-4);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.scheduler-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.scheduler-state {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.scheduler-details {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.scheduler-controls {
+    display: flex;
+    gap: var(--space-2);
+}
+
+/* Progress Indicators */
+.sync-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background-color: rgba(255, 149, 0, 0.1);
+    border: 1px solid rgba(255, 149, 0, 0.2);
+    border-radius: var(--radius-lg);
+    margin-top: var(--space-3);
+}
+
+.sync-progress-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-border);
+    border-top: 2px solid var(--color-warning);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.sync-progress-text {
+    font-size: var(--font-size-sm);
+    color: var(--color-warning);
+    font-weight: 500;
+}
+
+/* Loading Placeholders */
+.loading-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-8);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.loading-placeholder .loading-spinner {
+    width: 20px;
+    height: 20px;
+    border-width: 2px;
+}
+
+/* Button Styles */
+.btn-small {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-xs);
+    height: auto;
+}
+
+/* Animations */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Responsive Design for Sync Section */
+@media (max-width: 768px) {
+    .sync-control-group {
+        grid-template-columns: 1fr;
+        gap: var(--space-3);
+        text-align: center;
+    }
+
+    .control-action button {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .sync-history-item {
+        grid-template-columns: auto 1fr;
+        gap: var(--space-2);
+    }
+
+    .history-timestamp,
+    .history-stats {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .scheduler-status {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .scheduler-controls {
+        justify-content: center;
+    }
+}

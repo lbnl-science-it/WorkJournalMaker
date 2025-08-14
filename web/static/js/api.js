@@ -137,11 +137,50 @@ class ApiClient {
         // Get sync status
         getStatus: () => this.get('/api/sync/status'),
 
-        // Trigger sync
-        trigger: () => this.post('/api/sync/trigger'),
+        // Trigger full sync
+        triggerFull: (dateRangeDays = null) => {
+            const params = dateRangeDays ? { date_range_days: dateRangeDays } : {};
+            return this.post('/api/sync/full', params);
+        },
+
+        // Trigger incremental sync
+        triggerIncremental: (sinceDays = 7) => {
+            const params = { since_days: sinceDays };
+            return this.post('/api/sync/incremental', params);
+        },
+
+        // Sync single entry
+        syncEntry: (entryDate) => this.post(`/api/sync/entry/${entryDate}`),
 
         // Get sync history
-        getHistory: (limit = 10) => this.get('/api/sync/history', { limit })
+        getHistory: (limit = 10, syncType = null) => {
+            const params = { limit };
+            if (syncType) params.sync_type = syncType;
+            return this.get('/api/sync/history', params);
+        },
+
+        // Get scheduler status
+        getSchedulerStatus: () => this.get('/api/sync/scheduler/status'),
+
+        // Start scheduler
+        startScheduler: () => this.post('/api/sync/scheduler/start'),
+
+        // Stop scheduler
+        stopScheduler: () => this.post('/api/sync/scheduler/stop'),
+
+        // Trigger scheduler full sync
+        triggerSchedulerFull: () => this.post('/api/sync/scheduler/trigger/full'),
+
+        // Trigger scheduler incremental sync
+        triggerSchedulerIncremental: () => this.post('/api/sync/scheduler/trigger/incremental'),
+
+        // Update scheduler configuration
+        updateSchedulerConfig: (incrementalSeconds = null, fullHours = null) => {
+            const params = {};
+            if (incrementalSeconds !== null) params.incremental_seconds = incrementalSeconds;
+            if (fullHours !== null) params.full_hours = fullHours;
+            return this.put('/api/sync/scheduler/config', params);
+        }
     };
 
     // Summarization API methods
