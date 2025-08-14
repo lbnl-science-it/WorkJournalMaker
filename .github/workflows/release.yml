@@ -1,0 +1,77 @@
+name: WorkJournal Desktop Release
+'on':
+  push:
+    branches:
+    - main
+    - master
+    tags:
+    - v*
+  pull_request:
+    branches:
+    - main
+    - master
+  release:
+    types:
+    - published
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: ubuntu-latest
+          python: '3.8'
+          arch: x64
+          executable_name: workjournal-linux
+          asset_name: workjournal-linux-x64
+        - os: windows-latest
+          python: '3.8'
+          arch: x64
+          executable_name: workjournal-windows.exe
+          asset_name: workjournal-windows-x64.exe
+        - os: macos-latest
+          python: '3.8'
+          arch: x64
+          executable_name: workjournal-macos
+          asset_name: workjournal-macos-x64
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install dependencies
+      run: python -m pip install --upgrade pip && pip install -r requirements.txt
+        && pip install pyinstaller pytest pytest-cov
+    - name: Run tests
+      run: python -m pytest tests/ -v --cov=. --cov-report=xml
+    - name: Build executable with PyInstaller
+      run: pyinstaller --onefile --windowed --name=${{ matrix.executable_name }} --distpath=dist
+        server_runner.py
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.executable_name }}
+        path: dist/${{ matrix.executable_name }}
+  release:
+    needs:
+    - build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    - name: Create release assets
+      run: mkdir -p release-assets && find artifacts -name '*' -type f -exec cp {}
+        release-assets/ \; && ls -la release-assets/
+    - name: Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release-assets/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
