@@ -88,11 +88,51 @@ Index('idx_sync_status_type_started', SyncStatus.sync_type, SyncStatus.started_a
 class DatabaseManager:
     """Manages database operations and migrations."""
     
-    def __init__(self, database_path: str = "web/journal_index.db"):
-        self.database_path = database_path
+    def __init__(self, database_path: Optional[str] = None):
+        if database_path is None:
+            self.database_path = self._get_default_database_path()
+        else:
+            self.database_path = database_path
+            # Ensure directory exists for explicit paths too
+            Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
         self.engine = None
         self.SessionLocal = None
         
+    def _get_default_database_path(self) -> str:
+        """
+        Get the default database path based on runtime environment.
+        
+        In desktop app mode (PyInstaller), uses OS-standard app data directory.
+        In development mode, uses relative path in project directory.
+        
+        Returns:
+            str: Path to the database file
+        """
+        try:
+            # Import here to avoid circular imports
+            from desktop.runtime_detector import get_app_data_dir, is_frozen_executable
+            
+            app_data_dir = get_app_data_dir()
+            
+            if is_frozen_executable():
+                # Desktop app: <APP_DATA>/journal_index.db
+                db_path = app_data_dir / "journal_index.db"
+            else:
+                # Development: ./web/journal_index.db
+                db_path = app_data_dir / "web" / "journal_index.db"
+            
+            # Ensure directory exists
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            return str(db_path)
+            
+        except ImportError:
+            # Fallback if runtime_detector is not available
+            # This maintains backward compatibility
+            fallback_path = Path("web/journal_index.db")
+            fallback_path.parent.mkdir(parents=True, exist_ok=True)
+            return str(fallback_path)
+    
     async def initialize(self):
         """Initialize database with proper async setup."""
         # Ensure directory exists
