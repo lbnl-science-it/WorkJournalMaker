@@ -1,0 +1,37 @@
+{
+  "timezone_info": {
+    "system_timezone": "UTC-07:00",
+    "current_local_time": "2025-06-30T19:26:15.483581-07:00",
+    "current_utc_time": "2025-07-01T02:26:15.483585+00:00",
+    "local_date": "2025-06-30",
+    "utc_date": "2025-07-01",
+    "offset_hours": -7.0,
+    "timezone_name": [
+      "PST",
+      "PDT"
+    ],
+    "daylight_saving": 1
+  },
+  "calendar_today": "2025-06-30",
+  "expected_today": "2025-06-30",
+  "sample_entries": [
+    {
+      "date": "2025-06-27",
+      "created_at": "2025-06-27 12:44:16.507029-07:00",
+      "modified_at": "2025-06-27 17:11:09.762194-07:00",
+      "file_path": "/Users/TYFong/Desktop/worklogs/worklogs_2025/worklogs_2025-06/week_ending_2025-06-27/worklog_2025-06-27.txt"
+    },
+    {
+      "date": "2025-06-26",
+      "created_at": "2025-06-27 15:46:42.851349-07:00",
+      "modified_at": "2025-06-30 19:17:44.849175-07:00",
+      "file_path": "/Users/TYFong/Desktop/worklogs/worklogs_2025/worklogs_2025-06/week_ending_2025-06-27/worklog_2025-06-26.txt"
+    },
+    {
+      "date": "2025-06-25",
+      "created_at": "2025-06-27 15:46:42.847333-07:00",
+      "modified_at": "2025-06-27 15:46:42.847338-07:00",
+      "file_path": "/Users/TYFong/Desktop/worklogs/worklogs_2025/worklogs_2025-06/week_ending_2025-06-27/worklog_2025-06-25.txt"
+    }
+  ]
+}
