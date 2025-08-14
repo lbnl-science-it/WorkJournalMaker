@@ -26,10 +26,7 @@ router = APIRouter(prefix="/api/sync", tags=["synchronization"])
 
 def get_sync_service(request: Request) -> DatabaseSyncService:
     """Dependency to get sync service from app state."""
-    config: AppConfig = request.app.state.config
-    logger: JournalSummarizerLogger = request.app.state.logger
-    db_manager: DatabaseManager = request.app.state.db_manager
-    return DatabaseSyncService(config, logger, db_manager)
+    return request.app.state.sync_service
 
 
 def get_scheduler(request: Request) -> SyncScheduler:
