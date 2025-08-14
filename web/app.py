@@ -6,7 +6,7 @@ middleware, error handling, and integration with existing configuration
 and logging infrastructure.
 """
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 import sys
 import time
 import traceback
+import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -246,6 +247,32 @@ async def api_root():
 async def test_page(request: Request):
     """Test page for base templates and styling."""
     return templates.TemplateResponse("test.html", {"request": request})
+
+
+@app.websocket("/ws")
+async def general_websocket_endpoint(websocket: WebSocket):
+    """General WebSocket endpoint for system-wide updates."""
+    await websocket.accept()
+    try:
+        # Send initial connection status
+        await websocket.send_text(json.dumps({
+            "type": "connection_status",
+            "status": "connected",
+            "message": "WebSocket connection established",
+            "service": "general"
+        }))
+        
+        while True:
+            # Keep connection alive and handle any incoming messages
+            data = await websocket.receive_text()
+            # Echo back for connection testing
+            await websocket.send_text(json.dumps({
+                "type": "connection_status", 
+                "status": "connected",
+                "message": "WebSocket connection established"
+            }))
+    except WebSocketDisconnect:
+        pass
 
 
 if __name__ == "__main__":
