@@ -122,7 +122,7 @@ class Dashboard {
         container.innerHTML = this.recentEntries.map(entry => `
       <div class="entry-item" data-date="${entry.date}" onclick="Dashboard.openEntry('${entry.date}')">
         <div class="entry-info">
-          <div class="entry-date">${Utils.formatDate(new Date(entry.date), 'short')}</div>
+          <div class="entry-date">${Utils.formatDate(Utils.parseDate(entry.date), 'short')}</div>
           <div class="entry-preview">${this.getEntryPreview(entry)}</div>
         </div>
         <div class="entry-meta">
@@ -155,7 +155,7 @@ class Dashboard {
         // This would need to be calculated based on recent entries
         // For now, return a placeholder
         return this.recentEntries.filter(entry => {
-            const entryDate = new Date(entry.date);
+            const entryDate = Utils.parseDate(entry.date);
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
             return entryDate >= weekAgo;
@@ -173,7 +173,7 @@ class Dashboard {
             checkDate.setDate(today.getDate() - i);
 
             const hasEntry = this.recentEntries.some(entry => {
-                const entryDate = new Date(entry.date);
+                const entryDate = Utils.parseDate(entry.date);
                 return entryDate.toDateString() === checkDate.toDateString();
             });
 

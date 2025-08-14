@@ -262,3 +262,4 @@ python debug_file_discovery.py
 ---
 
 This project represents a production-ready work journal summarization system with both CLI and web interfaces, designed for extensibility and maintainability.
+Before running any code or tests, make sure that the `pyenv` virtual environment `WorkJournal` is active.
