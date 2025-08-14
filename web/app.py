@@ -31,6 +31,7 @@ from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
 from web.services.web_summarizer import WebSummarizationService
+from web.services.sync_service import DatabaseSyncService
 from web.services.scheduler import SyncScheduler
 from web.services.work_week_service import WorkWeekService
 
@@ -51,6 +52,7 @@ class WorkJournalWebApp:
         self.entry_manager: Optional[EntryManager] = None
         self.calendar_service: Optional[CalendarService] = None
         self.summarization_service: Optional[WebSummarizationService] = None
+        self.sync_service: Optional['DatabaseSyncService'] = None
         self.scheduler: Optional[SyncScheduler] = None
         
     async def startup(self):
@@ -79,6 +81,10 @@ class WorkJournalWebApp:
             # Initialize CalendarService
             self.calendar_service = CalendarService(self.config, self.logger, self.db_manager)
             self.logger.logger.info("CalendarService initialized successfully")
+            
+            # Initialize DatabaseSyncService
+            self.sync_service = DatabaseSyncService(self.config, self.logger, self.db_manager)
+            self.logger.logger.info("DatabaseSyncService initialized successfully")
             
             # Initialize WebSummarizationService
             self.summarization_service = WebSummarizationService(self.config, self.logger, self.db_manager)
@@ -139,6 +145,7 @@ async def lifespan(app: FastAPI):
     app.state.work_week_service = web_app.work_week_service
     app.state.entry_manager = web_app.entry_manager
     app.state.calendar_service = web_app.calendar_service
+    app.state.sync_service = web_app.sync_service
     app.state.summarization_service = web_app.summarization_service
     app.state.scheduler = web_app.scheduler
     
