@@ -1585,8 +1585,8 @@ class SyncManager {
             
             const result = await api.sync.triggerIncremental(days);
             
-            Utils.showToast(`Incremental sync started (${days} days)`, 'success');
             this.syncInProgress = true;
+            this.setSyncButtonsDisabled(true);
             this.startAutoRefresh();
             
             // Refresh status immediately
@@ -1595,6 +1595,7 @@ class SyncManager {
         } catch (error) {
             console.error('Failed to trigger incremental sync:', error);
             Utils.showToast('Failed to start incremental sync', 'error');
+            this.setSyncButtonsDisabled(false);
         } finally {
             this.setButtonLoading(document.getElementById('trigger-incremental-sync'), false);
         }
@@ -1609,8 +1610,8 @@ class SyncManager {
             
             const result = await api.sync.triggerFull(days);
             
-            Utils.showToast(`Full sync started (${days} days)`, 'success');
             this.syncInProgress = true;
+            this.setSyncButtonsDisabled(true);
             this.startAutoRefresh();
             
             // Refresh status immediately
@@ -1619,6 +1620,7 @@ class SyncManager {
         } catch (error) {
             console.error('Failed to trigger full sync:', error);
             Utils.showToast('Failed to start full sync', 'error');
+            this.setSyncButtonsDisabled(false);
         } finally {
             this.setButtonLoading(document.getElementById('trigger-full-sync'), false);
         }
@@ -1629,8 +1631,15 @@ class SyncManager {
             const status = await api.sync.getStatus();
             this.renderSyncStatus(status);
             
-            // Update sync in progress flag
-            this.syncInProgress = status.sync_status?.sync_in_progress || false;
+            // Update sync in progress flag and button states
+            const newSyncInProgress = status.sync_status?.sync_in_progress || false;
+            
+            // Re-enable buttons if sync completed
+            if (this.syncInProgress && !newSyncInProgress) {
+                this.setSyncButtonsDisabled(false);
+            }
+            
+            this.syncInProgress = newSyncInProgress;
             
         } catch (error) {
             console.error('Failed to load sync status:', error);
@@ -1803,19 +1812,19 @@ class SyncManager {
         try {
             if (type === 'incremental') {
                 await api.sync.triggerSchedulerIncremental();
-                Utils.showToast('Scheduler incremental sync triggered', 'success');
             } else {
                 await api.sync.triggerSchedulerFull();
-                Utils.showToast('Scheduler full sync triggered', 'success');
             }
             
             this.syncInProgress = true;
+            this.setSyncButtonsDisabled(true);
             this.startAutoRefresh();
             await this.loadSyncStatus();
             
         } catch (error) {
             console.error(`Failed to trigger scheduler ${type} sync:`, error);
             Utils.showToast(`Failed to trigger scheduler ${type} sync`, 'error');
+            this.setSyncButtonsDisabled(false);
         }
     }
 
@@ -1842,6 +1851,26 @@ class SyncManager {
             clearInterval(this.refreshInterval);
             this.refreshInterval = null;
         }
+    }
+
+    setSyncButtonsDisabled(disabled) {
+        const syncButtons = [
+            'trigger-incremental-sync',
+            'trigger-full-sync'
+        ];
+        
+        syncButtons.forEach(buttonId => {
+            const button = document.getElementById(buttonId);
+            if (button) {
+                button.disabled = disabled;
+            }
+        });
+        
+        // Also disable scheduler sync buttons if they exist
+        const schedulerButtons = document.querySelectorAll('button[onclick*="triggerSchedulerSync"]');
+        schedulerButtons.forEach(button => {
+            button.disabled = disabled;
+        });
     }
 
     setButtonLoading(button, loading) {
