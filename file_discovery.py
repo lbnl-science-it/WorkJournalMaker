@@ -347,8 +347,13 @@ class FileDiscovery:
                                 if week_ending_date is None:
                                     continue
                                 
-                                # Filter by date range
-                                if start_date <= week_ending_date <= end_date:
+                                # Filter by date range - check if directory could contain files in range
+                                # A week ending on week_ending_date could contain files from
+                                # (week_ending_date - 6 days) to week_ending_date
+                                week_start_date = week_ending_date - timedelta(days=6)
+                                
+                                # Include directory if its date range overlaps with search range
+                                if not (week_ending_date < start_date or week_start_date > end_date):
                                     discovered_directories.append((week_item, week_ending_date))
                         
                         except (OSError, PermissionError):

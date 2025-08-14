@@ -26,10 +26,7 @@ router = APIRouter(prefix="/api/sync", tags=["synchronization"])
 
 def get_sync_service(request: Request) -> DatabaseSyncService:
     """Dependency to get sync service from app state."""
-    config: AppConfig = request.app.state.config
-    logger: JournalSummarizerLogger = request.app.state.logger
-    db_manager: DatabaseManager = request.app.state.db_manager
-    return DatabaseSyncService(config, logger, db_manager)
+    return request.app.state.sync_service
 
 
 def get_scheduler(request: Request) -> SyncScheduler:
@@ -113,20 +110,27 @@ async def trigger_full_sync(
 
 @router.post("/incremental")
 async def trigger_incremental_sync(
+    request: Request,
     background_tasks: BackgroundTasks,
-    since_days: Optional[int] = 7,
     sync_service: DatabaseSyncService = Depends(get_sync_service)
 ):
     """
     Trigger an incremental synchronization for recent changes.
     
     Args:
-        since_days: Number of days back to sync (default: 7)
+        request: FastAPI request object
         
     Returns:
         Dict with sync operation details
     """
     try:
+        # Parse request body
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        since_days = body.get("since_days", 7)
+        
+        # Log for debugging
+        sync_service.logger.logger.info(f"API triggered incremental sync with since_days: {since_days}")
+        
         since_date = date.today() - timedelta(days=since_days)
         
         # Start sync in background
@@ -135,6 +139,7 @@ async def trigger_incremental_sync(
         return {
             "message": "Incremental sync started",
             "sync_type": "incremental",
+            "since_days": since_days,
             "since_date": since_date.isoformat(),
             "started_at": datetime.utcnow().isoformat()
         }
@@ -353,11 +358,11 @@ async def _run_full_sync(sync_service: DatabaseSyncService, date_range_days: Opt
         result = await sync_service.full_sync(date_range_days)
         # Log result but don't return it since this is a background task
         if result.success:
-            sync_service.logger.info(f"Background full sync completed: {result.entries_processed} processed")
+            sync_service.logger.logger.info(f"Background full sync completed: {result.entries_processed} processed")
         else:
-            sync_service.logger.error(f"Background full sync failed: {result.errors}")
+            sync_service.logger.logger.error(f"Background full sync failed: {result.errors}")
     except Exception as e:
-        sync_service.logger.error(f"Background full sync exception: {str(e)}")
+        sync_service.logger.logger.error(f"Background full sync exception: {str(e)}")
 
 
 async def _run_incremental_sync(sync_service: DatabaseSyncService, since_date: date):
@@ -365,11 +370,11 @@ async def _run_incremental_sync(sync_service: DatabaseSyncService, since_date: d
     try:
         result = await sync_service.incremental_sync(since_date)
         if result.success:
-            sync_service.logger.info(f"Background incremental sync completed: {result.entries_processed} processed")
+            sync_service.logger.logger.info(f"Background incremental sync completed: {result.entries_processed} processed")
         else:
-            sync_service.logger.error(f"Background incremental sync failed: {result.errors}")
+            sync_service.logger.logger.error(f"Background incremental sync failed: {result.errors}")
     except Exception as e:
-        sync_service.logger.error(f"Background incremental sync exception: {str(e)}")
+        sync_service.logger.logger.error(f"Background incremental sync exception: {str(e)}")
 
 
 async def _run_single_entry_sync(sync_service: DatabaseSyncService, entry_date: date):
@@ -377,8 +382,9 @@ async def _run_single_entry_sync(sync_service: DatabaseSyncService, entry_date: 
     try:
         result = await sync_service.sync_single_entry(entry_date)
         if result.success:
-            sync_service.logger.logger.info(f"Background entry sync completed for {entry_date}")
+            sync_service.logger.logger.debug(f"Background entry sync completed for {entry_date}")
+
         else:
-            sync_service.logger.warning(f"Background entry sync failed for {entry_date}: {result.errors}")
+            sync_service.logger.logger.warning(f"Background entry sync failed for {entry_date}: {result.errors}")
     except Exception as e:
-        sync_service.logger.error(f"Background entry sync exception for {entry_date}: {str(e)}")
+        sync_service.logger.logger.error(f"Background entry sync exception for {entry_date}: {str(e)}")
