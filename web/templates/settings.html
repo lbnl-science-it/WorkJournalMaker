@@ -129,6 +129,15 @@
                     </svg>
                     LLM Config
                 </button>
+
+                <button class="nav-item" data-category="sync">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="currentColor" stroke-width="2" />
+                        <polyline points="16,6 12,2 8,6" stroke="currentColor" stroke-width="2" />
+                        <line x1="12" y1="2" x2="12" y2="15" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Database Sync
+                </button>
             </div>
 
             <div class="nav-section-bottom">
@@ -302,6 +311,110 @@
 
                 <div class="settings-grid" id="llm-settings">
                     <!-- Settings will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="settings-panel" id="sync-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Database Synchronization</h2>
+                    <p class="panel-description">Manage database synchronization with your journal files</p>
+                </div>
+
+                <div class="sync-section">
+                    <!-- Sync Status -->
+                    <div class="sync-status-card">
+                        <div class="sync-status-header">
+                            <h3>Sync Status</h3>
+                            <button class="btn btn-secondary btn-small" id="refresh-sync-status">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="sync-status-content" id="sync-status-content">
+                            <div class="loading-placeholder">Loading status...</div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Sync Controls -->
+                    <div class="sync-controls-card">
+                        <div class="sync-controls-header">
+                            <h3>Manual Synchronization</h3>
+                            <p>Manually trigger database synchronization operations</p>
+                        </div>
+                        <div class="sync-controls-content">
+                            <div class="sync-control-group">
+                                <div class="control-info">
+                                    <h4>Incremental Sync</h4>
+                                    <p>Sync recent changes (last 7 days)</p>
+                                </div>
+                                <div class="control-input">
+                                    <input type="number" id="incremental-days" value="7" min="1" max="30" />
+                                    <label>days</label>
+                                </div>
+                                <div class="control-action">
+                                    <button class="btn btn-primary" id="trigger-incremental-sync">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                            <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                                        </svg>
+                                        Start Incremental Sync
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="sync-control-group">
+                                <div class="control-info">
+                                    <h4>Full Sync</h4>
+                                    <p>Complete synchronization of all entries</p>
+                                </div>
+                                <div class="control-input">
+                                    <input type="number" id="full-sync-days" value="730" min="30" max="3650" />
+                                    <label>days</label>
+                                </div>
+                                <div class="control-action">
+                                    <button class="btn btn-secondary" id="trigger-full-sync">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="currentColor" stroke-width="2" />
+                                            <polyline points="16,6 12,2 8,6" stroke="currentColor" stroke-width="2" />
+                                            <line x1="12" y1="2" x2="12" y2="15" stroke="currentColor" stroke-width="2" />
+                                        </svg>
+                                        Start Full Sync
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sync History -->
+                    <div class="sync-history-card">
+                        <div class="sync-history-header">
+                            <h3>Recent Sync History</h3>
+                            <button class="btn btn-secondary btn-small" id="refresh-sync-history">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="sync-history-content" id="sync-history-content">
+                            <div class="loading-placeholder">Loading history...</div>
+                        </div>
+                    </div>
+
+                    <!-- Scheduler Controls -->
+                    <div class="sync-scheduler-card">
+                        <div class="sync-scheduler-header">
+                            <h3>Automatic Sync Scheduler</h3>
+                            <p>Manage automatic background synchronization</p>
+                        </div>
+                        <div class="sync-scheduler-content" id="sync-scheduler-content">
+                            <div class="loading-placeholder">Loading scheduler status...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

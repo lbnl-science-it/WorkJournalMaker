@@ -6,7 +6,7 @@ middleware, error handling, and integration with existing configuration
 and logging infrastructure.
 """
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 import sys
 import time
 import traceback
+import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -30,6 +31,7 @@ from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
 from web.services.web_summarizer import WebSummarizationService
+from web.services.sync_service import DatabaseSyncService
 from web.services.scheduler import SyncScheduler
 from web.services.work_week_service import WorkWeekService
 
@@ -50,6 +52,7 @@ class WorkJournalWebApp:
         self.entry_manager: Optional[EntryManager] = None
         self.calendar_service: Optional[CalendarService] = None
         self.summarization_service: Optional[WebSummarizationService] = None
+        self.sync_service: Optional['DatabaseSyncService'] = None
         self.scheduler: Optional[SyncScheduler] = None
         
     async def startup(self):
@@ -78,6 +81,10 @@ class WorkJournalWebApp:
             # Initialize CalendarService
             self.calendar_service = CalendarService(self.config, self.logger, self.db_manager)
             self.logger.logger.info("CalendarService initialized successfully")
+            
+            # Initialize DatabaseSyncService
+            self.sync_service = DatabaseSyncService(self.config, self.logger, self.db_manager)
+            self.logger.logger.info("DatabaseSyncService initialized successfully")
             
             # Initialize WebSummarizationService
             self.summarization_service = WebSummarizationService(self.config, self.logger, self.db_manager)
@@ -138,6 +145,7 @@ async def lifespan(app: FastAPI):
     app.state.work_week_service = web_app.work_week_service
     app.state.entry_manager = web_app.entry_manager
     app.state.calendar_service = web_app.calendar_service
+    app.state.sync_service = web_app.sync_service
     app.state.summarization_service = web_app.summarization_service
     app.state.scheduler = web_app.scheduler
     
@@ -246,6 +254,32 @@ async def api_root():
 async def test_page(request: Request):
     """Test page for base templates and styling."""
     return templates.TemplateResponse("test.html", {"request": request})
+
+
+@app.websocket("/ws")
+async def general_websocket_endpoint(websocket: WebSocket):
+    """General WebSocket endpoint for system-wide updates."""
+    await websocket.accept()
+    try:
+        # Send initial connection status
+        await websocket.send_text(json.dumps({
+            "type": "connection_status",
+            "status": "connected",
+            "message": "WebSocket connection established",
+            "service": "general"
+        }))
+        
+        while True:
+            # Keep connection alive and handle any incoming messages
+            data = await websocket.receive_text()
+            # Echo back for connection testing
+            await websocket.send_text(json.dumps({
+                "type": "connection_status", 
+                "status": "connected",
+                "message": "WebSocket connection established"
+            }))
+    except WebSocketDisconnect:
+        pass
 
 
 if __name__ == "__main__":
