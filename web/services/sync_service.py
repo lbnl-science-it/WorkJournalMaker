@@ -244,7 +244,7 @@ class DatabaseSyncService:
             sync_id = await self._record_sync_start(SyncType.SINGLE_ENTRY)
             
             # Get file path using existing FileDiscovery
-            week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+            week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
             file_path = self.file_discovery._construct_file_path(entry_date, week_ending_date)
             
             if file_path.exists():
@@ -297,7 +297,7 @@ class DatabaseSyncService:
                     content_metadata = await self._get_file_metadata(file_path)
                     
                     # Calculate week ending date using existing logic
-                    week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+                    week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
                     
                     if existing_entry:
                         # Check if update is needed

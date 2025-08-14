@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Week CSS Component Tests</title>
+    
+    <!-- CSS Variables (Mock) -->
+    <style>
+        :root {
+            /* Color Variables */
+            --color-primary: #007AFF;
+            --color-primary-light: rgba(0, 122, 255, 0.1);
+            --color-background: #ffffff;
+            --color-surface: #f8f9fa;
+            --color-surface-secondary: #f1f3f4;
+            --color-border: #e5e7eb;
+            --color-text-primary: #1f2937;
+            --color-text-secondary: #6b7280;
+            --color-text-tertiary: #9ca3af;
+            --color-success: #34c759;
+            --color-warning: #ff9500;
+            --color-error: #ff3b30;
+            
+            /* Spacing Variables */
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-5: 1.25rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+            
+            /* Font Size Variables */
+            --font-size-xs: 0.75rem;
+            --font-size-sm: 0.875rem;
+            --font-size-base: 1rem;
+            --font-size-lg: 1.125rem;
+            --font-size-xl: 1.25rem;
+            --font-size-2xl: 1.5rem;
+            
+            /* Radius Variables */
+            --radius-sm: 0.125rem;
+            --radius-md: 0.375rem;
+            --radius-lg: 0.5rem;
+            --radius-xl: 0.75rem;
+            
+            /* Transition Variables */
+            --transition-fast: 150ms ease;
+            --transition-normal: 250ms ease;
+            
+            /* Shadow Variables */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Dark theme variables */
+        [data-theme="dark"] {
+            --color-background: #1a1a1a;
+            --color-surface: #2a2a2a;
+            --color-surface-secondary: #3a3a3a;
+            --color-border: #404040;
+            --color-text-primary: #ffffff;
+            --color-text-secondary: #b0b0b0;
+            --color-text-tertiary: #808080;
+        }
+        
+        /* Base styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text-primary);
+            margin: 0;
+            padding: var(--space-6);
+        }
+        
+        .test-section {
+            margin-bottom: var(--space-8);
+            padding: var(--space-6);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            background-color: var(--color-surface);
+        }
+        
+        .test-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            margin: 0 0 var(--space-4) 0;
+            color: var(--color-text-primary);
+        }
+        
+        .test-description {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            margin: 0 0 var(--space-6) 0;
+        }
+        
+        .theme-toggle {
+            position: fixed;
+            top: var(--space-4);
+            right: var(--space-4);
+            padding: var(--space-2) var(--space-4);
+            background-color: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+        }
+    </style>
+    
+    <!-- Include the settings CSS -->
+    <link rel="stylesheet" href="../web/static/css/settings.css">
+    
+    <!-- Work Week CSS Styles to Test -->
+    <style>
+        /* Work Week Settings Section */
+        .work-week-settings {
+            background-color: var(--color-surface-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            margin-bottom: var(--space-6);
+            transition: all var(--transition-normal);
+        }
+        
+        .work-week-settings:hover {
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .work-week-settings .setting-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: var(--space-4);
+        }
+        
+        .work-week-settings .setting-label {
+            font-size: var(--font-size-base);
+            font-weight: 500;
+            color: var(--color-text-primary);
+            margin: 0 0 var(--space-1) 0;
+        }
+        
+        .work-week-settings .setting-description {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            margin: 0 0 var(--space-4) 0;
+            line-height: 1.5;
+        }
+        
+        /* Work Week Preset Selector */
+        .work-week-preset {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+            margin-bottom: var(--space-4);
+        }
+        
+        .work-week-preset-label {
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--color-text-primary);
+        }
+        
+        .work-week-preset-select {
+            padding: var(--space-3) var(--space-4);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            font-size: var(--font-size-sm);
+            background-color: var(--color-background);
+            color: var(--color-text-primary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .work-week-preset-select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-light);
+        }
+        
+        /* Custom Schedule Configuration */
+        .custom-schedule {
+            display: none;
+            flex-direction: column;
+            gap: var(--space-4);
+            padding: var(--space-4);
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            margin-top: var(--space-3);
+            transition: all var(--transition-normal);
+        }
+        
+        .custom-schedule.active {
+            display: flex;
+            animation: slideDown var(--transition-normal);
+        }
+        
+        .custom-schedule-row {
+            display: flex;
+            gap: var(--space-4);
+            align-items: center;
+        }
+        
+        .custom-schedule-field {
+            flex: 1;
+        }
+        
+        .custom-schedule-label {
+            display: block;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--color-text-primary);
+            margin-bottom: var(--space-2);
+        }
+        
+        .custom-schedule-select {
+            width: 100%;
+            padding: var(--space-3) var(--space-4);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            font-size: var(--font-size-sm);
+            background-color: var(--color-background);
+            color: var(--color-text-primary);
+            cursor: pointer;
+        }
+        
+        /* Work Week Preview */
+        .work-week-preview {
+            background-color: var(--color-primary-light);
+            border: 1px solid var(--color-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-top: var(--space-4);
+        }
+        
+        .work-week-preview-title {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--color-primary);
+            margin: 0 0 var(--space-2) 0;
+        }
+        
+        .work-week-preview-content {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-primary);
+            line-height: 1.5;
+        }
+        
+        .work-week-preview-schedule {
+            display: flex;
+            gap: var(--space-2);
+            margin-top: var(--space-2);
+            flex-wrap: wrap;
+        }
+        
+        .work-week-day {
+            padding: var(--space-1) var(--space-2);
+            background-color: var(--color-primary);
+            color: white;
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-xs);
+            font-weight: 500;
+        }
+        
+        .work-week-day.weekend {
+            background-color: var(--color-text-tertiary);
+        }
+        
+        /* Validation Feedback */
+        .validation-feedback {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-3) var(--space-4);
+            border-radius: var(--radius-lg);
+            font-size: var(--font-size-sm);
+            margin-top: var(--space-3);
+            transition: all var(--transition-fast);
+        }
+        
+        .validation-feedback.success {
+            background-color: rgba(52, 199, 89, 0.1);
+            color: var(--color-success);
+            border: 1px solid rgba(52, 199, 89, 0.2);
+        }
+        
+        .validation-feedback.warning {
+            background-color: rgba(255, 149, 0, 0.1);
+            color: var(--color-warning);
+            border: 1px solid rgba(255, 149, 0, 0.2);
+        }
+        
+        .validation-feedback.error {
+            background-color: rgba(255, 59, 48, 0.1);
+            color: var(--color-error);
+            border: 1px solid rgba(255, 59, 48, 0.2);
+        }
+        
+        .validation-icon {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+        }
+        
+        /* Help Text */
+        .work-week-help {
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-top: var(--space-4);
+        }
+        
+        .work-week-help-title {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin: 0 0 var(--space-2) 0;
+        }
+        
+        .work-week-help-content {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-secondary);
+            line-height: 1.5;
+        }
+        
+        .work-week-help-list {
+            margin: var(--space-2) 0 0 0;
+            padding-left: var(--space-4);
+        }
+        
+        .work-week-help-list li {
+            margin-bottom: var(--space-1);
+        }
+        
+        /* Loading States */
+        .work-week-loading {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-3);
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+        }
+        
+        .work-week-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--color-border);
+            border-top: 2px solid var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Animations */
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .custom-schedule-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: var(--space-3);
+            }
+            
+            .work-week-preview-schedule {
+                justify-content: center;
+            }
+        }
+        
+        /* High Contrast Mode */
+        @media (prefers-contrast: high) {
+            .work-week-settings {
+                border-width: 2px;
+            }
+            
+            .work-week-preset-select:focus,
+            .custom-schedule-select:focus {
+                box-shadow: 0 0 0 4px var(--color-primary-light);
+            }
+        }
+        
+        /* Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            .work-week-settings,
+            .custom-schedule,
+            .validation-feedback {
+                transition: none;
+            }
+            
+            .custom-schedule.active {
+                animation: none;
+            }
+            
+            .work-week-spinner {
+                animation: none;
+            }
+        }
+        
+        /* Dark Theme Adjustments */
+        [data-theme="dark"] .work-week-preview {
+            background-color: rgba(0, 122, 255, 0.15);
+        }
+        
+        [data-theme="dark"] .work-week-day {
+            background-color: var(--color-primary);
+        }
+        
+        [data-theme="dark"] .work-week-day.weekend {
+            background-color: var(--color-text-tertiary);
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark Mode</button>
+    
+    <h1>Work Week CSS Component Tests</h1>
+    <p>This page tests all work week styling components including responsive design, accessibility, and visual states.</p>
+    
+    <!-- Test 1: Basic Work Week Settings Section -->
+    <div class="test-section">
+        <h2 class="test-title">Basic Work Week Settings</h2>
+        <p class="test-description">Tests the main work week settings container with preset selection.</p>
+        
+        <div class="work-week-settings">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h3 class="setting-label">Work Week Schedule</h3>
+                    <p class="setting-description">Configure your work week schedule to organize journal entries by work week instead of calendar week.</p>
+                </div>
+            </div>
+            
+            <div class="work-week-preset">
+                <label class="work-week-preset-label" for="preset-basic">Work Week Preset</label>
+                <select class="work-week-preset-select" id="preset-basic" onchange="updatePreview('basic', this.value)">
+                    <option value="monday-friday">Monday - Friday</option>
+                    <option value="sunday-thursday">Sunday - Thursday</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            
+            <div class="work-week-preview">
+                <h4 class="work-week-preview-title">Preview</h4>
+                <div class="work-week-preview-content">
+                    Your work week runs from <strong>Monday</strong> to <strong>Friday</strong>.
+                    <div class="work-week-preview-schedule">
+                        <span class="work-week-day">Mon</span>
+                        <span class="work-week-day">Tue</span>
+                        <span class="work-week-day">Wed</span>
+                        <span class="work-week-day">Thu</span>
+                        <span class="work-week-day">Fri</span>
+                        <span class="work-week-day weekend">Sat</span>
+                        <span class="work-week-day weekend">Sun</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test 2: Custom Schedule Configuration -->
+    <div class="test-section">
+        <h2 class="test-title">Custom Schedule Configuration</h2>
+        <p class="test-description">Tests the custom work week configuration with dropdown selectors.</p>
+        
+        <div class="work-week-settings">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h3 class="setting-label">Custom Work Week</h3>
+                    <p class="setting-description">Define a custom work week schedule that fits your organization's needs.</p>
+                </div>
+            </div>
+            
+            <div class="work-week-preset">
+                <label class="work-week-preset-label" for="preset-custom">Work Week Preset</label>
+                <select class="work-week-preset-select" id="preset-custom" onchange="toggleCustomSchedule('custom', this.value)">
+                    <option value="monday-friday">Monday - Friday</option>
+                    <option value="sunday-thursday">Sunday - Thursday</option>
+                    <option value="custom" selected>Custom</option>
+                </select>
+            </div>
+            
+            <div class="custom-schedule active" id="custom-schedule-custom">
+                <div class="custom-schedule-row">
+                    <div class="custom-schedule-field">
+                        <label class="custom-schedule-label" for="start-day-custom">Start Day</label>
+                        <select class="custom-schedule-select" id="start-day-custom">
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3" selected>Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="7">Sunday</option>
+                        </select>
+                    </div>
+                    <div class="custom-schedule-field">
+                        <label class="custom-schedule-label" for="end-day-custom">End Day</label>
+                        <select class="custom-schedule-select" id="end-day-custom">
+                            <option value="1">Monday</option>
+                            <option value="2" selected>Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="7">Sunday</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="work-week-preview">
+                <h4 class="work-week-preview-title">Custom Schedule Preview</h4>
+                <div class="work-week-preview-content">
+                    Your work week runs from <strong>Wednesday</strong> to <strong>Tuesday</strong>.
+                    <div class="work-week-preview-schedule">
+                        <span class="work-week-day weekend">Mon</span>
+                        <span class="work-week-day weekend">Tue</span>
+                        <span class="work-week-day">Wed</span>
+                        <span class="work-week-day">Thu</span>
+                        <span class="work-week-day">Fri</span>
+                        <span class="work-week-day">Sat</span>
+                        <span class="work-week-day">Sun</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test 3: Validation States -->
+    <div class="test-section">
+        <h2 class="test-title">Validation Feedback States</h2>
+        <p class="test-description">Tests success, warning, and error validation feedback styles.</p>
+        
+        <div class="work-week-settings">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h3 class="setting-label">Validation Examples</h3>
+                    <p class="setting-description">Different validation states and feedback messages.</p>
+                </div>
+            </div>
+            
+            <div class="validation-feedback success">
+                <span class="validation-icon">✓</span>
+                <span>Work week configuration saved successfully!</span>
+            </div>
+            
+            <div class="validation-feedback warning">
+                <span class="validation-icon">⚠</span>
+                <span>This configuration will only apply to new journal entries.</span>
+            </div>
+            
+            <div class="validation-feedback error">
+                <span class="validation-icon">✗</span>
+                <span>Start day and end day cannot be the same. Please select different days.</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test 4: Help Text and Documentation -->
+    <div class="test-section">
+        <h2 class="test-title">Help Text and Documentation</h2>
+        <p class="test-description">Tests help text styling and information display.</p>
+        
+        <div class="work-week-settings">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h3 class="setting-label">Work Week Help</h3>
+                    <p class="setting-description">Understanding how work week configuration affects your journal organization.</p>
+                </div>
+            </div>
+            
+            <div class="work-week-help">
+                <h4 class="work-week-help-title">How Work Week Settings Work</h4>
+                <div class="work-week-help-content">
+                    <p>Your work week configuration determines how journal entries are organized into weekly directories:</p>
+                    <ul class="work-week-help-list">
+                        <li><strong>Work Week Days:</strong> Entries created on work days are grouped into the current work week</li>
+                        <li><strong>Saturday Entries:</strong> Automatically assigned to the previous work week</li>
+                        <li><strong>Sunday Entries:</strong> Automatically assigned to the next work week</li>
+                        <li><strong>Existing Entries:</strong> Will remain in their current locations</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test 5: Loading States -->
+    <div class="test-section">
+        <h2 class="test-title">Loading States</h2>
+        <p class="test-description">Tests loading indicators and states during configuration updates.</p>
+        
+        <div class="work-week-settings">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h3 class="setting-label">Loading Example</h3>
+                    <p class="setting-description">Demonstration of loading states during configuration updates.</p>
+                </div>
+            </div>
+            
+            <div class="work-week-loading">
+                <div class="work-week-spinner"></div>
+                <span>Saving work week configuration...</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test 6: Responsive Design Test -->
+    <div class="test-section">
+        <h2 class="test-title">Responsive Design Test</h2>
+        <p class="test-description">Resize your browser window to test responsive behavior on different screen sizes.</p>
+        
+        <div class="work-week-settings">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h3 class="setting-label">Responsive Layout</h3>
+                    <p class="setting-description">This section should adapt to different screen sizes.</p>
+                </div>
+            </div>
+            
+            <div class="work-week-preset">
+                <label class="work-week-preset-label" for="preset-responsive">Work Week Preset</label>
+                <select class="work-week-preset-select" id="preset-responsive" onchange="toggleCustomSchedule('responsive', this.value)">
+                    <option value="monday-friday">Monday - Friday</option>
+                    <option value="sunday-thursday">Sunday - Thursday</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            
+            <div class="custom-schedule" id="custom-schedule-responsive">
+                <div class="custom-schedule-row">
+                    <div class="custom-schedule-field">
+                        <label class="custom-schedule-label" for="start-day-responsive">Start Day</label>
+                        <select class="custom-schedule-select" id="start-day-responsive">
+                            <option value="1" selected>Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="7">Sunday</option>
+                        </select>
+                    </div>
+                    <div class="custom-schedule-field">
+                        <label class="custom-schedule-label" for="end-day-responsive">End Day</label>
+                        <select class="custom-schedule-select" id="end-day-responsive">
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5" selected>Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="7">Sunday</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="work-week-preview">
+                <h4 class="work-week-preview-title">Responsive Preview</h4>
+                <div class="work-week-preview-content">
+                    The preview section should stack vertically on mobile devices.
+                    <div class="work-week-preview-schedule">
+                        <span class="work-week-day">Mon</span>
+                        <span class="work-week-day">Tue</span>
+                        <span class="work-week-day">Wed</span>
+                        <span class="work-week-day">Thu</span>
+                        <span class="work-week-day">Fri</span>
+                        <span class="work-week-day weekend">Sat</span>
+                        <span class="work-week-day weekend">Sun</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Theme toggle functionality
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', newTheme);
+        }
+        
+        // Custom schedule toggle
+        function toggleCustomSchedule(id, value) {
+            const customSchedule = document.getElementById(`custom-schedule-${id}`);
+            if (value === 'custom') {
+                customSchedule.classList.add('active');
+            } else {
+                customSchedule.classList.remove('active');
+            }
+        }
+        
+        // Preview update functionality
+        function updatePreview(id, preset) {
+            // This would normally update the preview based on the selected preset
+            // For demonstration purposes, we'll just toggle the custom schedule
+            toggleCustomSchedule(id, preset);
+        }
+    </script>
+</body>
+</html>
