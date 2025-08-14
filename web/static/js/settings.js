@@ -10,6 +10,7 @@ class SettingsManager {
         this.categories = {};
         this.changedSettings = new Set();
         this.currentCategory = 'filesystem';
+        this.syncManager = new SyncManager();
 
         this.init();
     }
@@ -138,6 +139,11 @@ class SettingsManager {
         document.getElementById(`${category}-panel`)?.classList.add('active');
 
         this.currentCategory = category;
+
+        // Initialize sync panel if selected
+        if (category === 'sync') {
+            this.syncManager.init();
+        }
     }
 
     renderSettings() {
@@ -676,7 +682,425 @@ class SettingsManager {
     }
 }
 
+/**
+ * Sync Management Class
+ * 
+ * Handles database synchronization interface and operations
+ */
+class SyncManager {
+    constructor() {
+        this.syncInProgress = false;
+        this.refreshInterval = null;
+        this.initialized = false;
+    }
+
+    async init() {
+        if (this.initialized) return;
+
+        try {
+            this.setupEventListeners();
+            await this.loadSyncStatus();
+            await this.loadSyncHistory();
+            await this.loadSchedulerStatus();
+
+            // Auto-refresh sync status every 5 seconds when sync is in progress
+            this.startAutoRefresh();
+            this.initialized = true;
+        } catch (error) {
+            console.error('Failed to initialize sync manager:', error);
+            this.showError('Failed to load sync interface');
+        }
+    }
+
+    setupEventListeners() {
+        // Sync control buttons
+        document.getElementById('trigger-incremental-sync')?.addEventListener('click', () => {
+            this.triggerIncrementalSync();
+        });
+
+        document.getElementById('trigger-full-sync')?.addEventListener('click', () => {
+            this.triggerFullSync();
+        });
+
+        // Refresh buttons
+        document.getElementById('refresh-sync-status')?.addEventListener('click', () => {
+            this.loadSyncStatus();
+        });
+
+        document.getElementById('refresh-sync-history')?.addEventListener('click', () => {
+            this.loadSyncHistory();
+        });
+
+        // Input validation
+        document.getElementById('incremental-days')?.addEventListener('input', (e) => {
+            this.validateDaysInput(e.target, 1, 30);
+        });
+
+        document.getElementById('full-sync-days')?.addEventListener('input', (e) => {
+            this.validateDaysInput(e.target, 30, 3650);
+        });
+    }
+
+    validateDaysInput(input, min, max) {
+        let value = parseInt(input.value);
+        if (isNaN(value) || value < min) {
+            input.value = min;
+        } else if (value > max) {
+            input.value = max;
+        }
+    }
+
+    async triggerIncrementalSync() {
+        try {
+            const days = parseInt(document.getElementById('incremental-days').value) || 7;
+            const button = document.getElementById('trigger-incremental-sync');
+            
+            this.setButtonLoading(button, true);
+            
+            const result = await api.sync.triggerIncremental(days);
+            
+            Utils.showToast(`Incremental sync started (${days} days)`, 'success');
+            this.syncInProgress = true;
+            this.startAutoRefresh();
+            
+            // Refresh status immediately
+            await this.loadSyncStatus();
+            
+        } catch (error) {
+            console.error('Failed to trigger incremental sync:', error);
+            Utils.showToast('Failed to start incremental sync', 'error');
+        } finally {
+            this.setButtonLoading(document.getElementById('trigger-incremental-sync'), false);
+        }
+    }
+
+    async triggerFullSync() {
+        try {
+            const days = parseInt(document.getElementById('full-sync-days').value) || 730;
+            const button = document.getElementById('trigger-full-sync');
+            
+            this.setButtonLoading(button, true);
+            
+            const result = await api.sync.triggerFull(days);
+            
+            Utils.showToast(`Full sync started (${days} days)`, 'success');
+            this.syncInProgress = true;
+            this.startAutoRefresh();
+            
+            // Refresh status immediately
+            await this.loadSyncStatus();
+            
+        } catch (error) {
+            console.error('Failed to trigger full sync:', error);
+            Utils.showToast('Failed to start full sync', 'error');
+        } finally {
+            this.setButtonLoading(document.getElementById('trigger-full-sync'), false);
+        }
+    }
+
+    async loadSyncStatus() {
+        try {
+            const status = await api.sync.getStatus();
+            this.renderSyncStatus(status);
+            
+            // Update sync in progress flag
+            this.syncInProgress = status.sync_status?.sync_in_progress || false;
+            
+        } catch (error) {
+            console.error('Failed to load sync status:', error);
+            this.showSyncStatusError();
+        }
+    }
+
+    async loadSyncHistory() {
+        try {
+            const history = await api.sync.getHistory(10);
+            this.renderSyncHistory(history);
+        } catch (error) {
+            console.error('Failed to load sync history:', error);
+            this.showSyncHistoryError();
+        }
+    }
+
+    async loadSchedulerStatus() {
+        try {
+            const status = await api.sync.getSchedulerStatus();
+            this.renderSchedulerStatus(status);
+        } catch (error) {
+            console.error('Failed to load scheduler status:', error);
+            this.showSchedulerStatusError();
+        }
+    }
+
+    renderSyncStatus(data) {
+        const container = document.getElementById('sync-status-content');
+        if (!container) return;
+
+        const syncStatus = data.sync_status || {};
+        const dbStats = data.database_stats || {};
+
+        container.innerHTML = `
+            <div class="sync-status-item">
+                <span class="status-label">Sync Status</span>
+                <span class="status-value ${syncStatus.sync_in_progress ? 'in-progress' : 'success'}">
+                    ${syncStatus.sync_in_progress ? 'In Progress' : 'Idle'}
+                </span>
+            </div>
+            
+            <div class="sync-status-item">
+                <span class="status-label">Total Entries</span>
+                <span class="status-value">${dbStats.total_entries || 0}</span>
+            </div>
+            
+            <div class="sync-status-item">
+                <span class="status-label">Last Sync</span>
+                <span class="status-value">
+                    ${syncStatus.last_sync ? new Date(syncStatus.last_sync).toLocaleString() : 'Never'}
+                </span>
+            </div>
+            
+            <div class="sync-status-item">
+                <span class="status-label">Database Size</span>
+                <span class="status-value">${this.formatFileSize(dbStats.database_size_bytes || 0)}</span>
+            </div>
+            
+            ${syncStatus.sync_in_progress ? `
+                <div class="sync-progress">
+                    <div class="sync-progress-spinner"></div>
+                    <span class="sync-progress-text">Synchronization in progress...</span>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    renderSyncHistory(data) {
+        const container = document.getElementById('sync-history-content');
+        if (!container) return;
+
+        const history = data.history || [];
+
+        if (history.length === 0) {
+            container.innerHTML = `
+                <div class="loading-placeholder">
+                    <span>No sync history available</span>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = history.map(record => {
+            const statusClass = record.status === 'running' ? 'running' : 
+                              record.status === 'completed' ? 'completed' : 'failed';
+            
+            return `
+                <div class="sync-history-item">
+                    <div class="history-status ${statusClass}"></div>
+                    <div class="history-info">
+                        <div class="history-type">${this.formatSyncType(record.sync_type)}</div>
+                        <div class="history-details">
+                            ${record.entries_processed || 0} processed, 
+                            ${record.entries_added || 0} added, 
+                            ${record.entries_updated || 0} updated
+                            ${record.error_message ? ` - ${record.error_message}` : ''}
+                        </div>
+                    </div>
+                    <div class="history-timestamp">
+                        ${new Date(record.started_at).toLocaleString()}
+                    </div>
+                    <div class="history-stats">
+                        ${record.duration_seconds ? `${record.duration_seconds.toFixed(1)}s` : 'Running'}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderSchedulerStatus(data) {
+        const container = document.getElementById('sync-scheduler-content');
+        if (!container) return;
+
+        const isRunning = data.is_running || false;
+
+        container.innerHTML = `
+            <div class="scheduler-status">
+                <div class="scheduler-info">
+                    <div class="scheduler-state">
+                        Scheduler: ${isRunning ? 'Running' : 'Stopped'}
+                    </div>
+                    <div class="scheduler-details">
+                        ${data.next_incremental ? `Next incremental: ${new Date(data.next_incremental).toLocaleString()}` : 'No scheduled incremental sync'}
+                        <br>
+                        ${data.next_full ? `Next full sync: ${new Date(data.next_full).toLocaleString()}` : 'No scheduled full sync'}
+                    </div>
+                </div>
+                <div class="scheduler-controls">
+                    <button class="btn btn-${isRunning ? 'secondary' : 'primary'} btn-small" 
+                            onclick="syncManager.${isRunning ? 'stopScheduler' : 'startScheduler'}()">
+                        ${isRunning ? 'Stop' : 'Start'} Scheduler
+                    </button>
+                    ${isRunning ? `
+                        <button class="btn btn-secondary btn-small" onclick="syncManager.triggerSchedulerSync('incremental')">
+                            Trigger Incremental
+                        </button>
+                        <button class="btn btn-secondary btn-small" onclick="syncManager.triggerSchedulerSync('full')">
+                            Trigger Full
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    async startScheduler() {
+        try {
+            await api.sync.startScheduler();
+            Utils.showToast('Scheduler started', 'success');
+            await this.loadSchedulerStatus();
+        } catch (error) {
+            console.error('Failed to start scheduler:', error);
+            Utils.showToast('Failed to start scheduler', 'error');
+        }
+    }
+
+    async stopScheduler() {
+        try {
+            await api.sync.stopScheduler();
+            Utils.showToast('Scheduler stopped', 'success');
+            await this.loadSchedulerStatus();
+        } catch (error) {
+            console.error('Failed to stop scheduler:', error);
+            Utils.showToast('Failed to stop scheduler', 'error');
+        }
+    }
+
+    async triggerSchedulerSync(type) {
+        try {
+            if (type === 'incremental') {
+                await api.sync.triggerSchedulerIncremental();
+                Utils.showToast('Scheduler incremental sync triggered', 'success');
+            } else {
+                await api.sync.triggerSchedulerFull();
+                Utils.showToast('Scheduler full sync triggered', 'success');
+            }
+            
+            this.syncInProgress = true;
+            this.startAutoRefresh();
+            await this.loadSyncStatus();
+            
+        } catch (error) {
+            console.error(`Failed to trigger scheduler ${type} sync:`, error);
+            Utils.showToast(`Failed to trigger scheduler ${type} sync`, 'error');
+        }
+    }
+
+    startAutoRefresh() {
+        if (this.refreshInterval) return;
+
+        this.refreshInterval = setInterval(async () => {
+            if (this.syncInProgress) {
+                await this.loadSyncStatus();
+                await this.loadSyncHistory();
+                
+                // Stop auto-refresh if sync is no longer in progress
+                if (!this.syncInProgress) {
+                    this.stopAutoRefresh();
+                }
+            } else {
+                this.stopAutoRefresh();
+            }
+        }, 5000);
+    }
+
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+        }
+    }
+
+    setButtonLoading(button, loading) {
+        if (!button) return;
+
+        if (loading) {
+            button.disabled = true;
+            button.innerHTML = `
+                <div class="sync-progress-spinner" style="width: 16px; height: 16px; margin-right: 8px;"></div>
+                Syncing...
+            `;
+        } else {
+            button.disabled = false;
+            // Restore original content based on button ID
+            if (button.id === 'trigger-incremental-sync') {
+                button.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Start Incremental Sync
+                `;
+            } else if (button.id === 'trigger-full-sync') {
+                button.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="currentColor" stroke-width="2" />
+                        <polyline points="16,6 12,2 8,6" stroke="currentColor" stroke-width="2" />
+                        <line x1="12" y1="2" x2="12" y2="15" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Start Full Sync
+                `;
+            }
+        }
+    }
+
+    showSyncStatusError() {
+        const container = document.getElementById('sync-status-content');
+        if (container) {
+            container.innerHTML = '<div class="loading-placeholder"><span>Failed to load sync status</span></div>';
+        }
+    }
+
+    showSyncHistoryError() {
+        const container = document.getElementById('sync-history-content');
+        if (container) {
+            container.innerHTML = '<div class="loading-placeholder"><span>Failed to load sync history</span></div>';
+        }
+    }
+
+    showSchedulerStatusError() {
+        const container = document.getElementById('sync-scheduler-content');
+        if (container) {
+            container.innerHTML = '<div class="loading-placeholder"><span>Failed to load scheduler status</span></div>';
+        }
+    }
+
+    showError(message) {
+        Utils.showToast(message, 'error');
+    }
+
+    formatSyncType(type) {
+        switch (type) {
+            case 'full': return 'Full Sync';
+            case 'incremental': return 'Incremental Sync';
+            case 'single_entry': return 'Single Entry';
+            default: return type;
+        }
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    destroy() {
+        this.stopAutoRefresh();
+        this.initialized = false;
+    }
+}
+
 // Initialize settings manager when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new SettingsManager();
+    window.settingsManager = new SettingsManager();
+    window.syncManager = new SyncManager();
 });
