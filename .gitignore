@@ -134,6 +134,7 @@ config.json
 local_summaries/
 *.db
 web/journal_index.db
+
 failure_images/
 
 # Node.js

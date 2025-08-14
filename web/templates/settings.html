@@ -87,6 +87,18 @@
                     Interface
                 </button>
 
+                <button class="nav-item" data-category="work-week">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2" />
+                        <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2" />
+                        <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2" />
+                        <rect x="9" y="12" width="6" height="2" rx="1" fill="currentColor" />
+                        <rect x="7" y="15" width="10" height="2" rx="1" fill="currentColor" />
+                    </svg>
+                    Work Week
+                </button>
+
                 <button class="nav-item" data-category="calendar">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
@@ -171,6 +183,101 @@
 
                 <div class="settings-grid" id="ui-settings">
                     <!-- Settings will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="settings-panel" id="work-week-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Work Week Settings</h2>
+                    <p class="panel-description">Configure your work week schedule for proper journal organization</p>
+                </div>
+
+                <div class="work-week-settings">
+                    <!-- Work Week Preset Selection -->
+                    <div class="setting-group">
+                        <label class="setting-label" for="work-week-preset">
+                            Work Week Schedule
+                            <span class="setting-help-icon" data-tooltip="Choose your work week schedule. Weekend entries will be organized into the nearest work week.">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                    <path d="m9,9 h0a3,3 0 1,1 5.12,2.12l-2.12,2.88" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M12 17h.01" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </span>
+                        </label>
+                        <select id="work-week-preset" class="setting-input work-week-preset-select" aria-describedby="work-week-preset-help">
+                            <option value="monday-friday">Monday - Friday</option>
+                            <option value="sunday-thursday">Sunday - Thursday</option>
+                            <option value="custom">Custom Schedule</option>
+                        </select>
+                        <p class="setting-description" id="work-week-preset-help">
+                            Select a preset work week or choose custom to define your own schedule.
+                        </p>
+                    </div>
+
+                    <!-- Custom Schedule Configuration (hidden by default) -->
+                    <div class="setting-group custom-schedule" id="custom-schedule-group" style="display: none;">
+                        <label class="setting-label">Custom Work Week</label>
+                        
+                        <div class="custom-schedule-inputs">
+                            <div class="day-selector">
+                                <label for="work-week-start-day" class="day-label">Start Day</label>
+                                <select id="work-week-start-day" class="setting-input day-select" aria-describedby="custom-schedule-help">
+                                    <option value="1">Monday</option>
+                                    <option value="2">Tuesday</option>
+                                    <option value="3">Wednesday</option>
+                                    <option value="4">Thursday</option>
+                                    <option value="5">Friday</option>
+                                    <option value="6">Saturday</option>
+                                    <option value="7">Sunday</option>
+                                </select>
+                            </div>
+                            
+                            <div class="day-selector">
+                                <label for="work-week-end-day" class="day-label">End Day</label>
+                                <select id="work-week-end-day" class="setting-input day-select" aria-describedby="custom-schedule-help">
+                                    <option value="1">Monday</option>
+                                    <option value="2">Tuesday</option>
+                                    <option value="3">Wednesday</option>
+                                    <option value="4">Thursday</option>
+                                    <option value="5" selected>Friday</option>
+                                    <option value="6">Saturday</option>
+                                    <option value="7">Sunday</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <p class="setting-description" id="custom-schedule-help">
+                            Define your custom work week by selecting the start and end days.
+                        </p>
+                    </div>
+
+                    <!-- Work Week Preview -->
+                    <div class="setting-group">
+                        <label class="setting-label">Preview</label>
+                        <div class="work-week-preview" id="work-week-preview">
+                            <div class="preview-content">
+                                <div class="preview-schedule">
+                                    <strong>Current Schedule:</strong> <span id="preview-schedule-text">Monday - Friday</span>
+                                </div>
+                                <div class="preview-weekend-handling">
+                                    <strong>Weekend Handling:</strong>
+                                    <ul class="weekend-rules">
+                                        <li><strong>Saturday entries</strong> → Assigned to previous work week</li>
+                                        <li><strong>Sunday entries</strong> → Assigned to next work week</li>
+                                    </ul>
+                                </div>
+                                <div class="preview-example" id="preview-example">
+                                    <!-- Example will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Validation Messages -->
+                    <div class="validation-feedback" id="work-week-validation" style="display: none;">
+                        <div class="validation-message" id="work-week-validation-message"></div>
+                    </div>
                 </div>
             </div>
 
