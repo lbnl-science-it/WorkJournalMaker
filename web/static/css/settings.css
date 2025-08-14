@@ -577,8 +577,8 @@
 .sync-scheduler-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-6);
+    transition: all var(--transition-normal);
 }
 
 .sync-status-header h3,
@@ -895,4 +895,5 @@
     .scheduler-controls {
         justify-content: center;
     }
+
 }

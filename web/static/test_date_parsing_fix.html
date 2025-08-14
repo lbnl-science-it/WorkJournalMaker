@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Date Parsing Fix Test</title>
+</head>
+
+<body>
+    <h1>Date Parsing Fix Test</h1>
+    <div id="results"></div>
+
+    <script src="/static/js/utils.js"></script>
+    <script>
+        // Test the date parsing fix
+        function testDateParsing() {
+            const results = document.getElementById('results');
+            const testDates = [
+                '2025-06-12',
+                '2025-06-17',
+                '2025-07-01'
+            ];
+
+            let html = '<h2>Date Parsing Test Results:</h2>';
+
+            testDates.forEach(dateStr => {
+                // Old way (problematic)
+                const oldDate = new Date(dateStr);
+                const oldFormatted = oldDate.toLocaleDateString('en-US', {
+                    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+                });
+
+                // New way (fixed)
+                const newDate = Utils.parseDate(dateStr);
+                const newFormatted = newDate.toLocaleDateString('en-US', {
+                    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+                });
+
+                html += `
+                    <div style="margin: 10px 0; padding: 10px; border: 1px solid #ccc;">
+                        <strong>Input:</strong> ${dateStr}<br>
+                        <strong>Old parsing:</strong> ${oldFormatted}<br>
+                        <strong>New parsing:</strong> ${newFormatted}<br>
+                        <strong>Fixed:</strong> ${oldFormatted !== newFormatted ? '✅ YES' : '❌ NO'}
+                    </div>
+                `;
+            });
+
+            results.innerHTML = html;
+        }
+
+        // Run test when page loads
+        testDateParsing();
+    </script>
+</body>
+
+</html>

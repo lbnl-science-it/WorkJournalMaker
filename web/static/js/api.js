@@ -402,10 +402,10 @@ const apiInterceptor = new ApiInterceptor(api);
 // Initialize WebSocket client
 const ws = new WebSocketClient();
 
-// Auto-connect WebSocket when page loads
-Utils.dom.ready(() => {
-    ws.connect();
-});
+// Auto-connect WebSocket when page loads - DISABLED until summarization service is configured
+// Utils.dom.ready(() => {
+//     ws.connect();
+// });
 
 // Export for global use
 window.api = api;

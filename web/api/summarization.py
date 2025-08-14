@@ -453,8 +453,27 @@ async def get_summarization_stats(
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for general progress updates."""
+    # Check if summarization service is properly configured
+    try:
+        summarization_service = websocket.app.state.summarization_service
+        # Test if LLM client is configured
+        if not hasattr(summarization_service, 'llm_client') or not summarization_service.llm_client:
+            await websocket.close(code=1008, reason="Summarization service not configured")
+            return
+    except Exception as e:
+        await websocket.close(code=1011, reason=f"Service unavailable: {str(e)}")
+        return
+    
     await connection_manager.connect(websocket)
     try:
+        # Send initial connection status
+        await websocket.send_text(json.dumps({
+            "type": "connection_status",
+            "status": "connected",
+            "message": "WebSocket connection established",
+            "service_configured": True
+        }))
+        
         while True:
             # Keep connection alive and handle any incoming messages
             data = await websocket.receive_text()
@@ -471,10 +490,20 @@ async def websocket_endpoint(websocket: WebSocket):
 @router.websocket("/ws/{task_id}")
 async def websocket_task_endpoint(websocket: WebSocket, task_id: str):
     """WebSocket endpoint for specific task progress updates."""
+    # Check if summarization service is properly configured
+    try:
+        summarization_service = websocket.app.state.summarization_service
+        # Test if LLM client is configured
+        if not hasattr(summarization_service, 'llm_client') or not summarization_service.llm_client:
+            await websocket.close(code=1008, reason="Summarization service not configured")
+            return
+    except Exception as e:
+        await websocket.close(code=1011, reason=f"Service unavailable: {str(e)}")
+        return
+    
     await connection_manager.connect(websocket, task_id)
     try:
         # Send initial task status
-        summarization_service = websocket.app.state.summarization_service
         task = await summarization_service.get_task_status(task_id)
         
         if task:
