@@ -113,20 +113,27 @@ async def trigger_full_sync(
 
 @router.post("/incremental")
 async def trigger_incremental_sync(
+    request: Request,
     background_tasks: BackgroundTasks,
-    since_days: Optional[int] = 7,
     sync_service: DatabaseSyncService = Depends(get_sync_service)
 ):
     """
     Trigger an incremental synchronization for recent changes.
     
     Args:
-        since_days: Number of days back to sync (default: 7)
+        request: FastAPI request object
         
     Returns:
         Dict with sync operation details
     """
     try:
+        # Parse request body
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        since_days = body.get("since_days", 7)
+        
+        # Log for debugging
+        sync_service.logger.logger.info(f"API triggered incremental sync with since_days: {since_days}")
+        
         since_date = date.today() - timedelta(days=since_days)
         
         # Start sync in background
@@ -135,6 +142,7 @@ async def trigger_incremental_sync(
         return {
             "message": "Incremental sync started",
             "sync_type": "incremental",
+            "since_days": since_days,
             "since_date": since_date.isoformat(),
             "started_at": datetime.utcnow().isoformat()
         }
