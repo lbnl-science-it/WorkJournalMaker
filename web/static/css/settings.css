@@ -543,3 +543,395 @@
     background-color: var(--color-surface);
     color: var(--color-text-tertiary);
 }
+
+/* Work Week Settings Styles */
+
+/* Work Week Settings Section */
+.work-week-settings {
+    background-color: var(--color-surface-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+    transition: all var(--transition-normal);
+}
+
+.work-week-settings:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+.work-week-settings .setting-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+}
+
+.work-week-settings .setting-label {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-1) 0;
+}
+
+.work-week-settings .setting-description {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-4) 0;
+    line-height: 1.5;
+}
+
+/* Work Week Preset Selector */
+.work-week-preset {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.work-week-preset-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.work-week-preset-select {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.work-week-preset-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.work-week-preset-select:disabled {
+    background-color: var(--color-surface);
+    color: var(--color-text-tertiary);
+    cursor: not-allowed;
+}
+
+/* Custom Schedule Configuration */
+.custom-schedule {
+    display: none;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    margin-top: var(--space-3);
+    transition: all var(--transition-normal);
+}
+
+.custom-schedule.active {
+    display: flex;
+    animation: slideDown var(--transition-normal);
+}
+
+.custom-schedule-row {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+}
+
+.custom-schedule-field {
+    flex: 1;
+}
+
+.custom-schedule-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-2);
+}
+
+.custom-schedule-select {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.custom-schedule-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.custom-schedule-select:disabled {
+    background-color: var(--color-surface);
+    color: var(--color-text-tertiary);
+    cursor: not-allowed;
+}
+
+/* Work Week Preview */
+.work-week-preview {
+    background-color: var(--color-primary-light);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-top: var(--space-4);
+}
+
+.work-week-preview-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-primary);
+    margin: 0 0 var(--space-2) 0;
+}
+
+.work-week-preview-content {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    line-height: 1.5;
+}
+
+.work-week-preview-schedule {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.work-week-day {
+    padding: var(--space-1) var(--space-2);
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    transition: all var(--transition-fast);
+}
+
+.work-week-day.weekend {
+    background-color: var(--color-text-tertiary);
+}
+
+.work-week-day:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Work Week Validation Feedback */
+.work-week-validation {
+    margin-top: var(--space-3);
+}
+
+.work-week-validation .validation-feedback {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-fast);
+}
+
+.work-week-validation .validation-feedback.success {
+    background-color: rgba(52, 199, 89, 0.1);
+    color: var(--color-success);
+    border: 1px solid rgba(52, 199, 89, 0.2);
+}
+
+.work-week-validation .validation-feedback.warning {
+    background-color: rgba(255, 149, 0, 0.1);
+    color: var(--color-warning);
+    border: 1px solid rgba(255, 149, 0, 0.2);
+}
+
+.work-week-validation .validation-feedback.error {
+    background-color: rgba(255, 59, 48, 0.1);
+    color: var(--color-error);
+    border: 1px solid rgba(255, 59, 48, 0.2);
+}
+
+.validation-icon {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+/* Help Text */
+.work-week-help {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-top: var(--space-4);
+}
+
+.work-week-help-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-2) 0;
+}
+
+.work-week-help-content {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+.work-week-help-list {
+    margin: var(--space-2) 0 0 0;
+    padding-left: var(--space-4);
+}
+
+.work-week-help-list li {
+    margin-bottom: var(--space-1);
+}
+
+.work-week-help-list strong {
+    color: var(--color-text-primary);
+}
+
+/* Loading States */
+.work-week-loading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.work-week-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-border);
+    border-top: 2px solid var(--color-primary);
+    border-radius: 50%;
+    animation: workWeekSpin 1s linear infinite;
+}
+
+/* Work Week Animations */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes workWeekSpin {
+    from { 
+        transform: rotate(0deg); 
+    }
+    to { 
+        transform: rotate(360deg); 
+    }
+}
+
+/* Work Week Responsive Design */
+@media (max-width: 768px) {
+    .work-week-settings {
+        padding: var(--space-4);
+    }
+    
+    .custom-schedule {
+        padding: var(--space-3);
+    }
+    
+    .custom-schedule-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-3);
+    }
+    
+    .work-week-preview {
+        padding: var(--space-3);
+    }
+    
+    .work-week-preview-schedule {
+        justify-content: center;
+    }
+    
+    .work-week-help {
+        padding: var(--space-3);
+    }
+}
+
+/* Work Week Accessibility Features */
+@media (prefers-contrast: high) {
+    .work-week-settings {
+        border-width: 2px;
+    }
+    
+    .work-week-preset-select:focus,
+    .custom-schedule-select:focus {
+        box-shadow: 0 0 0 4px var(--color-primary-light);
+        border-width: 2px;
+    }
+    
+    .work-week-day {
+        border: 1px solid var(--color-text-primary);
+    }
+    
+    .work-week-validation .validation-feedback {
+        border-width: 2px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .work-week-settings,
+    .custom-schedule,
+    .work-week-validation .validation-feedback,
+    .work-week-day {
+        transition: none;
+    }
+    
+    .custom-schedule.active {
+        animation: none;
+    }
+    
+    .work-week-spinner {
+        animation: none;
+    }
+    
+    .work-week-day:hover {
+        transform: none;
+    }
+}
+
+/* Work Week Dark Theme Adjustments */
+[data-theme="dark"] .work-week-preview {
+    background-color: rgba(0, 122, 255, 0.15);
+    border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .work-week-day {
+    background-color: var(--color-primary);
+}
+
+[data-theme="dark"] .work-week-day.weekend {
+    background-color: var(--color-text-tertiary);
+}
+
+[data-theme="dark"] .custom-schedule {
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+}
+
+[data-theme="dark"] .work-week-help {
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+}

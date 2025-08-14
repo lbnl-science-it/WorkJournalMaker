@@ -27,6 +27,9 @@ from web.models.journal import (
     RecentEntriesResponse, EntryListRequest
 )
 from web.services.base_service import BaseService
+from web.services.work_week_service import WorkWeekService
+from web.utils.timezone_utils import now_utc, to_local
+from web.services.work_week_service import WorkWeekService
 from sqlalchemy import select, update, delete, and_, or_
 from sqlalchemy.exc import IntegrityError
 
@@ -41,7 +44,7 @@ class EntryManager(BaseService):
     """
     
     def __init__(self, config: AppConfig, logger: JournalSummarizerLogger, 
-                 db_manager: DatabaseManager):
+                 db_manager: DatabaseManager, work_week_service: Optional[WorkWeekService] = None):
         """
         Initialize EntryManager with core dependencies.
         
@@ -49,19 +52,86 @@ class EntryManager(BaseService):
             config: Application configuration
             logger: Logger instance
             db_manager: Database manager instance
+            work_week_service: Optional work week service for directory calculations
         """
         super().__init__(config, logger, db_manager)
         
-        # Initialize FileDiscovery with existing configuration
-        self.file_discovery = FileDiscovery(config.processing.base_path)
+        # Store original config as fallback
+        self._original_config = config
+        
+        # Initialize FileDiscovery with dynamic base path (will be updated)
+        self.file_discovery = None
+        self._current_base_path = None
+        
+        # Initialize WorkWeekService if provided, otherwise create one
+        self.work_week_service = work_week_service or WorkWeekService(config, logger, db_manager)
         
         # Cache for frequently accessed data
         self._entry_cache = {}
         self._cache_ttl = 300  # 5 minutes
         
+        # Settings cache
+        self._settings_cache = {}
+        self._settings_cache_expiry = None
+        self._settings_cache_ttl = 300  # 5 minutes
+        
+    
+    async def _get_current_settings(self) -> Dict[str, Any]:
+        """Get current settings from database with caching."""
+        from datetime import timezone
+        
+        # Check cache
+        now = datetime.now(timezone.utc)
+        if (self._settings_cache_expiry and 
+            now < self._settings_cache_expiry and 
+            self._settings_cache):
+            return self._settings_cache
+        
+        try:
+            # Get settings from SettingsService
+            from web.services.settings_service import SettingsService
+            settings_service = SettingsService(self._original_config, self.logger, self.db_manager)
+            
+            # Get filesystem settings
+            base_path_setting = await settings_service.get_setting('filesystem.base_path')
+            output_path_setting = await settings_service.get_setting('filesystem.output_path')
+            
+            current_settings = {
+                'base_path': base_path_setting.parsed_value if base_path_setting else self._original_config.processing.base_path,
+                'output_path': output_path_setting.parsed_value if output_path_setting else self._original_config.processing.output_path
+            }
+            
+            # Cache settings
+            self._settings_cache = current_settings
+            self._settings_cache_expiry = now + timedelta(seconds=self._settings_cache_ttl)
+            
+            return current_settings
+            
+        except Exception as e:
+            self.logger.logger.warning(f"Failed to get current settings, using defaults: {e}")
+            return {
+                'base_path': self._original_config.processing.base_path,
+                'output_path': self._original_config.processing.output_path
+            }
+    
+    async def _ensure_file_discovery_initialized(self):
+        """Ensure FileDiscovery is initialized with current base path."""
+        current_settings = await self._get_current_settings()
+        current_base_path = current_settings['base_path']
+        
+        # Initialize or update FileDiscovery if base path changed
+        if (self.file_discovery is None or 
+            self._current_base_path != current_base_path):
+            
+            self.file_discovery = FileDiscovery(current_base_path)
+            self._current_base_path = current_base_path
+            self.logger.logger.info(f"FileDiscovery initialized with base path: {current_base_path}")
     async def get_entry_content(self, entry_date: date) -> Optional[str]:
         """
         Get content for a specific journal entry date.
+        
+        This method now handles both new work week organized directories and
+        existing legacy directories for backward compatibility.
         
         Args:
             entry_date: Date of the entry to retrieve
@@ -72,12 +142,21 @@ class EntryManager(BaseService):
         self._log_operation_start("get_entry_content", date=entry_date)
         
         try:
-            # Use existing FileDiscovery to construct file path
-            file_path = self._construct_file_path(entry_date)
+            # Ensure FileDiscovery is initialized with current settings
+            await self._ensure_file_discovery_initialized()
+            
+            # Construct file path using work week calculations when available
+            file_path = await self._construct_file_path_async(entry_date)
             
             if not file_path.exists():
-                self.logger.debug(f"Entry file does not exist: {file_path}")
-                return None
+                # Backward compatibility: try to find entry in legacy directory structure
+                legacy_file_path = await self._try_find_entry_in_legacy_structure(entry_date)
+                if legacy_file_path and legacy_file_path.exists():
+                    file_path = legacy_file_path
+                    self.logger.logger.debug(f"Found entry in legacy location: {file_path}")
+                else:
+                    self.logger.logger.info(f"Entry file does not exist: {file_path}")
+                    return None
             
             # Read file content asynchronously
             async with aiofiles.open(file_path, 'r', encoding='utf-8') as file:
@@ -109,8 +188,11 @@ class EntryManager(BaseService):
                                 content_length=len(content))
         
         try:
-            # Use existing FileDiscovery to construct file path
-            file_path = self._construct_file_path(entry_date)
+            # Ensure FileDiscovery is initialized with current settings
+            await self._ensure_file_discovery_initialized()
+            
+            # Use work week calculations for file path construction
+            file_path = await self._construct_file_path_async(entry_date)
             
             # Ensure directory exists
             file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -128,6 +210,51 @@ class EntryManager(BaseService):
         except Exception as e:
             self._log_operation_error("save_entry_content", e, date=entry_date)
             return False
+    
+    def is_work_week_service_available(self) -> bool:
+        """
+        Check if WorkWeekService is available for use.
+        
+        Returns:
+            bool: True if work week service is available, False otherwise
+        """
+        return self.work_week_service is not None
+    
+    async def get_work_week_integration_status(self) -> Dict[str, Any]:
+        """
+        Get status information about work week integration.
+        
+        Returns:
+            Dict containing integration status and configuration
+        """
+        try:
+            status = {
+                'work_week_service_available': self.is_work_week_service_available(),
+                'integration_enabled': self.work_week_service is not None,
+                'fallback_mode': self.work_week_service is None,
+                'file_discovery_available': True,
+                'timestamp': now_utc().isoformat()
+            }
+            
+            if self.work_week_service:
+                # Get work week service health status
+                work_week_status = self.work_week_service.get_service_health_status()
+                status['work_week_service_status'] = work_week_status
+                
+                # Get current user configuration
+                try:
+                    user_config = await self.work_week_service.get_user_work_week_config()
+                    status['current_work_week_config'] = user_config.to_dict()
+                except Exception as e:
+                    status['config_error'] = str(e)
+            
+            return status
+            
+        except Exception as e:
+            return {
+                'error': str(e),
+                'timestamp': now_utc().isoformat()
+            }
     
     async def get_recent_entries(self, limit: int = 10) -> RecentEntriesResponse:
         """
@@ -305,7 +432,7 @@ class EntryManager(BaseService):
                 
                 if not db_entry:
                     # Check if file exists but not in database
-                    file_path = self._construct_file_path(entry_date)
+                    file_path = await self._construct_file_path_async(entry_date)
                     if file_path.exists():
                         # Sync to database and try again
                         await self._sync_entry_to_database(entry_date, file_path)
@@ -343,7 +470,7 @@ class EntryManager(BaseService):
         
         try:
             # Get file path
-            file_path = self._construct_file_path(entry_date)
+            file_path = await self._construct_file_path_async(entry_date)
             
             # Delete file if it exists
             if file_path.exists():
@@ -364,7 +491,7 @@ class EntryManager(BaseService):
     
     def _construct_file_path(self, entry_date: date) -> Path:
         """
-        Construct file path for a given date using existing FileDiscovery logic.
+        Construct file path for a given date using work week calculations with fallback.
         
         Args:
             entry_date: Date of the entry
@@ -372,8 +499,35 @@ class EntryManager(BaseService):
         Returns:
             Path to the entry file
         """
-        # Calculate week ending date using existing logic
-        week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+        try:
+            # Try to get week ending date from work week service
+            week_ending_date = asyncio.run(self.work_week_service.calculate_week_ending_date(entry_date))
+        except Exception as e:
+            self.logger.logger.warning(f"Failed to calculate work week ending date for {entry_date}, using fallback: {str(e)}")
+            # Fallback to existing file discovery logic
+            week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
+        
+        # Use existing FileDiscovery method to construct path
+        return self.file_discovery._construct_file_path(entry_date, week_ending_date)
+    
+    async def _construct_file_path_async(self, entry_date: date) -> Path:
+        """
+        Async version of file path construction using work week calculations.
+
+        Args:
+            entry_date: Date of the entry
+
+        Returns:
+            Path to the entry file
+        """
+        try:
+            # Use work week service for proper weekly organization
+            week_ending_date = await self.work_week_service.calculate_week_ending_date(entry_date)
+            self.logger.logger.debug(f"Work week calculation (async): {entry_date} -> week ending {week_ending_date}")
+        except Exception as e:
+            # Fallback to existing logic if work week calculation fails
+            self.logger.logger.warning(f"Async work week calculation failed for {entry_date}: {str(e)}, falling back to legacy logic")
+            week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
         
         # Use existing FileDiscovery method to construct path
         return self.file_discovery._construct_file_path(entry_date, week_ending_date)
@@ -387,7 +541,7 @@ class EntryManager(BaseService):
     
     async def _sync_entry_to_database_session(self, session, entry_date: date, 
                                             file_path: Path, content: Optional[str] = None) -> None:
-        """Sync a single entry to database within an existing session."""
+        """Sync a single entry to database within an existing session with work week calculations."""
         try:
             # Get file stats
             file_stats = file_path.stat() if file_path.exists() else None
@@ -400,8 +554,14 @@ class EntryManager(BaseService):
             # Calculate metadata
             metadata = self._calculate_entry_metadata(content or "")
             
-            # Calculate week ending date using existing logic
-            week_ending_date = self.file_discovery._calculate_week_ending_for_date(entry_date)
+            # Calculate week ending date using work week service with fallback
+            try:
+                week_ending_date = await self.work_week_service.calculate_week_ending_date(entry_date)
+                self.logger.logger.debug(f"Calculated week ending date for {entry_date}: {week_ending_date}")
+            except Exception as e:
+                self.logger.logger.warning(f"Failed to calculate work week ending date for {entry_date}, using fallback: {str(e)}")
+                # Fallback to existing file discovery logic for compatibility
+                week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
             
             # Check if entry exists in database
             stmt = select(JournalEntryIndex).where(JournalEntryIndex.date == entry_date)
@@ -409,7 +569,7 @@ class EntryManager(BaseService):
             existing_entry = result.scalar_one_or_none()
             
             if existing_entry:
-                # Update existing entry
+                # Update existing entry with new week ending date calculation
                 update_stmt = (
                     update(JournalEntryIndex)
                     .where(JournalEntryIndex.date == entry_date)
@@ -422,13 +582,13 @@ class EntryManager(BaseService):
                         has_content=metadata["has_content"],
                         file_size_bytes=file_stats.st_size if file_stats else 0,
                         file_modified_at=datetime.fromtimestamp(file_stats.st_mtime) if file_stats else None,
-                        modified_at=datetime.utcnow(),
-                        synced_at=datetime.utcnow()
+                        modified_at=now_utc(),
+                        synced_at=now_utc()
                     )
                 )
                 await session.execute(update_stmt)
             else:
-                # Create new entry
+                # Create new entry with calculated week ending date
                 new_entry = JournalEntryIndex(
                     date=entry_date,
                     file_path=str(file_path),
@@ -439,14 +599,14 @@ class EntryManager(BaseService):
                     has_content=metadata["has_content"],
                     file_size_bytes=file_stats.st_size if file_stats else 0,
                     file_modified_at=datetime.fromtimestamp(file_stats.st_mtime) if file_stats else None,
-                    created_at=datetime.utcnow(),
-                    modified_at=datetime.utcnow(),
-                    synced_at=datetime.utcnow()
+                    created_at=now_utc(),
+                    modified_at=now_utc(),
+                    synced_at=now_utc()
                 )
                 session.add(new_entry)
                 
         except Exception as e:
-            self.logger.error(f"Failed to sync entry {entry_date} to database: {str(e)}")
+            self.logger.logger.error(f"Failed to sync entry {entry_date} to database: {str(e)}")
             raise
     
     def _calculate_entry_metadata(self, content: str) -> Dict[str, Any]:
@@ -479,19 +639,25 @@ class EntryManager(BaseService):
             if include_content:
                 content = await self.get_entry_content(db_entry.date)
             
+            # Convert timestamps to local timezone before creating response
+            created_at_local = to_local(db_entry.created_at) if db_entry.created_at else None
+            modified_at_local = to_local(db_entry.modified_at) if db_entry.modified_at else None
+            last_accessed_at_local = to_local(getattr(db_entry, 'last_accessed_at', None)) if getattr(db_entry, 'last_accessed_at', None) else None
+            file_modified_at_local = to_local(getattr(db_entry, 'file_modified_at', None)) if getattr(db_entry, 'file_modified_at', None) else None
+            
             return JournalEntryResponse(
                 date=db_entry.date,
                 content=content,
                 file_path=db_entry.file_path,
                 week_ending_date=db_entry.week_ending_date,
                 metadata=metadata,
-                created_at=db_entry.created_at,
-                modified_at=db_entry.modified_at,
-                last_accessed_at=getattr(db_entry, 'last_accessed_at', None),
-                file_modified_at=getattr(db_entry, 'file_modified_at', None)
+                created_at=created_at_local,
+                modified_at=modified_at_local,
+                last_accessed_at=last_accessed_at_local,
+                file_modified_at=file_modified_at_local
             )
         except Exception as e:
-            self.logger.error(f"Failed to convert db entry to response: {str(e)}")
+            self.logger.logger.error(f"Failed to convert db entry to response: {str(e)}")
             return None
     
     async def _update_entry_access(self, entry_date: date, file_path: Path) -> None:
@@ -502,11 +668,69 @@ class EntryManager(BaseService):
                     update(JournalEntryIndex)
                     .where(JournalEntryIndex.date == entry_date)
                     .values(
-                        last_accessed_at=datetime.utcnow(),
+                        last_accessed_at=now_utc(),
                         access_count=JournalEntryIndex.access_count + 1
                     )
                 )
                 await session.execute(update_stmt)
                 await session.commit()
         except Exception as e:
-            self.logger.debug(f"Failed to update entry access for {entry_date}: {str(e)}")
+            self.logger.logger.info(f"Failed to update entry access for {entry_date}: {str(e)}")
+    
+    async def _calculate_week_ending_date(self, entry_date: date) -> date:
+        """
+        Calculate week ending date using work week service when available.
+        
+        This method provides a centralized way to calculate week ending dates,
+        with fallback to legacy logic for backward compatibility.
+        
+        Args:
+            entry_date: Date of the entry
+            
+        Returns:
+            date: Week ending date for the entry
+        """
+        try:
+            if self.work_week_service:
+                # Use work week service for proper weekly organization
+                week_ending_date = await self.work_week_service.calculate_week_ending_date(entry_date)
+                self.logger.logger.debug(f"Work week calculation: {entry_date} -> week ending {week_ending_date}")
+                return week_ending_date
+            else:
+                # Fallback to existing directory structure scanning
+                week_ending_date = self.file_discovery._find_week_ending_for_date(entry_date)
+                self.logger.logger.debug(f"Legacy file discovery: {entry_date} -> week ending {week_ending_date}")
+                return week_ending_date
+                
+        except Exception as e:
+            # Ultimate fallback to existing logic
+            self.logger.logger.warning(f"Week ending calculation failed for {entry_date}: {str(e)}, using fallback")
+            return self.file_discovery._find_week_ending_for_date(entry_date)
+    
+    async def _try_find_entry_in_legacy_structure(self, entry_date: date) -> Optional[Path]:
+        """
+        Attempt to find entry in legacy directory structure for backward compatibility.
+        
+        This method tries to locate entries that were created before the work week
+        integration, when entries were organized in daily directories.
+        
+        Args:
+            entry_date: Date of the entry to find
+            
+        Returns:
+            Path to the entry file if found in legacy structure, None otherwise
+        """
+        try:
+            # Use FileDiscovery to scan existing directory structure
+            legacy_week_ending = self.file_discovery._find_week_ending_for_date(entry_date)
+            legacy_file_path = self.file_discovery._construct_file_path(entry_date, legacy_week_ending)
+            
+            if legacy_file_path.exists():
+                self.logger.logger.debug(f"Found legacy entry: {entry_date} -> {legacy_file_path}")
+                return legacy_file_path
+            
+            return None
+            
+        except Exception as e:
+            self.logger.logger.warning(f"Failed to search legacy structure for {entry_date}: {str(e)}")
+            return None

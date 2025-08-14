@@ -1,0 +1,147 @@
+{
+  "summary": {
+    "total_tests": 9,
+    "passed": 9,
+    "failed": 0,
+    "total_duration_ms": 42.39177703857422
+  },
+  "results": [
+    {
+      "test_name": "Database File Permissions",
+      "success": true,
+      "duration_ms": 0.030994415283203125,
+      "error": null,
+      "details": {
+        "db_exists": true,
+        "file_size_bytes": 385024,
+        "file_mode": "0o100644",
+        "last_modified": "2025-07-10T02:14:51.299962+00:00",
+        "readable": true,
+        "writable": true
+      }
+    },
+    {
+      "test_name": "Direct SQLite Connection",
+      "success": true,
+      "duration_ms": 1.5611648559570312,
+      "error": null,
+      "details": {
+        "connection_successful": true,
+        "test_value_retrieved": "test",
+        "test_value_matches": true
+      }
+    },
+    {
+      "test_name": "Direct SQLite Write Operations",
+      "success": true,
+      "duration_ms": 1.1069774627685547,
+      "error": null,
+      "details": {
+        "web_settings_table_exists": true,
+        "write_successful": true,
+        "value_matches": true,
+        "modified_timestamp": "2025-07-10 02:15:22.997842+00:00"
+      }
+    },
+    {
+      "test_name": "Synchronous SQLAlchemy ORM",
+      "success": true,
+      "duration_ms": 8.372783660888672,
+      "error": null,
+      "details": {
+        "existing_settings_count": 30,
+        "orm_write_successful": true,
+        "orm_value_matches": true,
+        "orm_modified_timestamp": "2025-07-10T02:15:23.005026"
+      }
+    },
+    {
+      "test_name": "Asynchronous SQLAlchemy ORM",
+      "success": true,
+      "duration_ms": 4.607915878295898,
+      "error": null,
+      "details": {
+        "existing_settings_count": 30,
+        "async_orm_write_successful": true,
+        "async_orm_value_matches": true,
+        "async_orm_modified_timestamp": "2025-07-10T02:15:23.009537"
+      }
+    },
+    {
+      "test_name": "Transaction Rollback",
+      "success": true,
+      "duration_ms": 0.4050731658935547,
+      "error": null,
+      "details": {
+        "data_visible_in_transaction": true,
+        "data_removed_after_rollback": true
+      }
+    },
+    {
+      "test_name": "DatabaseManager Initialization",
+      "success": true,
+      "duration_ms": 9.692907333374023,
+      "error": null,
+      "details": {
+        "database_manager_initialized": true,
+        "engine_created": true,
+        "session_factory_created": true,
+        "health_check": {
+          "status": "healthy",
+          "database_path": "web/journal_index.db",
+          "entry_count": 486,
+          "connection": "active"
+        },
+        "health_status": "healthy",
+        "set_setting_success": true,
+        "get_setting_success": true,
+        "retrieved_value_matches": true
+      }
+    },
+    {
+      "test_name": "SettingsService Operations",
+      "success": true,
+      "duration_ms": 14.126062393188477,
+      "error": null,
+      "details": {
+        "bulk_update_success": true,
+        "bulk_update_success_count": 2,
+        "bulk_update_error_count": 1,
+        "bulk_update_validation_errors": [
+          {
+            "key": "ui.font_size",
+            "error": "Unknown setting: ui.font_size"
+          }
+        ],
+        "verification_results": {
+          "ui.theme": {
+            "found": true,
+            "value_matches": true
+          },
+          "ui.font_size": {
+            "found": false,
+            "value_matches": null
+          },
+          "filesystem.base_path": {
+            "found": true,
+            "value_matches": true
+          }
+        }
+      }
+    },
+    {
+      "test_name": "Concurrent Operations",
+      "success": true,
+      "duration_ms": 2.4878978729248047,
+      "error": null,
+      "details": {
+        "concurrent_connections": 5,
+        "successful_writes": 5,
+        "all_writes_successful": true
+      }
+    }
+  ],
+  "database_path": "/Users/TYFong/code/ActiveWorkJournal/web/journal_index.db",
+  "database_exists": true,
+  "timestamp": "2025-07-10T02:15:23.038549+00:00"
+}
