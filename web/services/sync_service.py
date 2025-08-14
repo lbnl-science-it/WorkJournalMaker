@@ -174,6 +174,15 @@ class DatabaseSyncService:
         Returns:
             SyncResult with operation details
         """
+        if self._sync_in_progress:
+            raise RuntimeError("Sync already in progress")
+        
+        async with self._sync_lock:
+            if self._sync_in_progress:
+                raise RuntimeError("Sync already in progress")
+            
+            self._sync_in_progress = True
+            
         sync_result = SyncResult(
             sync_type=SyncType.INCREMENTAL,
             started_at=datetime.utcnow(),
@@ -218,6 +227,9 @@ class DatabaseSyncService:
             self.logger.log_error_with_category(ErrorCategory.DATABASE_ERROR, f"Incremental sync failed: {str(e)}")
             await self._record_sync_failure(sync_id, str(e))
             
+        finally:
+            self._sync_in_progress = False
+            
         return sync_result
     
     async def sync_single_entry(self, entry_date: date) -> SyncResult:
@@ -230,6 +242,15 @@ class DatabaseSyncService:
         Returns:
             SyncResult with operation details
         """
+        if self._sync_in_progress:
+            raise RuntimeError("Sync already in progress")
+        
+        async with self._sync_lock:
+            if self._sync_in_progress:
+                raise RuntimeError("Sync already in progress")
+            
+            self._sync_in_progress = True
+            
         sync_result = SyncResult(
             sync_type=SyncType.SINGLE_ENTRY,
             started_at=datetime.utcnow(),
@@ -268,6 +289,9 @@ class DatabaseSyncService:
             sync_result.errors.append(str(e))
             self.logger.log_error_with_category(ErrorCategory.DATABASE_ERROR, f"Single entry sync failed for {entry_date}: {str(e)}")
             await self._record_sync_failure(sync_id, str(e))
+            
+        finally:
+            self._sync_in_progress = False
             
         return sync_result
     
