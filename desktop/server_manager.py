@@ -98,7 +98,7 @@ class ServerManager:
         return (self._server_thread is not None and 
                 self._server_thread.is_alive())
     
-    def health_check(self, endpoint: str = "/health", timeout: int = 5) -> bool:
+    def health_check(self, endpoint: str = "/api/health/", timeout: int = 5) -> bool:
         """
         Perform health check on the running server.
         
@@ -137,9 +137,14 @@ class ServerManager:
                 log_level="warning",
                 access_log=False
             )
-        except Exception:
-            # On any exception, just pass - thread will be cleaned up by caller
-            pass
+        except Exception as e:
+            # Log the actual error for debugging
+            import logging
+            logging.error(f"Server startup failed: {e}")
+            import traceback
+            logging.error(f"Traceback: {traceback.format_exc()}")
+            # Re-raise to ensure the caller knows about the failure
+            raise
     
     def __enter__(self):
         """Context manager entry."""

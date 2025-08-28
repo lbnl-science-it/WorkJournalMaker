@@ -104,8 +104,9 @@ def comprehensive_build() -> bool:
         print("✓ Executable permissions correct")
         
         # Get executable info
-        executable_path = builder.get_executable_path()
-        if executable_path:
+        executable_path_str = builder.get_executable_path()
+        if executable_path_str:
+            executable_path = Path(executable_path_str)
             size_mb = executable_path.stat().st_size / (1024 * 1024)
             print(f"✓ Executable: {executable_path.name} ({size_mb:.1f} MB)")
         

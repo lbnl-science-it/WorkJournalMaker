@@ -47,7 +47,8 @@ class WorkJournalWebApp:
     def __init__(self):
         self.config: Optional[AppConfig] = None
         self.logger: Optional[JournalSummarizerLogger] = None
-        self.db_manager: DatabaseManager = db_manager
+        #self.db_manager: Optional[DatabaseManager] = None
+        self.db_manager: DatabaseManager=db_manager
         self.work_week_service: Optional[WorkWeekService] = None
         self.entry_manager: Optional[EntryManager] = None
         self.calendar_service: Optional[CalendarService] = None
@@ -69,6 +70,7 @@ class WorkJournalWebApp:
             # Initialize database
             await self.db_manager.initialize()
             self.logger.logger.info("Database initialized successfully")
+
             
             # Initialize WorkWeekService for proper directory organization
             self.work_week_service = WorkWeekService(self.config, self.logger, self.db_manager)

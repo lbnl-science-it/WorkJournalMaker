@@ -136,6 +136,7 @@ local_summaries/
 web/journal_index.db
 
 failure_images/
+build/
 
 # Node.js
 node_modules/
