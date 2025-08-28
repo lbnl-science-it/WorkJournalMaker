@@ -78,9 +78,6 @@ class ConfigManager:
     
     # Standard configuration file locations
     CONFIG_LOCATIONS = [
-        Path("./config.yaml"),
-        Path("./config.yml"),
-        Path("./config.json"),
         Path("~/.config/work-journal-summarizer/config.yaml"),
         Path("~/.config/work-journal-summarizer/config.yml"),
         Path("~/.config/work-journal-summarizer/config.json"),
@@ -101,9 +98,16 @@ class ConfigManager:
         """
         Find configuration file in standard locations.
         
+        Searches current working directory first, then standard system locations.
+        
         Returns:
             Optional[Path]: Path to found config file, None if not found
         """
+        
+        # Working directory detection disabled for PyInstaller compatibility
+        # Use --config argument instead for explicit configuration file specification
+        
+        # Then check standard system locations
         for location in self.CONFIG_LOCATIONS:
             expanded_path = location.expanduser()
             if expanded_path.exists() and expanded_path.is_file():

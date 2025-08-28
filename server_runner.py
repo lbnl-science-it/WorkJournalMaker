@@ -71,6 +71,12 @@ Examples:
         help="Preferred browser to open (e.g., chrome, firefox, safari)"
     )
     
+    # Configuration
+    parser.add_argument(
+        "--config",
+        help="Path to configuration file (overrides default search locations)"
+    )
+    
     # Timeout configuration
     parser.add_argument(
         "--startup-timeout",
@@ -142,7 +148,8 @@ class ServerRunner:
         startup_timeout: float = 30.0,
         shutdown_timeout: float = 10.0,
         auto_open_browser: bool = True,
-        preferred_browser: Optional[str] = None
+        preferred_browser: Optional[str] = None,
+        config_path: Optional[str] = None
     ) -> None:
         """Initialize the ServerRunner.
         
@@ -155,6 +162,7 @@ class ServerRunner:
             shutdown_timeout: Maximum time to wait for server shutdown
             auto_open_browser: Whether to automatically open browser
             preferred_browser: Preferred browser name
+            config_path: Optional path to configuration file
         """
         self.host = host
         self.port_range = port_range
@@ -164,6 +172,7 @@ class ServerRunner:
         self.shutdown_timeout = shutdown_timeout
         self.auto_open_browser = auto_open_browser
         self.preferred_browser = preferred_browser
+        self.config_path = config_path
         
         # State management
         self._shutdown_requested = False
@@ -228,20 +237,27 @@ class ServerRunner:
             True if startup successful, False otherwise
         """
         try:
+            print("🚀 Starting Work Journal Maker...")
             self.desktop_app.log_info("Starting server runner")
+            
+            print("📋 Initializing components...")
             success = self.desktop_app.startup()
             
             if success:
                 server_info = self.desktop_app.get_server_info()
-                print(f"Work Journal Maker is running at {server_info['url']}")
+                print(f"✅ Work Journal Maker is running at {server_info['url']}")
                 print("Press Ctrl+C to stop the server")
             else:
-                print("Failed to start the application")
+                print("❌ Failed to start the application")
+                print("Check the error messages above for details")
             
             return success
             
         except Exception as e:
-            print(f"Error starting application: {e}")
+            print(f"💥 STARTUP ERROR: {e}")
+            print(f"Error type: {type(e).__name__}")
+            import traceback
+            print(f"Detailed traceback:\n{traceback.format_exc()}")
             return False
     
     def stop(self) -> bool:
@@ -277,6 +293,13 @@ class ServerRunner:
             
             # Start the application
             if not self.start():
+                print("\n❌ APPLICATION STARTUP FAILED")
+                if sys.stdin.isatty():
+                    print("Press Enter to exit...")
+                    try:
+                        input()
+                    except EOFError:
+                        pass
                 return 1
             
             # Main event loop
@@ -294,7 +317,16 @@ class ServerRunner:
             return 0
             
         except Exception as e:
-            print(f"Unexpected error during execution: {e}")
+            print(f"\n💥 FATAL ERROR: {e}")
+            print(f"Error type: {type(e).__name__}")
+            import traceback
+            print(f"Traceback:\n{traceback.format_exc()}")
+            if sys.stdin.isatty():
+                print("\nPress Enter to exit...")
+                try:
+                    input()
+                except EOFError:
+                    pass
             return 1
     
     def cleanup(self) -> None:
@@ -340,7 +372,8 @@ def main() -> None:
             startup_timeout=args.startup_timeout,
             shutdown_timeout=args.shutdown_timeout,
             auto_open_browser=not args.no_browser,
-            preferred_browser=args.browser
+            preferred_browser=args.browser,
+            config_path=args.config
         )
         
         exit_code = runner.run()
