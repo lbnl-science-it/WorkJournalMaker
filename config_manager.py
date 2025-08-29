@@ -16,10 +16,53 @@ from typing import Dict, Any, Optional, Union
 import yaml
 import json
 import os
+import sys
 from enum import Enum
 
 # Import logger components for configuration
 from logger import LogConfig, LogLevel
+
+
+class ExecutableDetector:
+    """
+    Detects executable location for PyInstaller and development environments.
+    
+    This class provides robust executable directory detection that works in both
+    development mode and compiled executable environments (PyInstaller, cx_Freeze).
+    """
+    
+    def __init__(self):
+        """Initialize the executable detector."""
+        pass
+    
+    def get_executable_directory(self) -> Path:
+        """
+        Get the directory containing the executable.
+        
+        Handles both development and compiled executable environments:
+        - Development: Returns directory containing the main script
+        - PyInstaller: Returns directory containing the executable binary
+        - cx_Freeze: Returns directory containing the executable binary
+        
+        Returns:
+            Path: Directory containing the executable or main script
+        """
+        if self.is_frozen_executable():
+            # Running as compiled executable (PyInstaller, cx_Freeze, etc.)
+            return Path(sys.executable).parent
+        else:
+            # Running as Python script in development
+            # Use __file__ of this module as reference point
+            return Path(__file__).parent
+    
+    def is_frozen_executable(self) -> bool:
+        """
+        Check if we're running in a frozen executable environment.
+        
+        Returns:
+            bool: True if running as compiled executable, False if development
+        """
+        return getattr(sys, 'frozen', False)
 
 
 @dataclass
@@ -90,28 +133,41 @@ class ConfigManager:
         Args:
             config_path: Optional explicit path to configuration file
         """
+        self.executable_detector = ExecutableDetector()
         self.config_path = config_path or self._find_config_file()
         self.config = self._load_config()
         self._validate_config(self.config)
         
     def _find_config_file(self) -> Optional[Path]:
         """
-        Find configuration file in standard locations.
+        Find configuration file with executable-aware priority order.
         
-        Searches current working directory first, then standard system locations.
+        Priority (highest to lowest):
+        1. Executable directory config (co-located with executable binary)
+        2. Standard system locations
         
         Returns:
             Optional[Path]: Path to found config file, None if not found
         """
         
-        # Working directory detection disabled for PyInstaller compatibility
-        # Use --config argument instead for explicit configuration file specification
+        # PARAMOUNT: Check executable directory FIRST (not working directory)
+        exe_dir = self.executable_detector.get_executable_directory()
+        exe_locations = [
+            exe_dir / "config.yaml",
+            exe_dir / "config.yml", 
+            exe_dir / "config.json"
+        ]
+        
+        for location in exe_locations:
+            if location.exists() and location.is_file():
+                return location
         
         # Then check standard system locations
         for location in self.CONFIG_LOCATIONS:
             expanded_path = location.expanduser()
             if expanded_path.exists() and expanded_path.is_file():
                 return expanded_path
+                
         return None
     
     def _load_config(self) -> AppConfig:

@@ -1,4 +1,5 @@
 # Work Journal Maker - CLAUDE.md
+REMEMBER YOU SHOULD HAVE THE DEMEANOR OF MR SPOCK FROM STAR TREK
 
 ## Project Overview
 **Work Journal Maker** is a production-grade Python application that generates intelligent weekly and monthly summaries of daily work journal text files using multiple LLM providers. The project includes both a command-line interface and a FastAPI-based web application with a comprehensive backend system.

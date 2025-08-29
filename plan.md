@@ -1,539 +1,438 @@
-# FastAPI Desktop Application Packaging - TDD Implementation Plan
+# Executable-Compatible Configurable Database Location - TDD Implementation Plan
 
 ## Project Overview
 
-This plan outlines a test-driven development approach to package the WorkJournalMaker FastAPI application into cross-platform desktop executables for Windows and macOS using PyInstaller and automated GitHub Actions builds.
+This implementation plan provides a systematic, test-driven development approach to add executable-compatible configurable database location support to the Work Journal Maker application. The plan ensures complete compatibility with PyInstaller and other executable compilation systems while maintaining backward compatibility.
 
-## TDD Implementation Strategy
+## Critical Requirements Summary
 
-Each step follows strict TDD principles:
-1. **Red**: Write failing tests first
-2. **Green**: Write minimal code to pass tests
-3. **Refactor**: Improve code while keeping tests passing
-4. **Integration**: Wire components together with integration tests
+Based on the specification analysis, this implementation must address:
 
-## Implementation Phases
+1. **Executable-Aware Configuration Discovery**: Replace current working directory detection with executable location detection
+2. **Database Path Configuration**: Add `database_path` to ProcessingConfig with priority-based resolution
+3. **Executable-Safe Path Resolution**: Ensure relative paths resolve against executable directory, not CWD
+4. **Multi-Instance Support**: Enable isolated instances with co-located config files
+5. **Robust Error Handling**: Graceful fallback to user data directories with clear error messages
 
-### Phase 1: Core Infrastructure (Steps 1-4)
-- Port detection utility with comprehensive testing
-- Server lifecycle management with threading
-- Browser integration with cross-platform compatibility
-- Logging and error handling foundation
+## Implementation Strategy
 
-### Phase 2: Desktop Runner (Steps 5-7)
-- Main entry point script with full functionality
-- Graceful shutdown mechanisms
-- Integration testing of complete flow
+### Phase-Based Approach
+Each phase builds incrementally with comprehensive TDD coverage:
+- **Phase 1**: Executable Detection Foundation
+- **Phase 2**: Configuration Discovery System  
+- **Phase 3**: Database Path Configuration
+- **Phase 4**: Path Resolution Engine
+- **Phase 5**: Command-Line Integration
+- **Phase 6**: Error Handling & Fallbacks
+- **Phase 7**: Integration Testing
 
-### Phase 3: PyInstaller Integration (Steps 8-10)
-- Build configuration and asset bundling
-- Local build testing and validation
-- Cross-platform compatibility testing
+### TDD Methodology
+- Write failing tests first for each feature
+- Implement minimal code to make tests pass
+- Refactor with test coverage
+- Validate with both development and compiled executable environments
 
-### Phase 4: CI/CD Automation (Steps 11-13) 
-- GitHub Actions workflow implementation
-- Automated testing and build validation
-- Release management and distribution
+## Detailed Implementation Plan
 
----
+### Phase 1: Executable Detection Foundation
 
-## Step-by-Step Implementation Prompts
+**Objective**: Create robust executable location detection that works in both development and compiled environments.
 
-### Step 1: Port Detection Utility
+**Files to Modify/Create**:
+- `tests/test_executable_detection.py` (new)
+- `config_manager.py` (modify)
 
-```
-Create a port detection utility using TDD methodology. 
+**Key Features**:
+- Detect PyInstaller/cx_Freeze executable environment
+- Handle development vs. compiled execution paths
+- Cross-platform compatibility (Windows, macOS, Linux)
 
-Requirements:
-- Create `tests/test_port_detector.py` first with comprehensive test cases
-- Test port availability checking on localhost
-- Test finding next available port starting from a given port
-- Test handling when no ports are available in a range
-- Test edge cases like invalid port numbers and network errors
+### Phase 2: Configuration Discovery System
 
-Then implement `desktop/port_detector.py` with:
-- `is_port_available(port: int) -> bool` function
-- `find_available_port(start_port: int = 8000, max_attempts: int = 10) -> int` function
-- Proper error handling and type hints
-- Comprehensive docstrings
+**Objective**: Implement executable-aware config file discovery with proper priority ordering.
 
-Use socket library for port checking. Include error handling for network issues.
-Ensure all tests pass before proceeding.
-```
+**Files to Modify/Create**:
+- `tests/test_config_discovery.py` (new)
+- `config_manager.py` (modify)
 
-### Step 2: Server Manager Component
+**Key Features**:
+- Executable directory config priority (paramount requirement)
+- Fallback to system config locations
+- Support for YAML/JSON formats
+- Working directory independence
 
-```
-Create a server manager component to handle uvicorn server lifecycle using TDD.
+### Phase 3: Database Path Configuration
 
-Requirements:
-- Create `tests/test_server_manager.py` with test cases for:
-  - Starting server in background thread
-  - Server health checking
-  - Graceful server shutdown
-  - Thread cleanup and resource management
-  - Error handling for server startup failures
+**Objective**: Add database_path configuration support with environment variable overrides.
 
-Then implement `desktop/server_manager.py` with:
-- `ServerManager` class with start(), stop(), is_running() methods
-- Background thread management for uvicorn server
-- Health check functionality (HTTP request to server)
-- Proper cleanup and resource management
-- Integration with port_detector from Step 1
+**Files to Modify/Create**:
+- `tests/test_database_config.py` (new)
+- `config_manager.py` (modify)
+- `web/database.py` (modify)
 
-Mock uvicorn.run in tests to avoid actual server startup during testing.
-Use threading module for background server execution.
-All tests must pass before proceeding.
-```
+**Key Features**:
+- Add `database_path` field to ProcessingConfig
+- Environment variable support (WJS_DATABASE_PATH)
+- Configuration validation and parsing
 
-### Step 3: Browser Controller
+### Phase 4: Path Resolution Engine
 
-```
-Create a browser controller component using TDD for cross-platform browser management.
+**Objective**: Implement executable-aware path resolution with robust error handling.
 
-Requirements:
-- Create `tests/test_browser_controller.py` with test cases for:
-  - Opening browser with given URL
-  - Cross-platform browser detection
-  - Handling cases where no browser is available
-  - URL validation
-  - Error handling for browser launch failures
+**Files to Modify/Create**:
+- `tests/test_path_resolution.py` (new)
+- `config_manager.py` (modify)
+- `web/database.py` (modify)
 
-Then implement `desktop/browser_controller.py` with:
-- `BrowserController` class with open_browser(url: str) method
-- Cross-platform browser opening using webbrowser module
-- URL validation and sanitization
-- Proper error handling and logging
-- Support for different browser preferences
+**Key Features**:
+- Executable-relative path resolution
+- Tilde expansion support
+- Directory auto-creation with fallbacks
+- Cross-platform user data directories
 
-Use webbrowser module for browser interaction.
-Mock webbrowser.open in tests to avoid opening actual browsers during testing.
-Include comprehensive error handling for different platforms.
-All tests must pass before proceeding.
-```
+### Phase 5: Command-Line Integration
 
-### Step 4: Application Logger
+**Objective**: Add --database-path support to both CLI and server applications.
 
-```
-Create a structured logging system using TDD for the desktop application.
+**Files to Modify/Create**:
+- `tests/test_cli_integration.py` (new)
+- `work_journal_summarizer.py` (modify)
+- `server_runner.py` (modify)
 
-Requirements:
-- Create `tests/test_app_logger.py` with test cases for:
-  - Logger initialization and configuration
-  - Different log levels (DEBUG, INFO, WARNING, ERROR)
-  - Log file creation in appropriate directory
-  - Log format and structure validation
-  - Rotation and cleanup policies
+**Key Features**:
+- Command-line argument parsing
+- Priority resolution (CLI > config > defaults)
+- Integration with existing argument handling
 
-Then implement `desktop/app_logger.py` with:
-- `AppLogger` singleton class for consistent logging
-- Console and file logging configuration
-- Structured log format with timestamps
-- Cross-platform log file location (user's temp or app data directory)
-- Log rotation to prevent disk space issues
+### Phase 6: Error Handling & Fallbacks
 
-Use Python's logging module with rotating file handler.
-Test log output content and file creation.
-Ensure logs are written to appropriate directories on different platforms.
-All tests must pass before proceeding.
-```
+**Objective**: Implement comprehensive error handling with user-friendly messages.
 
-### Step 5: Desktop Application Core
+**Files to Modify/Create**:
+- `tests/test_error_handling.py` (new)
+- `config_manager.py` (modify)
+- `web/database.py` (modify)
+
+**Key Features**:
+- Path conflict detection
+- Graceful fallback mechanisms
+- Detailed error messages with source attribution
+- Recovery guidance
+
+### Phase 7: Integration Testing
+
+**Objective**: Comprehensive testing with actual compiled executables and multi-instance scenarios.
+
+**Files to Modify/Create**:
+- `tests/test_executable_integration.py` (new)
+- `scripts/test_executable_config.sh` (new)
+
+**Key Features**:
+- PyInstaller executable testing
+- Multi-instance isolation testing
+- Cross-platform validation
+- Resource path verification
+
+## TDD Implementation Prompts
+
+### Prompt 1: Executable Detection Foundation
 
 ```
-Create the main desktop application class that integrates all components using TDD.
+Implement executable location detection for PyInstaller compatibility using TDD.
 
-Requirements:
-- Create `tests/test_desktop_app.py` with test cases for:
-  - Application initialization with all components
-  - Complete startup sequence (port detection -> server start -> browser open)
-  - Shutdown sequence and cleanup
-  - Error handling at each stage
-  - Integration between all components from Steps 1-4
+REQUIREMENTS:
+1. Create tests/test_executable_detection.py with comprehensive test cases
+2. Modify config_manager.py to add ExecutableDetector class
+3. Must work in both development and compiled environments
+4. Handle PyInstaller, cx_Freeze, and development scenarios
+5. Cross-platform support (Windows, macOS, Linux)
 
-Then implement `desktop/desktop_app.py` with:
-- `DesktopApp` class that orchestrates all components
-- Startup sequence: find port, start server, wait for readiness, open browser
-- Shutdown handling with proper cleanup
-- Error recovery and user feedback
-- Integration of PortDetector, ServerManager, BrowserController, and AppLogger
+TEST CASES TO IMPLEMENT:
+- Test development environment detection
+- Test PyInstaller frozen executable detection  
+- Test cx_Freeze executable detection
+- Test directory resolution in different environments
+- Test cross-platform path handling
 
-Use dependency injection for testability.
-Mock all external dependencies in tests.
-Test the complete application flow end-to-end.
-All tests must pass before proceeding.
+IMPLEMENTATION STEPS:
+1. Write failing tests for executable detection
+2. Create ExecutableDetector class with _get_executable_directory() method
+3. Implement sys.frozen detection logic
+4. Add PyInstaller _MEIPASS handling
+5. Ensure all tests pass
+6. Validate cross-platform compatibility
+
+Focus on creating a robust foundation that other components can rely on. Do not implement configuration discovery yet - that's the next phase.
 ```
 
-### Step 6: Entry Point Script
+### Prompt 2: Configuration Discovery System
 
 ```
-Create the main entry point script using TDD that will be packaged by PyInstaller.
+Implement executable-aware configuration file discovery using TDD.
 
-Requirements:
-- Create `tests/test_server_runner.py` with test cases for:
-  - Main function execution flow
-  - Command line argument parsing (if any)
-  - Signal handling for graceful shutdown
-  - Error handling and user feedback
-  - Integration with DesktopApp from Step 5
+REQUIREMENTS:
+1. Create tests/test_config_discovery.py with comprehensive test scenarios
+2. Modify ConfigManager to use ExecutableDetector from Phase 1
+3. Implement executable directory priority over system locations
+4. Support YAML/JSON format detection
+5. Ensure working directory independence
 
-Then implement `server_runner.py` at project root with:
-- Main function that creates and runs DesktopApp instance
-- Signal handlers for SIGINT/SIGTERM for graceful shutdown
-- Basic command line interface (help, version info)
-- Error handling with user-friendly messages
-- Keep-alive loop to prevent main thread exit
+DEPENDENCIES:
+- ExecutableDetector from Phase 1 must be available
+- Existing CONFIG_LOCATIONS should be preserved as fallback
 
-Use signal module for cross-platform signal handling.
-Test main execution path and error scenarios.
-Ensure clean shutdown on keyboard interrupt.
-All tests must pass before proceeding.
+TEST CASES TO IMPLEMENT:
+- Test executable directory config takes precedence
+- Test fallback to system config locations when no executable config
+- Test config file format detection (YAML/JSON)
+- Test behavior when executable run from different working directory
+- Test config discovery when no config files exist
+
+IMPLEMENTATION STEPS:
+1. Write failing tests for config discovery priority
+2. Modify ConfigManager._find_config_file() to check executable directory first
+3. Integrate ExecutableDetector for directory detection
+4. Implement format-agnostic config detection
+5. Ensure all tests pass in both dev and simulated executable environments
+6. Validate working directory independence
+
+This phase establishes the foundation for config file discovery. Database path configuration comes next.
 ```
 
-### Step 7: Server Readiness Checker
+### Prompt 3: Database Path Configuration
 
 ```
-Create a server readiness checker using TDD to ensure server is fully operational before opening browser.
+Add database_path configuration support with environment variable overrides using TDD.
 
-Requirements:
-- Create `tests/test_readiness_checker.py` with test cases for:
-  - HTTP health check to server endpoint
-  - Retry logic with exponential backoff
-  - Timeout handling for unresponsive servers
-  - Network error handling
-  - Success and failure scenarios
+REQUIREMENTS:
+1. Create tests/test_database_config.py with configuration scenarios
+2. Add database_path field to ProcessingConfig dataclass
+3. Add WJS_DATABASE_PATH environment variable support
+4. Update configuration parsing and validation
+5. Maintain backward compatibility
 
-Then implement `desktop/readiness_checker.py` with:
-- `ReadinessChecker` class with wait_for_server(url: str, timeout: int) method
-- HTTP requests to server health endpoint
-- Retry mechanism with configurable attempts and delays
-- Proper timeout and error handling
-- Integration with ServerManager from Step 2
+DEPENDENCIES:
+- ExecutableDetector and config discovery from Phases 1-2
+- Existing ProcessingConfig structure
 
-Use requests library for HTTP health checks.
-Mock HTTP requests in tests to avoid network dependencies.
-Test various server response scenarios.
-Integrate with desktop application startup sequence.
-All tests must pass before proceeding.
+TEST CASES TO IMPLEMENT:
+- Test database_path field in ProcessingConfig
+- Test environment variable override (WJS_DATABASE_PATH)
+- Test config file database_path parsing
+- Test priority: env var > config file > default
+- Test backward compatibility with existing configurations
+
+IMPLEMENTATION STEPS:
+1. Write failing tests for database_path configuration
+2. Add database_path: Optional[str] = None to ProcessingConfig
+3. Add WJS_DATABASE_PATH to environment variable mappings
+4. Update _dict_to_config() to handle database_path
+5. Add configuration validation for database paths
+6. Ensure all tests pass and backward compatibility maintained
+
+This phase adds the configuration structure. Path resolution implementation comes next.
 ```
 
-### Step 8: PyInstaller Build Configuration
+### Prompt 4: Path Resolution Engine
 
 ```
-Create PyInstaller build configuration and testing using TDD approach.
+Implement executable-aware path resolution with robust error handling using TDD.
 
-Requirements:
-- Create `tests/test_build_config.py` with test cases for:
-  - .spec file generation with correct parameters
-  - Static asset inclusion verification
-  - Cross-platform path handling
-  - Hidden imports detection
-  - Build artifact validation
+REQUIREMENTS:
+1. Create tests/test_path_resolution.py with extensive path scenarios
+2. Modify DatabaseManager to accept database_path parameter
+3. Implement executable-aware relative path resolution
+4. Add graceful fallback to user data directories
+5. Support tilde expansion and absolute paths
 
-Then implement `build/build_config.py` with:
-- `BuildConfig` class for generating PyInstaller .spec files
-- Cross-platform data inclusion (web/static, web/templates)
-- Hidden imports detection for FastAPI dependencies
-- Build output directory management
-- Platform-specific configuration (Windows vs macOS)
+DEPENDENCIES:
+- ExecutableDetector from Phase 1
+- Database path configuration from Phase 3
+- Existing DatabaseManager structure
 
-Create `workjournal.spec` file with:
-- Proper Analysis configuration for static assets
-- Executable configuration with --onefile and --windowed options
-- Platform-specific data separator handling
+TEST CASES TO IMPLEMENT:
+- Test relative path resolution against executable directory
+- Test tilde expansion in different environments
+- Test absolute path handling unchanged
+- Test directory auto-creation with permission fallback
+- Test user data directory fallback on permission errors
+- Test cross-platform path resolution
 
-Test spec file generation and validate included assets.
-Ensure cross-platform compatibility of generated spec files.
-All tests must pass before proceeding.
+IMPLEMENTATION STEPS:
+1. Write failing tests for path resolution scenarios
+2. Modify DatabaseManager.__init__ to accept optional database_path
+3. Implement _resolve_path_executable_safe() method
+4. Add _get_user_data_directory() for fallback paths
+5. Implement graceful error handling with fallbacks
+6. Integrate with ExecutableDetector for relative path base
+7. Ensure all tests pass across platforms
+
+This phase implements the core path resolution logic. Command-line integration comes next.
 ```
 
-### Step 9: Local Build Testing
+### Prompt 5: Command-Line Integration
 
 ```
-Create local build testing functionality using TDD to validate PyInstaller builds.
+Add --database-path command-line argument support to both applications using TDD.
 
-Requirements:
-- Create `tests/test_local_build.py` with test cases for:
-  - PyInstaller execution and success verification
-  - Generated executable validation
-  - Static asset inclusion verification in build
-  - Executable functionality testing
-  - Cross-platform build testing
+REQUIREMENTS:
+1. Create tests/test_cli_integration.py for argument handling
+2. Add --database-path to work_journal_summarizer.py argument parser
+3. Add --database-path to server_runner.py argument parser  
+4. Implement proper priority resolution (CLI > config > defaults)
+5. Wire up to DatabaseManager with correct precedence
 
-Then implement `build/local_builder.py` with:
-- `LocalBuilder` class for running PyInstaller builds
-- Build validation and verification methods
-- Static asset checking in generated executable
-- Build cleanup and artifact management
-- Cross-platform build support
+DEPENDENCIES:
+- Path resolution from Phase 4
+- Modified DatabaseManager constructor
+- Existing argument parsing structure
 
-Create build scripts:
-- `scripts/build_local.py` for development builds
-- `scripts/test_build.py` for build validation
+TEST CASES TO IMPLEMENT:
+- Test --database-path argument parsing in CLI tool
+- Test --database-path argument parsing in server runner
+- Test priority resolution: CLI arg overrides config file
+- Test integration with existing configuration system
+- Test argument validation and error handling
 
-Test PyInstaller execution (may require mocking in CI).
-Validate that built executables contain all required assets.
-Test executable functionality after build.
-All tests must pass before proceeding.
+IMPLEMENTATION STEPS:
+1. Write failing tests for CLI argument integration
+2. Add --database-path argument to both argument parsers
+3. Update main functions to pass database_path to DatabaseManager
+4. Implement priority resolution logic (CLI > config > default)
+5. Add argument validation and help text
+6. Ensure all tests pass with proper precedence
+
+This phase completes the user interface. Error handling refinement comes next.
 ```
 
-### Step 10: Cross-Platform Compatibility
+### Prompt 6: Error Handling & Fallbacks
 
 ```
-Create cross-platform compatibility layer using TDD for Windows and macOS differences.
+Implement comprehensive error handling with user-friendly messages using TDD.
 
-Requirements:
-- Create `tests/test_platform_compat.py` with test cases for:
-  - Platform detection and handling
-  - File path separator handling
-  - Executable naming conventions
-  - Platform-specific resource locations
-  - Environment variable handling
+REQUIREMENTS:
+1. Create tests/test_error_handling.py with error scenarios
+2. Add database path conflict detection
+3. Implement detailed error messages with source attribution
+4. Add graceful fallback mechanisms with user guidance
+5. Handle permission errors, invalid paths, and existing database conflicts
 
-Then implement `desktop/platform_compat.py` with:
-- `PlatformCompat` class for platform-specific operations
-- Cross-platform file path handling
-- Platform-appropriate directory locations (temp, app data)
-- Executable naming conventions
-- Platform detection utilities
+DEPENDENCIES:
+- All previous phases (1-5) must be complete
+- DatabaseManager with path resolution
+- Configuration discovery system
 
-Update existing components to use platform compatibility layer:
-- Update AppLogger for platform-appropriate log locations
-- Update build configuration for platform-specific paths
-- Update server runner for platform-specific behavior
+TEST CASES TO IMPLEMENT:
+- Test invalid path with existing default database (should stop with error)
+- Test invalid path without existing default (should use fallback)
+- Test permission denied scenarios with fallback
+- Test path conflict detection and error messages
+- Test error source attribution (config file vs CLI vs env var)
 
-Test on multiple platforms if available.
-Ensure all platform-specific code is properly abstracted.
-All tests must pass before proceeding.
+IMPLEMENTATION STEPS:
+1. Write failing tests for error scenarios
+2. Add _validate_database_path() method to DatabaseManager
+3. Implement path conflict detection logic
+4. Add _raise_path_conflict_error() with detailed messages
+5. Implement fallback directory creation
+6. Add error source tracking throughout the configuration chain
+7. Ensure all tests pass with appropriate error handling
+
+This phase ensures robust error handling. Integration testing comes next.
 ```
 
-### Step 11: GitHub Actions Workflow Foundation
+### Prompt 7: Integration Testing
 
 ```
-Create the foundation for GitHub Actions workflow using TDD principles for build automation.
+Create comprehensive integration tests for executable environments and multi-instance scenarios.
 
-Requirements:
-- Create `tests/test_workflow_config.py` with test cases for:
-  - Workflow YAML generation and validation
-  - Build job configuration
-  - Artifact handling specification
-  - Cross-platform build matrix
-  - Release configuration
+REQUIREMENTS:
+1. Create tests/test_executable_integration.py for end-to-end scenarios
+2. Create scripts/test_executable_config.sh for build testing
+3. Test actual PyInstaller executable behavior
+4. Validate multi-instance isolation
+5. Test resource path resolution in executable environment
 
-Then implement `build/workflow_generator.py` with:
-- `WorkflowGenerator` class for creating GitHub Actions YAML
-- Build job templates for Windows and macOS
-- Artifact collection and upload configuration
-- Release creation job specification
-- Environment variable and secret handling
+DEPENDENCIES:
+- Complete implementation from Phases 1-6
+- Working PyInstaller build process
+- Multi-platform test environment
 
-Create `.github/workflows/release.yml` with:
-- Trigger on version tags (v*.*.*) 
-- Parallel build jobs for macOS and Windows
-- Python 3.11 setup and dependency installation
-- PyInstaller execution with proper parameters
-- Artifact upload for each platform
+TEST SCENARIOS TO IMPLEMENT:
+- Test executable + config co-location discovery
+- Test multiple executable instances with separate configs
+- Test config discovery when executable run from different directories
+- Test database path isolation between instances
+- Test resource path resolution (templates, static files)
 
-Validate YAML syntax and GitHub Actions compatibility.
-Test workflow configuration (may require GitHub repo setup).
-Ensure all build steps are properly configured.
-All tests must pass before proceeding.
+IMPLEMENTATION STEPS:
+1. Write integration tests for executable scenarios
+2. Create test script for PyInstaller build validation
+3. Test config discovery in compiled executable
+4. Validate multi-instance isolation with real executable copies
+5. Test cross-platform executable behavior
+6. Ensure resource paths work in executable environment
+7. Document any executable-specific setup requirements
+
+This final phase validates the complete implementation in real executable environments.
 ```
 
-### Step 12: Build Automation Testing
+## Success Criteria
 
-```
-Create comprehensive build automation testing using TDD for CI/CD validation.
+### Functional Requirements
+- [ ] Config file in executable directory automatically detected and used
+- [ ] Power users can run multiple isolated instances with co-located configs
+- [ ] Regular users experience no change in behavior
+- [ ] Both CLI and web applications support database path configuration
+- [ ] Relative paths resolve correctly in executable environment
 
-Requirements:
-- Create `tests/test_build_automation.py` with test cases for:
-  - Workflow execution simulation
-  - Build artifact validation
-  - Cross-platform build success verification
-  - Error handling in build process
-  - Release creation process
+### Quality Requirements
+- [ ] Comprehensive test coverage (>95%) for all new functionality
+- [ ] Clear error messages guide problem resolution
+- [ ] Path resolution handles edge cases gracefully
+- [ ] No data loss or corruption scenarios
+- [ ] Cross-platform compatibility (Windows, macOS, Linux)
 
-Then implement `build/automation_tester.py` with:
-- `AutomationTester` class for validating build automation
-- Workflow simulation and validation methods
-- Build artifact checking and verification
-- Cross-platform compatibility testing
-- Integration testing for complete build process
+### Compatibility Requirements
+- [ ] Backward compatibility maintained for existing installations
+- [ ] PyInstaller and cx_Freeze executable compatibility
+- [ ] Development environment continues to work unchanged
+- [ ] Multi-instance support with co-located configs
+- [ ] Resource path resolution works in executable environment
 
-Create validation scripts:
-- `scripts/validate_workflow.py` for workflow testing
-- `scripts/simulate_build.py` for local build simulation
+## Risk Mitigation
 
-Update GitHub Actions workflow with:
-- Proper error handling and reporting
-- Build status notifications
-- Comprehensive testing steps
-- Artifact validation before release
+### Critical Risks
+1. **PyInstaller Path Issues**: Extensive testing with actual compiled executables
+2. **Working Directory Dependencies**: Complete elimination of CWD-based logic
+3. **Cross-Platform Compatibility**: Test on Windows, macOS, and Linux
+4. **Backward Compatibility**: Maintain existing behavior as default
+5. **Resource Path Resolution**: Ensure web assets work in executable environment
 
-Test workflow components locally where possible.
-Validate all automation steps and error handling.
-All tests must pass before proceeding.
-```
+### Mitigation Strategies
+- Comprehensive TDD approach with executable environment testing
+- Incremental implementation with backward compatibility checks
+- Cross-platform validation at each phase
+- Fallback mechanisms for all path resolution scenarios
+- Detailed error messages with recovery guidance
 
-### Step 13: Release Management and Distribution
+## Implementation Timeline
 
-```
-Create release management system using TDD for automated distribution.
+### Phase Duration Estimates
+- **Phase 1**: 1-2 days (Executable Detection Foundation)
+- **Phase 2**: 1-2 days (Configuration Discovery System)
+- **Phase 3**: 1 day (Database Path Configuration)
+- **Phase 4**: 2-3 days (Path Resolution Engine)
+- **Phase 5**: 1 day (Command-Line Integration)
+- **Phase 6**: 2 days (Error Handling & Fallbacks)
+- **Phase 7**: 2-3 days (Integration Testing)
 
-Requirements:
-- Create `tests/test_release_manager.py` with test cases for:
-  - Release creation and tagging
-  - Asset upload and management
-  - Version validation and formatting
-  - Release notes generation
-  - Distribution verification
+**Total Estimated Duration**: 10-14 days
 
-Then implement `build/release_manager.py` with:
-- `ReleaseManager` class for handling releases
-- GitHub release creation and management
-- Asset upload and organization
-- Version validation and semantic versioning
-- Release notes generation from commits
+### Validation Checkpoints
+- End of each phase: Unit tests passing
+- Phase 4 completion: Path resolution validation
+- Phase 6 completion: Error handling validation
+- Phase 7 completion: Full executable environment validation
 
-Update GitHub Actions workflow with:
-- Release creation job after successful builds
-- Asset download and upload to release
-- Proper release naming and tagging
-- Release notes generation
-
-Create release scripts:
-- `scripts/create_release.py` for manual releases
-- `scripts/validate_release.py` for release verification
-
-Test release creation process and asset management.
-Validate complete end-to-end build and release workflow.
-Ensure all components are properly integrated.
-All tests must pass before proceeding.
-```
-
-### Step 14: End-to-End Integration Testing
-
-```
-Create comprehensive end-to-end integration tests using TDD for the complete system.
-
-Requirements:
-- Create `tests/test_e2e_integration.py` with test cases for:
-  - Complete application startup and shutdown cycle
-  - Build process from source to executable
-  - Cross-platform functionality verification  
-  - Error recovery and graceful degradation
-  - Performance and resource usage validation
-
-Then implement `tests/integration/` test suite with:
-- Full application lifecycle testing
-- Build and packaging integration tests
-- Cross-platform compatibility validation
-- Performance benchmarking tests
-- Error injection and recovery testing
-
-Create integration test runner:
-- `scripts/run_integration_tests.py` for comprehensive testing
-- Automated test reporting and validation
-- Cross-platform test execution
-
-Update all components with:
-- Final integration points and error handling
-- Performance optimizations based on test results
-- Documentation and user guides
-- Final validation and cleanup
-
-Run complete test suite across all components.
-Validate system performance and reliability.
-Ensure all integration points work correctly.
-Document any remaining limitations or requirements.
-All tests must pass and system must be production-ready.
-```
-
-## Quality Assurance Standards
-
-### Testing Requirements
-- **100% Test Coverage**: Every function and method must have corresponding tests
-- **TDD Compliance**: Tests written before implementation in every step
-- **Integration Testing**: Each step includes integration with previous components
-- **Cross-Platform Testing**: All components tested on Windows and macOS where possible
-- **Error Handling**: Comprehensive error scenarios tested and handled
-
-### Code Quality Standards
-- **Type Hints**: All functions have complete type annotations
-- **Docstrings**: Comprehensive documentation for all public interfaces
-- **Error Handling**: Graceful error handling with user feedback
-- **Logging**: Structured logging for debugging and monitoring
-- **Resource Management**: Proper cleanup and resource management
-
-### Build and Release Standards
-- **Automated Testing**: All builds include automated test execution
-- **Cross-Platform Builds**: Parallel builds for Windows and macOS
-- **Artifact Validation**: All build artifacts tested before release
-- **Version Management**: Semantic versioning and proper tagging
-- **Documentation**: Complete user and developer documentation
-
-## Implementation Notes
-
-### Dependencies
-- Add `pytest`, `pytest-cov`, `pytest-mock` to development requirements
-- Add `requests` for server health checking
-- Add `psutil` for process management (if needed)
-- Ensure all dependencies are compatible with PyInstaller
-
-### Directory Structure
-```
-desktop/                 # Desktop application components
-├── __init__.py
-├── port_detector.py
-├── server_manager.py  
-├── browser_controller.py
-├── app_logger.py
-├── desktop_app.py
-├── readiness_checker.py
-└── platform_compat.py
-
-build/                   # Build and release components
-├── __init__.py
-├── build_config.py
-├── local_builder.py
-├── workflow_generator.py
-├── automation_tester.py
-└── release_manager.py
-
-tests/                   # Comprehensive test suite
-├── test_port_detector.py
-├── test_server_manager.py
-├── test_browser_controller.py
-├── test_app_logger.py
-├── test_desktop_app.py
-├── test_server_runner.py
-├── test_readiness_checker.py
-├── test_build_config.py
-├── test_local_build.py
-├── test_platform_compat.py
-├── test_workflow_config.py
-├── test_build_automation.py
-├── test_release_manager.py
-├── test_e2e_integration.py
-└── integration/
-
-scripts/                 # Utility and build scripts
-├── build_local.py
-├── test_build.py
-├── validate_workflow.py
-├── simulate_build.py
-├── create_release.py
-├── validate_release.py
-└── run_integration_tests.py
-
-server_runner.py         # Main entry point
-workjournal.spec         # PyInstaller specification
-```
-
-### Success Criteria
-- All tests pass with 100% coverage
-- Cross-platform executables build successfully
-- Automated GitHub Actions workflow functions correctly
-- End-to-end application flow works reliably
-- Complete documentation and user guides available
-- Production-ready release artifacts generated
+This plan ensures systematic, test-driven implementation of executable-compatible configurable database location support while maintaining production stability and user experience.
