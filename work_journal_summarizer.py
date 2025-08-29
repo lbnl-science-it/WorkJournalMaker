@@ -37,6 +37,8 @@ from logger import (
 )
 # Import Phase 8 components
 from config_manager import ConfigManager, AppConfig
+# Import database components for CLI integration
+from web.database import DatabaseManager
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -146,6 +148,12 @@ Logging:
         help='Save an example configuration file to the specified path and exit'
     )
     
+    parser.add_argument(
+        '--database-path',
+        type=str,
+        help='Path to database file (overrides configuration file setting)'
+    )
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -227,6 +235,68 @@ def validate_date_range(start_date: datetime.date, end_date: datetime.date) -> N
             f"End date must be after start date. "
             f"Start: {start_date}, End: {end_date}"
         )
+
+
+def resolve_database_path_priority(cli_path: str = None, config_path: str = None) -> str:
+    """
+    Resolve database path with priority: CLI > config file > environment > None.
+    
+    Args:
+        cli_path: Database path from CLI argument
+        config_path: Path to configuration file
+        
+    Returns:
+        str: Resolved database path or None for defaults
+    """
+    import os
+    from pathlib import Path
+    
+    # Priority 1: CLI argument
+    if cli_path:
+        return cli_path
+    
+    # Priority 2: Configuration file
+    if config_path and Path(config_path).exists():
+        try:
+            # Temporarily clear environment to avoid interference
+            orig_env = os.environ.get('WJS_DATABASE_PATH')
+            if 'WJS_DATABASE_PATH' in os.environ:
+                del os.environ['WJS_DATABASE_PATH']
+            
+            config_manager = ConfigManager(Path(config_path))
+            config = config_manager.get_config()
+            
+            # Restore environment variable
+            if orig_env is not None:
+                os.environ['WJS_DATABASE_PATH'] = orig_env
+            
+            if config.processing.database_path:
+                return config.processing.database_path
+        except Exception:
+            # Restore environment variable on error
+            if orig_env is not None:
+                os.environ['WJS_DATABASE_PATH'] = orig_env
+    
+    # Priority 3: Environment variable
+    env_path = os.getenv('WJS_DATABASE_PATH')
+    if env_path:
+        return env_path
+    
+    # Priority 4: Default (None)
+    return None
+
+
+def initialize_database_manager(database_path: str = None) -> DatabaseManager:
+    """
+    Initialize DatabaseManager with optional database path.
+    
+    Args:
+        database_path: Optional path to database file
+        
+    Returns:
+        DatabaseManager: Initialized database manager instance
+    """
+    return DatabaseManager(database_path=database_path)
 
 
 def _perform_dry_run(args: argparse.Namespace, config: AppConfig, logger: JournalSummarizerLogger) -> None:
