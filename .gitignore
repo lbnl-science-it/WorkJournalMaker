@@ -27,6 +27,7 @@ MANIFEST
 
 # PyInstaller outputs (but allow our source .spec and build/ directory)
 *.manifest
+build/
 build/dist/
 build/build/
 build/*.spec

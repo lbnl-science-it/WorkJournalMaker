@@ -10,6 +10,7 @@ from typing import Optional, Tuple
 
 from desktop.desktop_app import DesktopApp
 from desktop.platform_compat import get_platform_compat
+from web.database import DatabaseManager
 
 
 def parse_args(args: Optional[list] = None) -> argparse.Namespace:
@@ -92,6 +93,12 @@ Examples:
         help="Maximum time to wait for server shutdown in seconds (default: %(default)s)"
     )
     
+    # Database configuration
+    parser.add_argument(
+        "--database-path",
+        help="Path to database file (overrides configuration file setting)"
+    )
+    
     return parser.parse_args(args)
 
 
@@ -131,6 +138,19 @@ def parse_port_range(port_range: str) -> Tuple[int, int]:
         raise ValueError("Port numbers must be between 1024 and 65535")
     
     return start_port, end_port
+
+
+def initialize_database_manager(database_path: str = None) -> DatabaseManager:
+    """
+    Initialize DatabaseManager with optional database path.
+    
+    Args:
+        database_path: Optional path to database file
+        
+    Returns:
+        DatabaseManager: Initialized database manager instance
+    """
+    return DatabaseManager(database_path=database_path)
 
 
 class ServerRunner:

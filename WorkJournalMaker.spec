@@ -2,15 +2,11 @@
 
 
 a = Analysis(
-    ['server_runner.py'],
+    ['work_journal_summarizer.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('web', 'web'),
-        ('web/static', 'web/static'),
-        ('web/templates', 'web/templates'),
-    ],
-    hiddenimports=['web.app', 'web.api', 'web.services', 'web.models', 'web.utils'],
+    datas=[('web', 'web')],
+    hiddenimports=['config_manager', 'web.database'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
