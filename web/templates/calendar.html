@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar - Daily Work Journal{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/calendar.css">
+{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <!-- Calendar Header -->
+    <header class="calendar-header">
+        <div class="calendar-nav">
+            <button class="btn-icon nav-btn" id="prev-month-btn" title="Previous Month">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="m15 18-6-6 6-6" stroke="currentColor" stroke-width="2" />
+                </svg>
+            </button>
+
+            <div class="calendar-title-section">
+                <h1 class="calendar-title" id="calendar-title">Loading...</h1>
+                <div class="calendar-subtitle" id="calendar-subtitle">Navigate your journal entries</div>
+            </div>
+
+            <button class="btn-icon nav-btn" id="next-month-btn" title="Next Month">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="2" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="calendar-actions">
+            <button class="btn btn-secondary" id="today-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                    <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" />
+                </svg>
+                Today
+            </button>
+
+            <button class="btn btn-primary" id="new-entry-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" />
+                    <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" />
+                </svg>
+                New Entry
+            </button>
+        </div>
+    </header>
+
+    <!-- Calendar Grid -->
+    <main class="calendar-main">
+        <div class="calendar-wrapper">
+            <!-- Calendar Legend -->
+            <div class="calendar-legend">
+                <div class="legend-item">
+                    <div class="legend-dot today"></div>
+                    <span>Today</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot has-entry"></div>
+                    <span>Has Entry</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot selected"></div>
+                    <span>Selected</span>
+                </div>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="calendar-grid-container">
+                <div class="calendar-weekdays">
+                    <div class="weekday">Sun</div>
+                    <div class="weekday">Mon</div>
+                    <div class="weekday">Tue</div>
+                    <div class="weekday">Wed</div>
+                    <div class="weekday">Thu</div>
+                    <div class="weekday">Fri</div>
+                    <div class="weekday">Sat</div>
+                </div>
+
+                <div class="calendar-grid" id="calendar-grid">
+                    <!-- Calendar days will be populated by JavaScript -->
+                    <div class="calendar-loading">
+                        <div class="loading-spinner"></div>
+                        <span>Loading calendar...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Entry Preview Panel -->
+        <div class="entry-preview-panel" id="entry-preview-panel" style="display: none;">
+            <div class="preview-header">
+                <h3 class="preview-title" id="preview-title">Entry Preview</h3>
+                <button class="btn-icon" id="close-preview-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" />
+                        <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="preview-content" id="preview-content">
+                <div class="preview-loading">
+                    <div class="loading-spinner"></div>
+                    <span>Loading entry...</span>
+                </div>
+            </div>
+
+            <div class="preview-actions">
+                <button class="btn btn-secondary" id="preview-edit-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
+                            stroke-width="2" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
+                            stroke-width="2" />
+                    </svg>
+                    Edit Entry
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Quick Stats -->
+    <aside class="calendar-sidebar">
+        <div class="stats-card">
+            <h3 class="stats-title">This Month</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="month-entries">-</div>
+                    <div class="stat-label">Entries</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="month-words">-</div>
+                    <div class="stat-label">Words</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="month-streak">-</div>
+                    <div class="stat-label">Streak</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="recent-card">
+            <h3 class="recent-title">Recent Entries</h3>
+            <div class="recent-list" id="recent-list">
+                <div class="recent-loading">
+                    <div class="loading-spinner"></div>
+                    <span>Loading...</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/calendar.js"></script>
+{% endblock %}
