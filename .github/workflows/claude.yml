@@ -18,8 +18,23 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      id-token: write
     steps:
+      # GCP Workload Identity Federation
+      # TODO: Configure these secrets in repository settings:
+      #   GCP_WORKLOAD_IDENTITY_PROVIDER - workload identity provider URL
+      #   GCP_SERVICE_ACCOUNT - service account email
+      #   GCP_PROJECT_ID - your GCP project ID
+      #   GCP_REGION - Vertex AI region (e.g., us-central1)
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          use_vertex: "true"
+          vertex_project_id: ${{ secrets.GCP_PROJECT_ID }}
+          vertex_region: ${{ secrets.GCP_REGION }}
