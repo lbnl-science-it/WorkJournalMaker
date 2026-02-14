@@ -1,0 +1,405 @@
+.editor-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: var(--color-background);
+}
+
+/* Editor Header */
+.editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-6);
+    background-color: var(--color-surface-secondary);
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+}
+
+.editor-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.back-btn {
+    color: var(--color-text-secondary);
+}
+
+.back-btn:hover {
+    color: var(--color-text-primary);
+}
+
+.editor-title-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.editor-title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.editor-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.editor-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+/* Editor Main */
+.editor-main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.editor-workspace {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+.editor-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-surface-secondary);
+}
+
+.preview-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-background);
+    border-left: 1px solid var(--color-border);
+}
+
+/* Editor Toolbar */
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    gap: var(--space-2);
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--radius-md);
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.toolbar-btn:hover {
+    background-color: var(--color-border);
+    color: var(--color-text-primary);
+}
+
+.toolbar-btn.active {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.toolbar-spacer {
+    flex: 1;
+}
+
+/* Editor Content */
+.editor-content {
+    flex: 1;
+    display: flex;
+    position: relative;
+}
+
+.editor-textarea {
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: var(--space-6);
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base);
+    line-height: 1.7;
+    color: var(--color-text-primary);
+    background-color: transparent;
+    tab-size: 2;
+}
+
+.editor-textarea::placeholder {
+    color: var(--color-text-tertiary);
+}
+
+/* Preview Pane */
+.preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.preview-header h3 {
+    margin: 0;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.preview-content {
+    flex: 1;
+    padding: var(--space-6);
+    overflow-y: auto;
+    line-height: 1.7;
+}
+
+.preview-content h1,
+.preview-content h2,
+.preview-content h3,
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+    color: var(--color-text-primary);
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-3);
+}
+
+.preview-content h1 {
+    font-size: var(--font-size-2xl);
+}
+
+.preview-content h2 {
+    font-size: var(--font-size-xl);
+}
+
+.preview-content h3 {
+    font-size: var(--font-size-lg);
+}
+
+.preview-content p {
+    margin-bottom: var(--space-4);
+    color: var(--color-text-primary);
+}
+
+.preview-content ul,
+.preview-content ol {
+    margin-bottom: var(--space-4);
+    padding-left: var(--space-6);
+}
+
+.preview-content li {
+    margin-bottom: var(--space-2);
+    color: var(--color-text-primary);
+}
+
+.preview-content code {
+    background-color: var(--color-surface);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-family-mono);
+    font-size: 0.9em;
+}
+
+.preview-content pre {
+    background-color: var(--color-surface);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    overflow-x: auto;
+    margin-bottom: var(--space-4);
+}
+
+.preview-placeholder {
+    color: var(--color-text-tertiary);
+    font-style: italic;
+}
+
+/* Editor Footer */
+.editor-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-6);
+    background-color: var(--color-surface-secondary);
+    border-top: 1px solid var(--color-border);
+    flex-shrink: 0;
+}
+
+.editor-stats {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-sm);
+}
+
+.stat-label {
+    color: var(--color-text-secondary);
+}
+
+.stat-value {
+    color: var(--color-text-primary);
+    font-weight: 500;
+}
+
+.save-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.save-status.saving {
+    color: var(--color-warning);
+}
+
+.save-status.saved {
+    color: var(--color-success);
+}
+
+.save-status.error {
+    color: var(--color-error);
+}
+
+/* Focus Mode */
+.editor-container.focus-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background-color: var(--color-background);
+}
+
+.editor-container.focus-mode .editor-header,
+.editor-container.focus-mode .editor-footer {
+    display: none;
+}
+
+.editor-container.focus-mode .editor-toolbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+}
+
+.editor-container.focus-mode:hover .editor-toolbar {
+    opacity: 1;
+}
+
+/* Keyboard Shortcuts Help */
+.shortcuts-help {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.shortcuts-content {
+    background-color: var(--color-surface-secondary);
+    border-radius: var(--radius-xl);
+    padding: var(--space-8);
+    max-width: 400px;
+    width: 90%;
+}
+
+.shortcuts-content h3 {
+    margin: 0 0 var(--space-6) 0;
+    color: var(--color-text-primary);
+}
+
+.shortcuts-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+}
+
+.shortcut-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.shortcut-item kbd {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-family-mono);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .editor-header {
+        flex-direction: column;
+        gap: var(--space-3);
+        align-items: stretch;
+    }
+
+    .editor-nav {
+        justify-content: space-between;
+    }
+
+    .editor-actions {
+        justify-content: center;
+    }
+
+    .editor-workspace {
+        flex-direction: column;
+    }
+
+    .preview-pane {
+        border-left: none;
+        border-top: 1px solid var(--color-border);
+    }
+
+    .editor-stats {
+        gap: var(--space-4);
+    }
+
+    .editor-footer {
+        flex-direction: column;
+        gap: var(--space-2);
+        align-items: stretch;
+    }
+}

@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Daily Work Journal{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/settings.css">
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <!-- Settings Header -->
+    <header class="settings-header">
+        <div class="settings-nav">
+            <button class="btn-icon back-btn" id="back-btn" title="Back to Dashboard">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="m12 19-7-7 7-7" stroke="currentColor" stroke-width="2" />
+                    <path d="m19 12H5" stroke="currentColor" stroke-width="2" />
+                </svg>
+            </button>
+
+            <div class="settings-title-section">
+                <h1 class="settings-title">Settings</h1>
+                <p class="settings-subtitle">Customize your journal experience</p>
+            </div>
+        </div>
+
+        <div class="settings-actions">
+            <button class="btn btn-secondary" id="export-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
+                    <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" />
+                    <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" />
+                </svg>
+                Export
+            </button>
+
+            <button class="btn btn-secondary" id="import-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
+                    <polyline points="17,8 12,3 7,8" stroke="currentColor" stroke-width="2" />
+                    <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" />
+                </svg>
+                Import
+            </button>
+
+            <button class="btn btn-primary" id="save-all-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor"
+                        stroke-width="2" />
+                    <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" />
+                    <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" />
+                </svg>
+                Save All
+            </button>
+        </div>
+    </header>
+
+    <!-- Settings Content -->
+    <main class="settings-main">
+        <!-- Settings Navigation -->
+        <nav class="settings-nav-sidebar">
+            <div class="nav-section">
+                <button class="nav-item active" data-category="filesystem">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                            stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    File System
+                </button>
+
+                <button class="nav-item" data-category="editor">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor"
+                            stroke-width="2" />
+                        <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" />
+                        <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Editor
+                </button>
+
+                <button class="nav-item" data-category="ui">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                        <circle cx="9" cy="9" r="2" stroke="currentColor" stroke-width="2" />
+                        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Interface
+                </button>
+
+                <button class="nav-item" data-category="work-week">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2" />
+                        <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2" />
+                        <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2" />
+                        <rect x="9" y="12" width="6" height="2" rx="1" fill="currentColor" />
+                        <rect x="7" y="15" width="10" height="2" rx="1" fill="currentColor" />
+                    </svg>
+                    Work Week
+                </button>
+
+                <button class="nav-item" data-category="calendar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2" />
+                        <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2" />
+                        <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Calendar
+                </button>
+
+                <button class="nav-item" data-category="backup">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor"
+                            stroke-width="2" />
+                        <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" />
+                        <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Backup
+                </button>
+
+                <button class="nav-item" data-category="llm">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" />
+                        <path d="M21 12c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z" stroke="currentColor"
+                            stroke-width="2" />
+                        <path d="M3 12c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z" stroke="currentColor"
+                            stroke-width="2" />
+                    </svg>
+                    LLM Config
+                </button>
+
+                <button class="nav-item" data-category="sync">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="currentColor" stroke-width="2" />
+                        <polyline points="16,6 12,2 8,6" stroke="currentColor" stroke-width="2" />
+                        <line x1="12" y1="2" x2="12" y2="15" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Database Sync
+                </button>
+            </div>
+
+            <div class="nav-section-bottom">
+                <button class="nav-item danger" id="reset-all-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Reset All
+                </button>
+            </div>
+        </nav>
+
+        <!-- Settings Panels -->
+        <div class="settings-content">
+            <div class="settings-panel active" id="filesystem-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">File System Settings</h2>
+                    <p class="panel-description">Configure paths and file handling options</p>
+                </div>
+
+                <div class="settings-grid" id="filesystem-settings">
+                    <!-- Settings will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="settings-panel" id="editor-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Editor Settings</h2>
+                    <p class="panel-description">Customize your writing experience</p>
+                </div>
+
+                <div class="settings-grid" id="editor-settings">
+                    <!-- Settings will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="settings-panel" id="ui-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Interface Settings</h2>
+                    <p class="panel-description">Personalize the user interface</p>
+                </div>
+
+                <div class="settings-grid" id="ui-settings">
+                    <!-- Settings will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="settings-panel" id="work-week-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Work Week Settings</h2>
+                    <p class="panel-description">Configure your work week schedule for proper journal organization</p>
+                </div>
+
+                <div class="work-week-settings">
+                    <!-- Work Week Preset Selection -->
+                    <div class="setting-group">
+                        <label class="setting-label" for="work-week-preset">
+                            Work Week Schedule
+                            <span class="setting-help-icon" data-tooltip="Choose your work week schedule. Weekend entries will be organized into the nearest work week.">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                    <path d="m9,9 h0a3,3 0 1,1 5.12,2.12l-2.12,2.88" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M12 17h.01" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </span>
+                        </label>
+                        <select id="work-week-preset" class="setting-input work-week-preset-select" aria-describedby="work-week-preset-help">
+                            <option value="monday-friday">Monday - Friday</option>
+                            <option value="sunday-thursday">Sunday - Thursday</option>
+                            <option value="custom">Custom Schedule</option>
+                        </select>
+                        <p class="setting-description" id="work-week-preset-help">
+                            Select a preset work week or choose custom to define your own schedule.
+                        </p>
+                    </div>
+
+                    <!-- Custom Schedule Configuration (hidden by default) -->
+                    <div class="setting-group custom-schedule" id="custom-schedule-group" style="display: none;">
+                        <label class="setting-label">Custom Work Week</label>
+                        
+                        <div class="custom-schedule-inputs">
+                            <div class="day-selector">
+                                <label for="work-week-start-day" class="day-label">Start Day</label>
+                                <select id="work-week-start-day" class="setting-input day-select" aria-describedby="custom-schedule-help">
+                                    <option value="1">Monday</option>
+                                    <option value="2">Tuesday</option>
+                                    <option value="3">Wednesday</option>
+                                    <option value="4">Thursday</option>
+                                    <option value="5">Friday</option>
+                                    <option value="6">Saturday</option>
+                                    <option value="7">Sunday</option>
+                                </select>
+                            </div>
+                            
+                            <div class="day-selector">
+                                <label for="work-week-end-day" class="day-label">End Day</label>
+                                <select id="work-week-end-day" class="setting-input day-select" aria-describedby="custom-schedule-help">
+                                    <option value="1">Monday</option>
+                                    <option value="2">Tuesday</option>
+                                    <option value="3">Wednesday</option>
+                                    <option value="4">Thursday</option>
+                                    <option value="5" selected>Friday</option>
+                                    <option value="6">Saturday</option>
+                                    <option value="7">Sunday</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <p class="setting-description" id="custom-schedule-help">
+                            Define your custom work week by selecting the start and end days.
+                        </p>
+                    </div>
+
+                    <!-- Work Week Preview -->
+                    <div class="setting-group">
+                        <label class="setting-label">Preview</label>
+                        <div class="work-week-preview" id="work-week-preview">
+                            <div class="preview-content">
+                                <div class="preview-schedule">
+                                    <strong>Current Schedule:</strong> <span id="preview-schedule-text">Monday - Friday</span>
+                                </div>
+                                <div class="preview-weekend-handling">
+                                    <strong>Weekend Handling:</strong>
+                                    <ul class="weekend-rules">
+                                        <li><strong>Saturday entries</strong> → Assigned to previous work week</li>
+                                        <li><strong>Sunday entries</strong> → Assigned to next work week</li>
+                                    </ul>
+                                </div>
+                                <div class="preview-example" id="preview-example">
+                                    <!-- Example will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Validation Messages -->
+                    <div class="validation-feedback" id="work-week-validation" style="display: none;">
+                        <div class="validation-message" id="work-week-validation-message"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-panel" id="calendar-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Calendar Settings</h2>
+                    <p class="panel-description">Configure calendar display options</p>
+                </div>
+
+                <div class="settings-grid" id="calendar-settings">
+                    <!-- Settings will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="settings-panel" id="backup-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Backup Settings</h2>
+                    <p class="panel-description">Configure automatic backup options</p>
+                </div>
+
+                <div class="settings-grid" id="backup-settings">
+                    <!-- Settings will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="settings-panel" id="llm-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">LLM Configuration</h2>
+                    <p class="panel-description">View current LLM settings (configured via CLI)</p>
+                </div>
+
+                <div class="settings-grid" id="llm-settings">
+                    <!-- Settings will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="settings-panel" id="sync-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Database Synchronization</h2>
+                    <p class="panel-description">Manage database synchronization with your journal files</p>
+                </div>
+
+                <div class="sync-section">
+                    <!-- Sync Status -->
+                    <div class="sync-status-card">
+                        <div class="sync-status-header">
+                            <h3>Sync Status</h3>
+                            <button class="btn btn-secondary btn-small" id="refresh-sync-status">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="sync-status-content" id="sync-status-content">
+                            <div class="loading-placeholder">Loading status...</div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Sync Controls -->
+                    <div class="sync-controls-card">
+                        <div class="sync-controls-header">
+                            <h3>Manual Synchronization</h3>
+                            <p>Manually trigger database synchronization operations</p>
+                        </div>
+                        <div class="sync-controls-content">
+                            <div class="sync-control-group">
+                                <div class="control-info">
+                                    <h4>Incremental Sync</h4>
+                                    <p>Sync recent changes (last 7 days)</p>
+                                </div>
+                                <div class="control-input">
+                                    <input type="number" id="incremental-days" value="7" min="1" max="30" />
+                                    <label>days</label>
+                                </div>
+                                <div class="control-action">
+                                    <button class="btn btn-primary" id="trigger-incremental-sync">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                            <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                                        </svg>
+                                        Start Incremental Sync
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="sync-control-group">
+                                <div class="control-info">
+                                    <h4>Full Sync</h4>
+                                    <p>Complete synchronization of all entries</p>
+                                </div>
+                                <div class="control-input">
+                                    <input type="number" id="full-sync-days" value="730" min="30" max="3650" />
+                                    <label>days</label>
+                                </div>
+                                <div class="control-action">
+                                    <button class="btn btn-secondary" id="trigger-full-sync">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="currentColor" stroke-width="2" />
+                                            <polyline points="16,6 12,2 8,6" stroke="currentColor" stroke-width="2" />
+                                            <line x1="12" y1="2" x2="12" y2="15" stroke="currentColor" stroke-width="2" />
+                                        </svg>
+                                        Start Full Sync
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sync History -->
+                    <div class="sync-history-card">
+                        <div class="sync-history-header">
+                            <h3>Recent Sync History</h3>
+                            <button class="btn btn-secondary btn-small" id="refresh-sync-history">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="sync-history-content" id="sync-history-content">
+                            <div class="loading-placeholder">Loading history...</div>
+                        </div>
+                    </div>
+
+                    <!-- Scheduler Controls -->
+                    <div class="sync-scheduler-card">
+                        <div class="sync-scheduler-header">
+                            <h3>Automatic Sync Scheduler</h3>
+                            <p>Manage automatic background synchronization</p>
+                        </div>
+                        <div class="sync-scheduler-content" id="sync-scheduler-content">
+                            <div class="loading-placeholder">Loading scheduler status...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Import Modal -->
+<div class="modal" id="import-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Import Settings</h3>
+            <button class="btn-icon" id="close-import-modal">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" />
+                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label" for="import-file">Select Settings File</label>
+                <input type="file" id="import-file" class="form-input" accept=".json">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="import-merge" checked>
+                    Merge with existing settings (uncheck to replace all)
+                </label>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="cancel-import">Cancel</button>
+            <button class="btn btn-primary" id="confirm-import">Import Settings</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Confirmation Modal -->
+<div class="modal" id="reset-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Reset All Settings</h3>
+            <button class="btn-icon" id="close-reset-modal">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" />
+                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <p>Are you sure you want to reset all settings to their default values? This action cannot be undone.</p>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="cancel-reset">Cancel</button>
+            <button class="btn btn-danger" id="confirm-reset">Reset All Settings</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <span class="loading-text">Loading settings...</span>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/settings.js"></script>
+{% endblock %}

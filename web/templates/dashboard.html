@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Daily Work Journal{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Today Section -->
+    <section class="today-section">
+        <div class="today-header">
+            <div class="today-info">
+                <h1 class="today-title" id="today-title">Today</h1>
+                <p class="today-date" id="today-date">Loading...</p>
+            </div>
+            <div class="today-actions">
+                <button class="btn btn-primary" id="new-entry-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" />
+                        <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    New Entry
+                </button>
+                <button class="btn btn-secondary" id="open-today-btn" style="display: none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor"
+                            stroke-width="2" />
+                        <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    Open Today's Entry
+                </button>
+            </div>
+        </div>
+
+        <div class="today-status" id="today-status">
+            <div class="status-indicator">
+                <div class="status-dot" id="status-dot"></div>
+                <span class="status-text" id="status-text">Loading...</span>
+            </div>
+            <div class="status-meta" id="status-meta"></div>
+        </div>
+    </section>
+
+    <!-- Quick Stats -->
+    <section class="stats-section">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor"
+                            stroke-width="2" />
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-entries">-</div>
+                    <div class="stat-label">Total Entries</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 3h18v18H3zM8 12h8M8 16h6" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="this-week-entries">-</div>
+                    <div class="stat-label">This Week</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                        <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="streak-count">-</div>
+                    <div class="stat-label">Day Streak</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recent Entries -->
+    <section class="recent-section">
+        <div class="section-header">
+            <h2 class="section-title">Recent Entries</h2>
+            <a href="/calendar" class="section-action">View All</a>
+        </div>
+
+        <div class="recent-entries" id="recent-entries">
+            <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <span>Loading recent entries...</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="actions-section">
+        <div class="section-header">
+            <h2 class="section-title">Quick Actions</h2>
+        </div>
+
+        <div class="actions-grid">
+            <button class="action-card" id="calendar-action">
+                <div class="action-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2" />
+                        <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2" />
+                        <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                </div>
+                <div class="action-content">
+                    <h3 class="action-title">Browse Calendar</h3>
+                    <p class="action-description">View and navigate your journal entries by date</p>
+                </div>
+            </button>
+
+            <button class="action-card" id="summarize-action">
+                <div class="action-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor"
+                            stroke-width="2" />
+                        <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" />
+                        <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                </div>
+                <div class="action-content">
+                    <h3 class="action-title">Generate Summary</h3>
+                    <p class="action-description">Create weekly or monthly summaries of your work</p>
+                </div>
+            </button>
+
+            <button class="action-card" id="search-action">
+                <div class="action-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" />
+                        <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                </div>
+                <div class="action-content">
+                    <h3 class="action-title">Search Entries</h3>
+                    <p class="action-description">Find specific entries or content across all dates</p>
+                </div>
+            </button>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

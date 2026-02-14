@@ -1,0 +1,899 @@
+/* Settings Page Styles */
+
+.settings-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-background);
+}
+
+/* Settings Header */
+.settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-surface-secondary);
+}
+
+.settings-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.settings-title-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.settings-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.settings-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.settings-actions {
+    display: flex;
+    gap: var(--space-3);
+}
+
+/* Settings Main Layout */
+.settings-main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Settings Navigation Sidebar */
+.settings-nav-sidebar {
+    width: 280px;
+    background-color: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-6);
+}
+
+.nav-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    flex: 1;
+}
+
+.nav-section-bottom {
+    margin-top: var(--space-8);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: none;
+    border-radius: var(--radius-lg);
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+    width: 100%;
+}
+
+.nav-item:hover {
+    background-color: var(--color-surface-secondary);
+    color: var(--color-text-primary);
+}
+
+.nav-item.active {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.nav-item.danger {
+    color: var(--color-error);
+}
+
+.nav-item.danger:hover {
+    background-color: var(--color-error);
+    color: white;
+}
+
+/* Settings Content */
+.settings-content {
+    flex: 1;
+    padding: var(--space-6);
+    overflow-y: auto;
+}
+
+.settings-panel {
+    display: none;
+}
+
+.settings-panel.active {
+    display: block;
+}
+
+.panel-header {
+    margin-bottom: var(--space-8);
+}
+
+.panel-title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-2) 0;
+}
+
+.panel-description {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+/* Settings Grid */
+.settings-grid {
+    display: grid;
+    gap: var(--space-6);
+}
+
+.setting-item {
+    background-color: var(--color-surface-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    transition: all var(--transition-normal);
+}
+
+.setting-item:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+.setting-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+}
+
+.setting-info {
+    flex: 1;
+}
+
+.setting-label {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-1) 0;
+}
+
+.setting-description {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.setting-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-left: var(--space-4);
+}
+
+.setting-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+/* Setting Input Types */
+.setting-input {
+    flex: 1;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    transition: all var(--transition-fast);
+}
+
+.setting-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.setting-input:disabled {
+    background-color: var(--color-surface);
+    color: var(--color-text-tertiary);
+    cursor: not-allowed;
+}
+
+.setting-select {
+    flex: 1;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    cursor: pointer;
+}
+
+.setting-checkbox {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-background);
+    cursor: pointer;
+    position: relative;
+    transition: all var(--transition-fast);
+}
+
+.setting-checkbox:checked {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.setting-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 6px;
+    width: 6px;
+    height: 10px;
+    border: 2px solid white;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+}
+
+.setting-range {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    background: var(--color-border);
+    border-radius: 3px;
+    outline: none;
+}
+
+.setting-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--color-primary);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.setting-range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: var(--color-primary);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.range-value {
+    min-width: 40px;
+    text-align: center;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+/* Path Validation */
+.path-validation {
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.path-validation.valid {
+    background-color: rgba(52, 199, 89, 0.1);
+    color: var(--color-success);
+    border: 1px solid rgba(52, 199, 89, 0.2);
+}
+
+.path-validation.invalid {
+    background-color: rgba(255, 59, 48, 0.1);
+    color: var(--color-error);
+    border: 1px solid rgba(255, 59, 48, 0.2);
+}
+
+.path-validation.warning {
+    background-color: rgba(255, 149, 0, 0.1);
+    color: var(--color-warning);
+    border: 1px solid rgba(255, 149, 0, 0.2);
+}
+
+/* Setting Status Indicators */
+.setting-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-xs);
+    margin-top: var(--space-2);
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator.changed {
+    background-color: var(--color-warning);
+}
+
+.status-indicator.saved {
+    background-color: var(--color-success);
+}
+
+.status-indicator.error {
+    background-color: var(--color-error);
+}
+
+.status-indicator.readonly {
+    background-color: var(--color-text-tertiary);
+}
+
+/* Modals */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background-color: var(--color-surface-secondary);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.modal-body {
+    padding: var(--space-6);
+}
+
+.modal-footer {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: flex-end;
+    padding: var(--space-6);
+    border-top: 1px solid var(--color-border);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.3);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: var(--space-4);
+    z-index: 2000;
+}
+
+.loading-overlay.active {
+    display: flex;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--color-border);
+    border-top: 4px solid var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.loading-text {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .settings-header {
+        flex-direction: column;
+        gap: var(--space-4);
+        align-items: flex-start;
+    }
+
+    .settings-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .settings-main {
+        flex-direction: column;
+    }
+
+    .settings-nav-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+        padding: var(--space-4);
+    }
+
+    .nav-section {
+        flex-direction: row;
+        overflow-x: auto;
+        gap: var(--space-2);
+    }
+
+    .nav-item {
+        white-space: nowrap;
+        min-width: auto;
+    }
+
+    .nav-section-bottom {
+        margin-top: var(--space-4);
+        padding-top: var(--space-4);
+        border-top: 1px solid var(--color-border);
+    }
+
+    .settings-content {
+        padding: var(--space-4);
+    }
+
+    .setting-header {
+        flex-direction: column;
+        gap: var(--space-3);
+        align-items: flex-start;
+    }
+
+    .setting-actions {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .setting-control {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-2);
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: var(--space-4);
+    }
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .settings-nav-sidebar {
+    background-color: var(--color-surface);
+}
+
+[data-theme="dark"] .nav-item.active {
+    background-color: var(--color-primary);
+}
+
+[data-theme="dark"] .setting-input:disabled {
+    background-color: var(--color-surface);
+    color: var(--color-text-tertiary);
+}
+
+/* Sync Section Styles */
+.sync-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+/* Sync Cards */
+.sync-status-card,
+.sync-controls-card,
+.sync-history-card,
+.sync-scheduler-card {
+    background-color: var(--color-surface-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    transition: all var(--transition-normal);
+}
+
+.sync-status-card:hover,
+.sync-controls-card:hover,
+.sync-history-card:hover,
+.sync-scheduler-card:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+/* Card Headers */
+.sync-status-header,
+.sync-controls-header,
+.sync-history-header,
+.sync-scheduler-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--space-6);
+    transition: all var(--transition-normal);
+}
+
+.sync-status-header h3,
+.sync-controls-header h3,
+.sync-history-header h3,
+.sync-scheduler-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.sync-controls-header p,
+.sync-scheduler-header p {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: var(--space-1) 0 0 0;
+}
+
+/* Sync Controls */
+.sync-controls-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+.sync-control-group {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--space-4);
+    align-items: center;
+    padding: var(--space-4);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.control-info h4 {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-1) 0;
+}
+
+.control-info p {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.control-input {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.control-input input {
+    width: 80px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    text-align: center;
+}
+
+.control-input label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.control-action button {
+    min-width: 180px;
+}
+
+/* Sync Status Display */
+.sync-status-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.sync-status-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.status-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.status-value {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.status-value.in-progress {
+    color: var(--color-warning);
+}
+
+.status-value.success {
+    color: var(--color-success);
+}
+
+.status-value.error {
+    color: var(--color-error);
+}
+
+/* Sync History */
+.sync-history-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.sync-history-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.history-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.history-status.running {
+    background-color: var(--color-warning);
+    animation: pulse 2s infinite;
+}
+
+.history-status.completed {
+    background-color: var(--color-success);
+}
+
+.history-status.failed {
+    background-color: var(--color-error);
+}
+
+.history-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.history-type {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.history-details {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.history-timestamp {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    font-family: var(--font-mono);
+}
+
+.history-stats {
+    display: flex;
+    gap: var(--space-2);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+/* Scheduler Controls */
+.sync-scheduler-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.scheduler-status {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-4);
+    align-items: center;
+    padding: var(--space-4);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.scheduler-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.scheduler-state {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.scheduler-details {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.scheduler-controls {
+    display: flex;
+    gap: var(--space-2);
+}
+
+/* Progress Indicators */
+.sync-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background-color: rgba(255, 149, 0, 0.1);
+    border: 1px solid rgba(255, 149, 0, 0.2);
+    border-radius: var(--radius-lg);
+    margin-top: var(--space-3);
+}
+
+.sync-progress-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-border);
+    border-top: 2px solid var(--color-warning);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.sync-progress-text {
+    font-size: var(--font-size-sm);
+    color: var(--color-warning);
+    font-weight: 500;
+}
+
+/* Loading Placeholders */
+.loading-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-8);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.loading-placeholder .loading-spinner {
+    width: 20px;
+    height: 20px;
+    border-width: 2px;
+}
+
+/* Button Styles */
+.btn-small {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-xs);
+    height: auto;
+}
+
+/* Animations */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Responsive Design for Sync Section */
+@media (max-width: 768px) {
+    .sync-control-group {
+        grid-template-columns: 1fr;
+        gap: var(--space-3);
+        text-align: center;
+    }
+
+    .control-action button {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .sync-history-item {
+        grid-template-columns: auto 1fr;
+        gap: var(--space-2);
+    }
+
+    .history-timestamp,
+    .history-stats {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .scheduler-status {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .scheduler-controls {
+        justify-content: center;
+    }
+
+}

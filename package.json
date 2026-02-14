@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "private-journal-mcp": "github:obra/private-journal-mcp"
+  }
+}
