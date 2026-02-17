@@ -142,8 +142,12 @@ build/
 node_modules/
 package-lock.json
 
-# MCP debug files
+# Debug and test artifacts
 mcp_debug.txt
+mcp_fix.txt
+mcp_server_diagnosis.txt
+*_test_results.json
+config_fix.md
 
 CLAUDE.md
 .claude/
