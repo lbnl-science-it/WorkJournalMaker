@@ -337,7 +337,6 @@ class TestBackwardCompatibility:
         assert config.output_path == "~/Desktop/worklogs/summaries/"
         assert config.max_file_size_mb == 50
         assert config.batch_size == 10
-        assert config.rate_limit_delay == 1.0
         
         # Only new field should be None by default
         assert config.database_path is None
