@@ -11,16 +11,11 @@ Version: Phase 5 - Summary Generation System
 
 import pytest
 from datetime import date, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 from pathlib import Path
-import sys
-import os
-
-# Add the parent directory to the path to import our modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from summary_generator import SummaryGenerator, PeriodSummary, SummaryStats
-from llm_client import LLMClient, AnalysisResult
+from llm_data_structures import AnalysisResult, LLMClientProtocol
 
 
 class TestSummaryGenerator:
@@ -29,7 +24,7 @@ class TestSummaryGenerator:
     @pytest.fixture
     def mock_llm_client(self):
         """Create a mock LLM client for testing."""
-        mock_client = MagicMock(spec=LLMClient)
+        mock_client = MagicMock(spec=LLMClientProtocol)
         return mock_client
     
     @pytest.fixture
@@ -159,8 +154,7 @@ class TestSummaryGenerator:
         expected_themes = ["Development", "Planning", "Documentation"]
         assert set(aggregated['themes']) == set(expected_themes)
     
-    @patch.object(LLMClient, 'analyze_content')
-    def test_summary_generation(self, mock_analyze, summary_generator, sample_analysis_results):
+    def test_summary_generation(self, summary_generator, sample_analysis_results):
         """Test summary generation with mocked LLM."""
         # Mock the LLM client's analyze_content method to return a summary
         mock_summary_response = AnalysisResult(

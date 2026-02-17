@@ -8,9 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -27,11 +25,11 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+# PyInstaller outputs (but allow our source .spec and build/ directory)
 *.manifest
-*.spec
+build/dist/
+build/build/
+build/*.spec
 
 # Installer logs
 pip-log.txt
@@ -134,3 +132,23 @@ config.yaml
 config.json
 .DS_Store
 local_summaries/
+*.db
+web/journal_index.db
+
+failure_images/
+build/
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Debug and test artifacts
+mcp_debug.txt
+mcp_fix.txt
+mcp_server_diagnosis.txt
+*_test_results.json
+config_fix.md
+
+CLAUDE.md
+.claude/
+dist/

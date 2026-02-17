@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# ABOUTME: Shared data structures and interface contract for LLM clients.
+# ABOUTME: Defines AnalysisResult, APIStats, and the LLMClientProtocol.
 """
 LLM Data Structures - Shared data structures for LLM clients
 
@@ -11,7 +13,7 @@ Version: Multi-Provider Support
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Protocol, runtime_checkable
 from pathlib import Path
 
 
@@ -103,3 +105,33 @@ class APIStats:
     total_time: float
     average_response_time: float
     rate_limit_hits: int
+
+
+@runtime_checkable
+class LLMClientProtocol(Protocol):
+    """
+    Interface contract for LLM client implementations.
+
+    All LLM clients (BedrockClient, GoogleGenAIClient, UnifiedLLMClient)
+    satisfy this protocol via structural subtyping — no inheritance required.
+    """
+
+    def analyze_content(self, content: str, file_path: Path) -> AnalysisResult:
+        """Analyze journal content and extract structured information."""
+        ...
+
+    def get_stats(self) -> APIStats:
+        """Get API usage statistics."""
+        ...
+
+    def reset_stats(self) -> None:
+        """Reset API usage statistics."""
+        ...
+
+    def test_connection(self) -> bool:
+        """Test connection to the configured LLM provider."""
+        ...
+
+    def get_provider_info(self) -> Dict[str, Any]:
+        """Get provider-specific configuration information."""
+        ...

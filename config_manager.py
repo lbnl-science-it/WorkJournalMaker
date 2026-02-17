@@ -16,10 +16,53 @@ from typing import Dict, Any, Optional, Union
 import yaml
 import json
 import os
+import sys
 from enum import Enum
 
 # Import logger components for configuration
 from logger import LogConfig, LogLevel
+
+
+class ExecutableDetector:
+    """
+    Detects executable location for PyInstaller and development environments.
+    
+    This class provides robust executable directory detection that works in both
+    development mode and compiled executable environments (PyInstaller, cx_Freeze).
+    """
+    
+    def __init__(self):
+        """Initialize the executable detector."""
+        pass
+    
+    def get_executable_directory(self) -> Path:
+        """
+        Get the directory containing the executable.
+        
+        Handles both development and compiled executable environments:
+        - Development: Returns directory containing the main script
+        - PyInstaller: Returns directory containing the executable binary
+        - cx_Freeze: Returns directory containing the executable binary
+        
+        Returns:
+            Path: Directory containing the executable or main script
+        """
+        if self.is_frozen_executable():
+            # Running as compiled executable (PyInstaller, cx_Freeze, etc.)
+            return Path(sys.executable).parent
+        else:
+            # Running as Python script in development
+            # Use __file__ of this module as reference point
+            return Path(__file__).parent
+    
+    def is_frozen_executable(self) -> bool:
+        """
+        Check if we're running in a frozen executable environment.
+        
+        Returns:
+            bool: True if running as compiled executable, False if development
+        """
+        return getattr(sys, 'frozen', False)
 
 
 @dataclass
@@ -55,7 +98,7 @@ class ProcessingConfig:
     output_path: str = "~/Desktop/worklogs/summaries/"
     max_file_size_mb: int = 50
     batch_size: int = 10
-    rate_limit_delay: float = 1.0
+    database_path: Optional[str] = None
 
 
 @dataclass
@@ -78,9 +121,6 @@ class ConfigManager:
     
     # Standard configuration file locations
     CONFIG_LOCATIONS = [
-        Path("./config.yaml"),
-        Path("./config.yml"),
-        Path("./config.json"),
         Path("~/.config/work-journal-summarizer/config.yaml"),
         Path("~/.config/work-journal-summarizer/config.yml"),
         Path("~/.config/work-journal-summarizer/config.json"),
@@ -93,21 +133,41 @@ class ConfigManager:
         Args:
             config_path: Optional explicit path to configuration file
         """
+        self.executable_detector = ExecutableDetector()
         self.config_path = config_path or self._find_config_file()
         self.config = self._load_config()
         self._validate_config(self.config)
         
     def _find_config_file(self) -> Optional[Path]:
         """
-        Find configuration file in standard locations.
+        Find configuration file with executable-aware priority order.
+        
+        Priority (highest to lowest):
+        1. Executable directory config (co-located with executable binary)
+        2. Standard system locations
         
         Returns:
             Optional[Path]: Path to found config file, None if not found
         """
+        
+        # PARAMOUNT: Check executable directory FIRST (not working directory)
+        exe_dir = self.executable_detector.get_executable_directory()
+        exe_locations = [
+            exe_dir / "config.yaml",
+            exe_dir / "config.yml", 
+            exe_dir / "config.json"
+        ]
+        
+        for location in exe_locations:
+            if location.exists() and location.is_file():
+                return location
+        
+        # Then check standard system locations
         for location in self.CONFIG_LOCATIONS:
             expanded_path = location.expanduser()
             if expanded_path.exists() and expanded_path.is_file():
                 return expanded_path
+                
         return None
     
     def _load_config(self) -> AppConfig:
@@ -179,6 +239,7 @@ class ConfigManager:
             'WJS_LLM_PROVIDER': ['llm', 'provider'],
             'WJS_BASE_PATH': ['processing', 'base_path'],
             'WJS_OUTPUT_PATH': ['processing', 'output_path'],
+            'WJS_DATABASE_PATH': ['processing', 'database_path'],
             'WJS_MAX_FILE_SIZE_MB': ['processing', 'max_file_size_mb'],
             'WJS_LOG_LEVEL': ['logging', 'level'],
             'WJS_LOG_DIR': ['logging', 'log_dir'],
@@ -248,7 +309,7 @@ class ConfigManager:
             output_path=processing_dict.get('output_path', ProcessingConfig.output_path),
             max_file_size_mb=processing_dict.get('max_file_size_mb', ProcessingConfig.max_file_size_mb),
             batch_size=processing_dict.get('batch_size', ProcessingConfig.batch_size),
-            rate_limit_delay=processing_dict.get('rate_limit_delay', ProcessingConfig.rate_limit_delay)
+            database_path=processing_dict.get('database_path', ProcessingConfig.database_path)
         )
         
         # Extract logging configuration
@@ -418,9 +479,9 @@ class ConfigManager:
             'processing': {
                 'base_path': '~/Desktop/worklogs/',
                 'output_path': '~/Desktop/worklogs/summaries/',
+                'database_path': None,
                 'max_file_size_mb': 50,
-                'batch_size': 10,
-                'rate_limit_delay': 1.0
+                'batch_size': 10
             },
             'logging': {
                 'level': 'INFO',

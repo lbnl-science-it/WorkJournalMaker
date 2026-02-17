@@ -213,25 +213,44 @@ class FileDiscovery:
         return dates
     
     
-    def _calculate_week_ending_for_date(self, target_date: date) -> date:
+    def _find_week_ending_for_date(self, target_date: date) -> date:
         """
-        Calculate the proper week ending date for a specific file date.
+        Find the actual week ending date by scanning existing directory structure.
         
-        Based on your file structure example (week_ending_2024-12-20), it appears
-        that the week_ending date corresponds to the actual file date when the
-        file represents the end of a work week.
-        
-        For now, we'll use the target_date itself as the week_ending date,
-        but this can be adjusted based on your actual weekly structure.
+        Instead of calculating, we look at the actual week_ending directories
+        to find which one contains files for the target date.
         
         Args:
             target_date: The date of the specific journal file
             
         Returns:
-            date: The week ending date for this file's directory structure
+            date: The actual week ending date from directory structure
         """
-        # For now, use the target date itself as week ending
-        # This matches your example: worklog_2024-12-20.txt in week_ending_2024-12-20/
+        # Scan the actual directory structure to find the week_ending directory
+        # that contains files for this target_date
+        year_dir = self.base_path / f"worklogs_{target_date.year}"
+        month_dir = year_dir / f"worklogs_{target_date.year}-{target_date.month:02d}"
+        
+        if not month_dir.exists():
+            # Fallback to target_date if directory doesn't exist
+            return target_date
+            
+        # Look for week_ending directories in this month
+        for week_dir in month_dir.glob("week_ending_*"):
+            if not week_dir.is_dir():
+                continue
+                
+            # Check if this week directory contains a file for our target date
+            expected_filename = f"worklog_{target_date.year}-{target_date.month:02d}-{target_date.day:02d}.txt"
+            if (week_dir / expected_filename).exists():
+                # Extract the week ending date from directory name
+                try:
+                    week_ending_str = week_dir.name[12:]  # Remove "week_ending_" prefix
+                    return date.fromisoformat(week_ending_str)
+                except ValueError:
+                    continue
+        
+        # Fallback to target_date if no matching directory found
         return target_date
     
     def _construct_file_path(self, target_date: date, week_ending_date: date) -> Path:
@@ -328,8 +347,13 @@ class FileDiscovery:
                                 if week_ending_date is None:
                                     continue
                                 
-                                # Filter by date range
-                                if start_date <= week_ending_date <= end_date:
+                                # Filter by date range - check if directory could contain files in range
+                                # A week ending on week_ending_date could contain files from
+                                # (week_ending_date - 6 days) to week_ending_date
+                                week_start_date = week_ending_date - timedelta(days=6)
+                                
+                                # Include directory if its date range overlaps with search range
+                                if not (week_ending_date < start_date or week_start_date > end_date):
                                     discovered_directories.append((week_item, week_ending_date))
                         
                         except (OSError, PermissionError):

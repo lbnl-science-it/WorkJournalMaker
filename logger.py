@@ -344,6 +344,21 @@ class JournalSummarizerLogger:
         
         self.logger.warning(log_message)
     
+    def debug(self, message: str, **context) -> None:
+        """
+        Log a debug message.
+        
+        Args:
+            message: Debug message
+            **context: Additional context for the message
+        """
+        formatted_message = message
+        if context:
+            context_str = ", ".join(f"{k}={v}" for k, v in context.items())
+            formatted_message += f" ({context_str})"
+        
+        self.logger.debug(formatted_message)
+    
     def get_error_summary(self) -> Dict[str, Any]:
         """
         Get summary of all errors encountered.
