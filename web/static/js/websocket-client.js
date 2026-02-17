@@ -6,7 +6,11 @@
  */
 
 class SummarizationWebSocketClient {
-    constructor(baseUrl = 'ws://localhost:8000') {
+    constructor(baseUrl = null) {
+        if (!baseUrl) {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            baseUrl = `${wsProtocol}//${window.location.host}`;
+        }
         this.baseUrl = baseUrl;
         this.connections = new Map();
         this.eventHandlers = new Map();
