@@ -38,15 +38,15 @@ E (web app   (needs B done first for clean
 
 ## Clusters
 
-### Cluster A: Quick Fixes — PLANNED
-**Status:** GitHub issues #41-#45 created. `plan.md` and `todo.md` updated.
+### Cluster A: Quick Fixes — COMPLETE
+**Status:** All 5 issues (#41-#45) implemented and closed.
 **Items:** #12, #15, #20, #21, #22 from improvements.md
 **Scope:** Fix broken logging, hardcoded WebSocket URL, remove tracked
 build artifacts, delete empty file, remove debug artifacts.
 **Risk:** None. No behavioral changes to production logic.
 
-### Cluster B: Import / Type Cleanup
-**Status:** Not yet planned
+### Cluster B: Import / Type Cleanup — PLANNED
+**Status:** GitHub issues #46-#49 created. `plan.md` and `todo.md` updated.
 **Items:** #1, #3, #7, #10 from improvements.md
 **Scope:**
 - Remove duplicate `AnalysisResult`/`APIStats` from `llm_client.py`
@@ -104,8 +104,8 @@ careful test coverage to ensure phase ordering is preserved.
 
 | Cluster | Items | Status | Issues | PR |
 |---------|-------|--------|--------|----|
-| A       | #12,15,20,21,22 | Planned | #41-#45 | — |
-| B       | #1,3,7,10 | Not started | — | — |
+| A       | #12,15,20,21,22 | Complete | #41-#45 | — |
+| B       | #1,3,7,10 | Planned | #46-#49 | — |
 | C       | #2,6,8,9 | Not started | — | — |
 | D       | #13,19 | Not started | — | — |
 | E       | #14,17 | Not started | — | — |
