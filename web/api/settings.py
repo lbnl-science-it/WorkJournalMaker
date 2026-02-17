@@ -59,7 +59,10 @@ async def get_all_settings(
         settings = await settings_service.get_all_settings()
         return settings
     except Exception as e:
-        logger.logger.error if logger else print if logger else print(f"Failed to get all settings: {str(e)}")
+        if logger:
+            logger.logger.error(f"Failed to get all settings: {str(e)}")
+        else:
+            print(f"Failed to get all settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve settings: {str(e)}"
@@ -74,7 +77,10 @@ async def get_settings_categories(
         categories = settings_service.get_setting_categories()
         return SettingsCategoryResponse(categories=categories)
     except Exception as e:
-        logger.logger.error if logger else print(f"Failed to get settings categories: {str(e)}")
+        if logger:
+            logger.logger.error(f"Failed to get settings categories: {str(e)}")
+        else:
+            print(f"Failed to get settings categories: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve categories: {str(e)}"
@@ -312,7 +318,10 @@ async def get_setting(
     except HTTPException:
         raise
     except Exception as e:
-        logger.logger.error if logger else print(f"Failed to get setting {key}: {str(e)}")
+        if logger:
+            logger.logger.error(f"Failed to get setting {key}: {str(e)}")
+        else:
+            print(f"Failed to get setting {key}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve setting: {str(e)}"
@@ -339,7 +348,10 @@ async def update_setting(
             detail=str(e)
         )
     except Exception as e:
-        logger.logger.error if logger else print(f"Failed to update setting {key}: {str(e)}")
+        if logger:
+            logger.logger.error(f"Failed to update setting {key}: {str(e)}")
+        else:
+            print(f"Failed to update setting {key}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update setting: {str(e)}"
@@ -534,7 +546,10 @@ async def reset_setting(
             detail=str(e)
         )
     except Exception as e:
-        logger.logger.error if logger else print(f"Failed to reset setting {key}: {str(e)}")
+        if logger:
+            logger.logger.error(f"Failed to reset setting {key}: {str(e)}")
+        else:
+            print(f"Failed to reset setting {key}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to reset setting: {str(e)}"
@@ -549,7 +564,10 @@ async def reset_all_settings(
         reset_settings = await settings_service.reset_all_settings()
         return reset_settings
     except Exception as e:
-        logger.logger.error if logger else print(f"Failed to reset all settings: {str(e)}")
+        if logger:
+            logger.logger.error(f"Failed to reset all settings: {str(e)}")
+        else:
+            print(f"Failed to reset all settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to reset all settings: {str(e)}"
@@ -564,7 +582,10 @@ async def export_settings(
         export_data = await settings_service.export_settings()
         return export_data
     except Exception as e:
-        logger.logger.error if logger else print(f"Failed to export settings: {str(e)}")
+        if logger:
+            logger.logger.error(f"Failed to export settings: {str(e)}")
+        else:
+            print(f"Failed to export settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to export settings: {str(e)}"
@@ -585,7 +606,10 @@ async def import_settings(
             detail=str(e)
         )
     except Exception as e:
-        logger.logger.error if logger else print(f"Failed to import settings: {str(e)}")
+        if logger:
+            logger.logger.error(f"Failed to import settings: {str(e)}")
+        else:
+            print(f"Failed to import settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to import settings: {str(e)}"
@@ -626,9 +650,15 @@ async def validate_filesystem_path(
                 exists = True
                 is_directory = True
                 is_writable = True
-                logger.logger.info if logger else print(f"Created directory: {path_obj}")
+                if logger:
+                    logger.logger.info(f"Created directory: {path_obj}")
+                else:
+                    print(f"Created directory: {path_obj}")
             except Exception as e:
-                logger.logger.error if logger else print(f"Failed to create directory {path_obj}: {str(e)}")
+                if logger:
+                    logger.logger.error(f"Failed to create directory {path_obj}: {str(e)}")
+                else:
+                    print(f"Failed to create directory {path_obj}: {str(e)}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Cannot create directory: {str(e)}"
@@ -645,7 +675,10 @@ async def validate_filesystem_path(
     except HTTPException:
         raise
     except Exception as e:
-        logger.logger.error if logger else print(f"Failed to validate path {path}: {str(e)}")
+        if logger:
+            logger.logger.error(f"Failed to validate path {path}: {str(e)}")
+        else:
+            print(f"Failed to validate path {path}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid path: {str(e)}"
