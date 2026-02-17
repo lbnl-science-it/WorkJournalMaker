@@ -98,7 +98,6 @@ class ProcessingConfig:
     output_path: str = "~/Desktop/worklogs/summaries/"
     max_file_size_mb: int = 50
     batch_size: int = 10
-    rate_limit_delay: float = 1.0
     database_path: Optional[str] = None
 
 
@@ -310,7 +309,6 @@ class ConfigManager:
             output_path=processing_dict.get('output_path', ProcessingConfig.output_path),
             max_file_size_mb=processing_dict.get('max_file_size_mb', ProcessingConfig.max_file_size_mb),
             batch_size=processing_dict.get('batch_size', ProcessingConfig.batch_size),
-            rate_limit_delay=processing_dict.get('rate_limit_delay', ProcessingConfig.rate_limit_delay),
             database_path=processing_dict.get('database_path', ProcessingConfig.database_path)
         )
         
@@ -483,8 +481,7 @@ class ConfigManager:
                 'output_path': '~/Desktop/worklogs/summaries/',
                 'database_path': None,
                 'max_file_size_mb': 50,
-                'batch_size': 10,
-                'rate_limit_delay': 1.0
+                'batch_size': 10
             },
             'logging': {
                 'level': 'INFO',
