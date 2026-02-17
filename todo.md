@@ -6,7 +6,7 @@
 
 ## Steps
 
-- [ ] **Step 1:** Add `LLMClientProtocol` to `llm_data_structures.py` — TDD ([#46](https://github.com/lbnl-science-it/WorkJournalMaker/issues/46))
-- [ ] **Step 2:** Fix `summary_generator.py` imports and type hint — TDD ([#47](https://github.com/lbnl-science-it/WorkJournalMaker/issues/47))
-- [ ] **Step 3:** Remove dead `llm_client.py` and `tests/test_llm_client.py` ([#48](https://github.com/lbnl-science-it/WorkJournalMaker/issues/48))
-- [ ] **Step 4:** Remove duplicate `rate_limit_delay` from `ProcessingConfig` — TDD ([#49](https://github.com/lbnl-science-it/WorkJournalMaker/issues/49))
+- [x] **Step 1:** Add `LLMClientProtocol` to `llm_data_structures.py` — TDD ([#46](https://github.com/lbnl-science-it/WorkJournalMaker/issues/46))
+- [x] **Step 2:** Fix `summary_generator.py` imports and type hint — TDD ([#47](https://github.com/lbnl-science-it/WorkJournalMaker/issues/47))
+- [x] **Step 3:** Remove dead `llm_client.py` and `tests/test_llm_client.py` ([#48](https://github.com/lbnl-science-it/WorkJournalMaker/issues/48))
+- [x] **Step 4:** Remove duplicate `rate_limit_delay` from `ProcessingConfig` — TDD ([#49](https://github.com/lbnl-science-it/WorkJournalMaker/issues/49))
