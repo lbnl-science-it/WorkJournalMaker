@@ -19,7 +19,7 @@ import time
 import re
 from pathlib import Path
 
-from llm_client import LLMClient, AnalysisResult
+from llm_data_structures import AnalysisResult, LLMClientProtocol
 
 
 @dataclass
@@ -83,7 +83,7 @@ Requirements:
 Generate only the summary paragraph, no additional text.
 """
     
-    def __init__(self, llm_client: LLMClient):
+    def __init__(self, llm_client: LLMClientProtocol):
         """
         Initialize SummaryGenerator with LLM client.
         
