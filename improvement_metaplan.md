@@ -45,8 +45,8 @@ E (web app   (needs B done first for clean
 build artifacts, delete empty file, remove debug artifacts.
 **Risk:** None. No behavioral changes to production logic.
 
-### Cluster B: Import / Type Cleanup — PLANNED
-**Status:** GitHub issues #46-#49 created. `plan.md` and `todo.md` updated.
+### Cluster B: Import / Type Cleanup — COMPLETE
+**Status:** All 4 issues (#46-#49) implemented.
 **Items:** #1, #3, #7, #10 from improvements.md
 **Scope:**
 - Remove duplicate `AnalysisResult`/`APIStats` from `llm_client.py`
@@ -105,7 +105,7 @@ careful test coverage to ensure phase ordering is preserved.
 | Cluster | Items | Status | Issues | PR |
 |---------|-------|--------|--------|----|
 | A       | #12,15,20,21,22 | Complete | #41-#45 | — |
-| B       | #1,3,7,10 | Planned | #46-#49 | — |
+| B       | #1,3,7,10 | Complete | #46-#49 | — |
 | C       | #2,6,8,9 | Not started | — | — |
 | D       | #13,19 | Not started | — | — |
 | E       | #14,17 | Not started | — | — |
