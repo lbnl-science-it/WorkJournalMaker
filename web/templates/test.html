@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Test Page - Daily Work Journal{% endblock %}
+
+{% block content %}
+<div class="container py-8">
+    <!-- Header Section -->
+    <section class="mb-8">
+        <h1 class="text-4xl font-bold mb-4">Base Templates & Styling Test</h1>
+        <p class="text-lg text-secondary mb-6">Testing the foundational HTML templates and CSS styling system.</p>
+
+        <!-- Theme Toggle Test -->
+        <div class="d-flex gap-4 mb-6">
+            <button class="btn btn-primary" onclick="testToast('success')">Test Success Toast</button>
+            <button class="btn btn-secondary" onclick="testToast('error')">Test Error Toast</button>
+            <button class="btn btn-ghost" onclick="testToast('warning')">Test Warning Toast</button>
+            <button class="btn btn-primary btn-sm" onclick="testToast('info')">Test Info Toast</button>
+        </div>
+    </section>
+
+    <!-- Typography Section -->
+    <section class="mb-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Typography</h2>
+            </div>
+            <div class="card-content">
+                <h1>Heading 1 - Main Title</h1>
+                <h2>Heading 2 - Section Title</h2>
+                <h3>Heading 3 - Subsection</h3>
+                <h4>Heading 4 - Minor Heading</h4>
+                <h5>Heading 5 - Small Heading</h5>
+                <h6>Heading 6 - Smallest Heading</h6>
+
+                <p>This is a regular paragraph with <strong>bold text</strong>, <em>italic text</em>, and <a href="#">a
+                        link</a>. The typography system uses Inter font family for clean, modern readability.</p>
+
+                <blockquote>
+                    This is a blockquote example showing how quoted text appears in the design system.
+                </blockquote>
+
+                <code>inline code example</code>
+
+                <pre><code>// Code block example
+function hello() {
+  console.log('Hello, World!');
+}</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- Buttons Section -->
+    <section class="mb-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Buttons</h2>
+            </div>
+            <div class="card-content">
+                <div class="d-flex gap-3 mb-4 flex-wrap">
+                    <button class="btn btn-primary">Primary Button</button>
+                    <button class="btn btn-secondary">Secondary Button</button>
+                    <button class="btn btn-ghost">Ghost Button</button>
+                    <button class="btn btn-success">Success Button</button>
+                    <button class="btn btn-danger">Danger Button</button>
+                </div>
+
+                <div class="d-flex gap-3 mb-4 flex-wrap">
+                    <button class="btn btn-primary btn-sm">Small Button</button>
+                    <button class="btn btn-primary">Regular Button</button>
+                    <button class="btn btn-primary btn-lg">Large Button</button>
+                    <button class="btn btn-primary btn-xl">Extra Large</button>
+                </div>
+
+                <div class="d-flex gap-3 mb-4">
+                    <button class="btn-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                            <line x1="12" y1="8" x2="12.01" y2="8" stroke="currentColor" stroke-width="2" />
+                            <line x1="12" y1="12" x2="12" y2="16" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                    </button>
+                    <button class="btn-icon btn-icon-lg">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                                stroke="currentColor" stroke-width="2" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="d-flex gap-3">
+                    <button class="btn btn-primary" disabled>Disabled Button</button>
+                    <button class="btn btn-primary loading" id="loading-btn" onclick="testLoading()">Test
+                        Loading</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Form Elements Section -->
+    <section class="mb-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Form Elements</h2>
+            </div>
+            <div class="card-content">
+                <form>
+                    <div class="form-group">
+                        <label class="form-label required">Text Input</label>
+                        <input type="text" class="form-input" placeholder="Enter some text...">
+                        <div class="form-help">This is help text for the input field.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email Input</label>
+                        <input type="email" class="form-input" placeholder="your@email.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Textarea</label>
+                        <textarea class="form-textarea" placeholder="Enter your message..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Select Dropdown</label>
+                        <select class="form-select">
+                            <option>Choose an option</option>
+                            <option>Option 1</option>
+                            <option>Option 2</option>
+                            <option>Option 3</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="checkbox1">
+                            <label for="checkbox1">I agree to the terms and conditions</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-radio">
+                            <input type="radio" id="radio1" name="radio-group">
+                            <label for="radio1">Option A</label>
+                        </div>
+                        <div class="form-radio">
+                            <input type="radio" id="radio2" name="radio-group">
+                            <label for="radio2">Option B</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Calendar Section -->
+    <section class="mb-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Calendar Component</h2>
+            </div>
+            <div class="card-content">
+                <div class="calendar-header">
+                    <div class="calendar-header-day">Sun</div>
+                    <div class="calendar-header-day">Mon</div>
+                    <div class="calendar-header-day">Tue</div>
+                    <div class="calendar-header-day">Wed</div>
+                    <div class="calendar-header-day">Thu</div>
+                    <div class="calendar-header-day">Fri</div>
+                    <div class="calendar-header-day">Sat</div>
+                </div>
+                <div class="calendar-grid">
+                    <div class="calendar-day other-month">30</div>
+                    <div class="calendar-day other-month">31</div>
+                    <div class="calendar-day">1</div>
+                    <div class="calendar-day">2</div>
+                    <div class="calendar-day">3</div>
+                    <div class="calendar-day has-entry">4</div>
+                    <div class="calendar-day">5</div>
+                    <div class="calendar-day">6</div>
+                    <div class="calendar-day">7</div>
+                    <div class="calendar-day">8</div>
+                    <div class="calendar-day">9</div>
+                    <div class="calendar-day">10</div>
+                    <div class="calendar-day has-entry">11</div>
+                    <div class="calendar-day">12</div>
+                    <div class="calendar-day">13</div>
+                    <div class="calendar-day">14</div>
+                    <div class="calendar-day today">15</div>
+                    <div class="calendar-day">16</div>
+                    <div class="calendar-day">17</div>
+                    <div class="calendar-day has-entry">18</div>
+                    <div class="calendar-day">19</div>
+                    <div class="calendar-day">20</div>
+                    <div class="calendar-day">21</div>
+                    <div class="calendar-day">22</div>
+                    <div class="calendar-day">23</div>
+                    <div class="calendar-day">24</div>
+                    <div class="calendar-day">25</div>
+                    <div class="calendar-day">26</div>
+                    <div class="calendar-day">27</div>
+                    <div class="calendar-day">28</div>
+                    <div class="calendar-day">29</div>
+                    <div class="calendar-day">30</div>
+                    <div class="calendar-day other-month">1</div>
+                    <div class="calendar-day other-month">2</div>
+                    <div class="calendar-day other-month">3</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Badges and Avatars -->
+    <section class="mb-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Badges & Avatars</h2>
+            </div>
+            <div class="card-content">
+                <div class="mb-4">
+                    <h4 class="mb-3">Badges</h4>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="badge badge-primary">Primary</span>
+                        <span class="badge badge-success">Success</span>
+                        <span class="badge badge-warning">Warning</span>
+                        <span class="badge badge-error">Error</span>
+                        <span class="badge badge-secondary">Secondary</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="mb-3">Avatars</h4>
+                    <div class="d-flex gap-3 items-center">
+                        <div class="avatar avatar-sm">JS</div>
+                        <div class="avatar">AB</div>
+                        <div class="avatar avatar-lg">CD</div>
+                        <div class="avatar avatar-xl">EF</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Utility Classes -->
+    <section class="mb-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Utility Classes</h2>
+            </div>
+            <div class="card-content">
+                <div class="mb-4">
+                    <h4 class="mb-2">Spacing</h4>
+                    <div class="bg-primary-light p-4 mb-2">Padding 4</div>
+                    <div class="bg-surface p-6 mb-2">Padding 6</div>
+                    <div class="bg-primary-light p-8">Padding 8</div>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="mb-2">Text Alignment</h4>
+                    <p class="text-left">Left aligned text</p>
+                    <p class="text-center">Center aligned text</p>
+                    <p class="text-right">Right aligned text</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="mb-2">Colors</h4>
+                    <p class="text-primary">Primary text color</p>
+                    <p class="text-secondary">Secondary text color</p>
+                    <p class="text-success">Success text color</p>
+                    <p class="text-warning">Warning text color</p>
+                    <p class="text-error">Error text color</p>
+                </div>
+
+                <div>
+                    <h4 class="mb-2">Shadows</h4>
+                    <div class="d-flex gap-4 flex-wrap">
+                        <div class="bg-surface-secondary p-4 rounded-lg shadow-sm">Small Shadow</div>
+                        <div class="bg-surface-secondary p-4 rounded-lg shadow">Medium Shadow</div>
+                        <div class="bg-surface-secondary p-4 rounded-lg shadow-lg">Large Shadow</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function testToast(type) {
+        const messages = {
+            success: 'Operation completed successfully!',
+            error: 'Something went wrong. Please try again.',
+            warning: 'Please review your input before proceeding.',
+            info: 'Here is some helpful information.'
+        };
+
+        Utils.showToast(messages[type] || 'Test message', type);
+    }
+
+    function testLoading() {
+        const btn = document.getElementById('loading-btn');
+        Utils.setLoading(btn, true);
+
+        setTimeout(() => {
+            Utils.setLoading(btn, false);
+            Utils.showToast('Loading test completed!', 'success');
+        }, 3000);
+    }
+
+    // Test keyboard shortcuts
+    document.addEventListener('keydown', function (e) {
+        if (Utils.keyboard.isCombo(e, 'ctrl+k')) {
+            e.preventDefault();
+            Utils.showToast('Keyboard shortcut Ctrl+K detected!', 'info');
+        }
+    });
+
+    // Test theme change event
+    window.addEventListener('themechange', function (e) {
+        Utils.showToast(`Theme changed to ${e.detail.theme}`, 'info', 2000);
+    });
+</script>
+{% endblock %}
