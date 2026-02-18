@@ -14,12 +14,7 @@ Test Coverage:
 
 import pytest
 from datetime import date
-from pathlib import Path
-import sys
 import os
-
-# Add the parent directory to the path to import the module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from file_discovery import FileDiscovery
 

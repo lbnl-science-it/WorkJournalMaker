@@ -16,9 +16,6 @@ from datetime import date, datetime
 from pathlib import Path
 import json
 
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 def test_file_existence():
     """Test that all required files exist and have content."""
     print("=== Testing File Existence ===")

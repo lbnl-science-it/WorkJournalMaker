@@ -13,11 +13,7 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 from fastapi.testclient import TestClient
-import sys
 import json
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from web.app import app
 from web.database import DatabaseManager

@@ -12,11 +12,6 @@ from pathlib import Path
 from unittest.mock import Mock, AsyncMock, patch
 import tempfile
 import os
-import sys
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 from web.database import DatabaseManager, JournalEntryIndex
 from web.services.entry_manager import EntryManager
 from web.services.work_week_service import WorkWeekService, WorkWeekConfig, WorkWeekPreset

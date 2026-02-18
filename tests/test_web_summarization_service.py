@@ -11,12 +11,8 @@ import asyncio
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
-import sys
 import tempfile
 import os
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from config_manager import AppConfig, ProcessingConfig, LogConfig
 from logger import JournalSummarizerLogger

@@ -15,9 +15,6 @@ from datetime import datetime
 from typing import Dict, List, Tuple
 import argparse
 
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 
 class TestResult:
     """Represents the result of a test suite."""

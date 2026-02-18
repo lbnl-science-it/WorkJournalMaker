@@ -4,14 +4,10 @@ Debug script to identify all date display and parsing issues.
 This will check calendar logic, modal display, content parsing, and recent entries.
 """
 
-import sys
 from pathlib import Path
 from datetime import date, datetime
 import asyncio
 import re
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, LogConfig

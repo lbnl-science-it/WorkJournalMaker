@@ -9,11 +9,7 @@ import statistics
 import pytest
 import pytest_asyncio
 from datetime import datetime, date, timedelta
-import sys
 import os
-
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from web.services.work_week_service import WorkWeekService, WorkWeekConfig, WorkWeekPreset
 from web.database import DatabaseManager

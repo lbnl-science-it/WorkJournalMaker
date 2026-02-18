@@ -4,12 +4,8 @@ Test script to verify the logger fix works correctly.
 """
 
 import sys
-from pathlib import Path
 from datetime import date
 import asyncio
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, LogConfig

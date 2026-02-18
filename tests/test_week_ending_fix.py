@@ -4,12 +4,8 @@ Test script to verify the week ending fix works correctly.
 """
 
 import sys
-from pathlib import Path
 from datetime import date
 import asyncio
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
 
 from file_discovery import FileDiscovery
 from config_manager import AppConfig

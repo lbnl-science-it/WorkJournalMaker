@@ -14,16 +14,10 @@ from pathlib import Path
 from datetime import datetime
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import select, text
-import sys
-
-# Add parent directory to path to import modules
-sys.path.append(str(Path(__file__).parent.parent))
 from web.database import (
     DatabaseManager, WorkWeekSettings, Base, db_manager
 )
 import importlib.util
-import sys
-
 # Import the migration module using importlib
 migration_path = Path(__file__).parent.parent / "web" / "migrations" / "001_add_work_week_settings.py"
 spec = importlib.util.spec_from_file_location("work_week_migration", migration_path)

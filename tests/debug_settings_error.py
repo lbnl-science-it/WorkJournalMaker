@@ -1,8 +1,6 @@
 import asyncio
-import sys
 import os
 import logging
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Set up logging to see what's happening
 logging.basicConfig(level=logging.DEBUG)
