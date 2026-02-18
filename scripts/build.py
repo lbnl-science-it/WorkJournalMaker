@@ -32,10 +32,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-# Add project root to path for imports
 script_dir = Path(__file__).parent
 project_root = script_dir.parent
-sys.path.insert(0, str(project_root))
 
 try:
     from build_system.local_builder import LocalBuilder, BuildResult, BuildError, build_project

@@ -24,17 +24,12 @@ import asyncio
 import sqlite3
 import time
 import os
-import sys
 import stat
 import json
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Tuple
 import argparse
-
-# Add project paths for imports
-sys.path.append(str(Path(__file__).parent))
-sys.path.append(str(Path(__file__).parent / "web"))
 
 from sqlalchemy import create_engine, text, select, update, insert
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker

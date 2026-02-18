@@ -8,5 +8,5 @@
 
 - [x] **Step 1:** Add `pyproject.toml` and install in editable mode ([#51](https://github.com/lbnl-science-it/WorkJournalMaker/issues/51))
 - [x] **Step 2:** Remove `sys.path` hacks from `web/` (18 files) ([#52](https://github.com/lbnl-science-it/WorkJournalMaker/issues/52))
-- [ ] **Step 3:** Remove `sys.path` hacks from `tests/` (57 files) ([#53](https://github.com/lbnl-science-it/WorkJournalMaker/issues/53))
-- [ ] **Step 4:** Remove `sys.path` hacks from `scripts/`, `debug_scripts/`, and root (7 files) ([#54](https://github.com/lbnl-science-it/WorkJournalMaker/issues/54))
+- [x] **Step 3:** Remove `sys.path` hacks from `tests/` (58 files) ([#53](https://github.com/lbnl-science-it/WorkJournalMaker/issues/53))
+- [x] **Step 4:** Remove `sys.path` hacks from `scripts/`, `debug_scripts/`, and root (7 files) ([#54](https://github.com/lbnl-science-it/WorkJournalMaker/issues/54))
