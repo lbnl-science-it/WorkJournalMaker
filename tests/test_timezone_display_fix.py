@@ -4,14 +4,9 @@ Test script to verify the timezone display fixes are working correctly.
 This tests that the application displays dates in the correct local timezone.
 """
 
-import sys
-from pathlib import Path
 from datetime import date, datetime
 import asyncio
 import json
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, LogConfig

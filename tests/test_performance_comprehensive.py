@@ -13,13 +13,9 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from fastapi.testclient import TestClient
 import sys
-from pathlib import Path
 from datetime import date, timedelta
 import threading
 import statistics
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from web.app import app
 

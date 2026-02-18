@@ -11,12 +11,8 @@ Created: 2025-07-07
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text, select, inspect
-from pathlib import Path
-import sys
 import logging
 
-# Add parent directory to path to import database module
-sys.path.append(str(Path(__file__).parent.parent.parent))
 from web.database import WorkWeekSettings, Base, now_utc
 
 logging.basicConfig(level=logging.INFO)

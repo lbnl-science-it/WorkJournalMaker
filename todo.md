@@ -1,12 +1,12 @@
-# Cluster B: Import / Type Cleanup — Implementation Tracker
+# Cluster D: Package Structure — Implementation Tracker
 
 **Plan:** `plan.md`
-**Source:** `improvements.md` items #1, #3, #7, #10
+**Source:** `improvements.md` items #13, #19
 **Branch:** `improvements/code-review`
 
 ## Steps
 
-- [x] **Step 1:** Add `LLMClientProtocol` to `llm_data_structures.py` — TDD ([#46](https://github.com/lbnl-science-it/WorkJournalMaker/issues/46))
-- [x] **Step 2:** Fix `summary_generator.py` imports and type hint — TDD ([#47](https://github.com/lbnl-science-it/WorkJournalMaker/issues/47))
-- [x] **Step 3:** Remove dead `llm_client.py` and `tests/test_llm_client.py` ([#48](https://github.com/lbnl-science-it/WorkJournalMaker/issues/48))
-- [x] **Step 4:** Remove duplicate `rate_limit_delay` from `ProcessingConfig` — TDD ([#49](https://github.com/lbnl-science-it/WorkJournalMaker/issues/49))
+- [x] **Step 1:** Add `pyproject.toml` and install in editable mode ([#51](https://github.com/lbnl-science-it/WorkJournalMaker/issues/51))
+- [x] **Step 2:** Remove `sys.path` hacks from `web/` (18 files) ([#52](https://github.com/lbnl-science-it/WorkJournalMaker/issues/52))
+- [x] **Step 3:** Remove `sys.path` hacks from `tests/` (58 files) ([#53](https://github.com/lbnl-science-it/WorkJournalMaker/issues/53))
+- [x] **Step 4:** Remove `sys.path` hacks from `scripts/`, `debug_scripts/`, and root (7 files) ([#54](https://github.com/lbnl-science-it/WorkJournalMaker/issues/54))

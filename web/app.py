@@ -13,15 +13,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
-import sys
 import time
 import traceback
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
-
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from config_manager import ConfigManager, AppConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory

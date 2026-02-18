@@ -17,11 +17,7 @@ import json
 from datetime import date, timedelta
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, AsyncMock
-import sys
 from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from web.app import app
 from web.database import DatabaseManager

@@ -8,14 +8,9 @@ with the existing file structure.
 
 import asyncio
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 import calendar
-import sys
 from dataclasses import dataclass
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from file_discovery import FileDiscovery
 from config_manager import AppConfig

@@ -70,15 +70,15 @@ should catch regressions.
 - Provider fallback UX (silent retry vs user-visible?)
 - CBORG: still wanted or formally dropped?
 
-### Cluster D: Package Structure
-**Status:** Not yet planned. Benefits from Cluster B being done first.
+### Cluster D: Package Structure — COMPLETE
+**Status:** All 4 issues (#51-#54) implemented. All sys.path hacks removed.
 **Items:** #13, #19 from improvements.md
 **Scope:**
-- Add `pyproject.toml` or equivalent to make root importable
-- Remove all 18 `sys.path.append` calls from `web/` modules
+- Add `pyproject.toml` (flat layout) to make root importable
+- Remove all 84 `sys.path.append`/`sys.path.insert` calls from 83 files
 **Risk:** Medium. Affects every import in the project. Must verify all
 tests pass after restructuring.
-**Design decisions needed:** `pyproject.toml` at root vs `src/` layout.
+**Design decision:** Flat layout with `pyproject.toml` at root (no file moves).
 
 ### Cluster E: Web App Fixes
 **Status:** Not yet planned. Benefits from Cluster D (clean imports).
@@ -107,6 +107,6 @@ careful test coverage to ensure phase ordering is preserved.
 | A       | #12,15,20,21,22 | Complete | #41-#45 | — |
 | B       | #1,3,7,10 | Complete | #46-#49 | — |
 | C       | #2,6,8,9 | Not started | — | — |
-| D       | #13,19 | Not started | — | — |
+| D       | #13,19 | Complete | #51-#54 | — |
 | E       | #14,17 | Not started | — | — |
 | F       | #4,5,11,18 | Not started | — | — |

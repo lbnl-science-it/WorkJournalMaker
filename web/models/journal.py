@@ -9,12 +9,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator, field_s
 from datetime import date as Date, datetime as DateTime, timedelta
 from typing import Optional, List, Dict, Any, Union
 from enum import Enum
-import sys
-from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-from utils.timezone_utils import to_local, format_local_datetime
+from web.utils.timezone_utils import to_local, format_local_datetime
 
 
 class EntryStatus(str, Enum):

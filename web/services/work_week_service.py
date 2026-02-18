@@ -8,15 +8,10 @@ calculations with configurable work schedules and intelligent weekend handling.
 
 import asyncio
 from datetime import datetime, timezone, date, timedelta
-from pathlib import Path
 from typing import Dict, Any, Optional, List, Union, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
-import sys
 import re
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory

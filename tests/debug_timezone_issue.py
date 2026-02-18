@@ -4,14 +4,10 @@ Debug script to specifically test timezone and date display issues.
 This will validate the two most likely sources of the July 1st date problem.
 """
 
-import sys
 from pathlib import Path
 from datetime import date, datetime, timezone
 import asyncio
 import json
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, LogConfig

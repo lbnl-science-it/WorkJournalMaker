@@ -9,11 +9,7 @@ import pytest
 import asyncio
 from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-import sys
 from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from web.services.calendar_service import CalendarService, CalendarDay
 from web.models.journal import CalendarEntry, CalendarMonth, EntryStatus

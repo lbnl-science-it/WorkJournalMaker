@@ -1,52 +1,47 @@
-# Cluster B: Import / Type Cleanup — Implementation Plan
+# Cluster D: Package Structure — Implementation Plan
 
-**Source:** `improvements.md` items #1, #3, #7, #10
+**Source:** `improvements.md` items #13, #19
 **Branch:** `improvements/code-review`
-**Depends on:** Cluster A (complete)
+**Depends on:** Cluster B (complete)
 
 ## Problem Summary
 
-The LLM client layer has a type identity split. `llm_data_structures.py` is the
-canonical home for `AnalysisResult` and `APIStats`, but `llm_client.py` carries
-its own copies. `summary_generator.py` imports from `llm_client.py`, getting the
-wrong `AnalysisResult` class. The entire `llm_client.py` module (413 lines) is
-dead code — `UnifiedLLMClient` delegates to `BedrockClient`/`GoogleGenAIClient`,
-never to `LLMClient`. Additionally, `ProcessingConfig.rate_limit_delay` is
-unused — only `BedrockConfig.rate_limit_delay` is used in production.
+The project has no `pyproject.toml`, no root `__init__.py`, and no `conftest.py`.
+Root-level CLI modules (`config_manager.py`, `logger.py`, etc.) are not importable
+as a package. Every file under `web/`, `tests/`, `scripts/`, and `debug_scripts/`
+works around this with `sys.path.append`/`sys.path.insert` — 84 occurrences across
+83 files. These hacks are fragile, order-dependent, and cause `sys.path` to grow
+indefinitely during long-running server processes.
 
 ## Design Decision
 
-**LLM client interface: Protocol (structural subtyping)**
+**Flat layout with `pyproject.toml` at project root.**
 
-A `typing.Protocol` class will be defined in `llm_data_structures.py` specifying
-the methods that all LLM clients must implement: `analyze_content()`,
-`get_stats()`, `reset_stats()`, `test_connection()`, `get_provider_info()`.
-This formalizes the duck-typed contract without requiring inheritance changes to
-existing concrete classes.
+The project already has `web/`, `desktop/`, `scripts/`, and `build_system/` as
+proper sub-packages with `__init__.py`. The root CLI modules are the only
+loose files. A `pyproject.toml` with a flat layout makes the project root
+discoverable via `pip install -e .` without moving any files. This is the
+minimum-disruption approach.
 
-## Affected Files
+## Scope
 
-### Production code
-| File | Change |
-|------|--------|
-| `llm_data_structures.py` | Add `LLMClientProtocol` |
-| `summary_generator.py` | Fix imports, use Protocol for type hint |
-| `llm_client.py` | Delete entirely |
-| `config_manager.py` | Remove `rate_limit_delay` from `ProcessingConfig` |
+| Location | Files | sys.path calls |
+|----------|-------|----------------|
+| `web/` | 18 | 18 |
+| `tests/` | 57 | 57 |
+| `scripts/` | 4 | 4 |
+| `debug_scripts/` | 2 | 3 |
+| root (`reset_database_with_fix.py`) | 1 | 1 |
+| **Total** | **83** | **84** (one file has 2) |
 
-### Test code
-| File | Change |
-|------|--------|
-| `tests/test_llm_data_structures.py` | New — test Protocol conformance |
-| `tests/test_llm_client.py` | Delete (tests dead code) |
-| `tests/test_summary_generator.py` | Update imports |
-| `tests/test_database_config.py` | Remove `rate_limit_delay` assertion |
+### What the sys.path hacks resolve
 
-### Files that import from `llm_client.py` (verified via grep)
-- `summary_generator.py:22` — `from llm_client import LLMClient, AnalysisResult`
-- `tests/test_llm_client.py:19` — `from llm_client import LLMClient, AnalysisResult, APIStats`
-- `tests/test_summary_generator.py:23` — `from llm_client import LLMClient, AnalysisResult`
-- `improvements.md` / `implementation_plans/` — documentation only (no code change needed)
+All 84 calls exist for the same reason: to make root-level modules importable
+(`config_manager`, `logger`, `file_discovery`, `llm_data_structures`, etc.).
+
+One special case: `web/models/journal.py` appends `web/`'s parent to import
+`from utils.timezone_utils`. After the fix, this becomes
+`from web.utils.timezone_utils`.
 
 ## Implementation Steps
 
@@ -54,194 +49,202 @@ Steps are ordered so the test suite stays green after each commit.
 
 ---
 
-### Step 1: Add LLMClientProtocol to llm_data_structures.py (TDD)
+### Step 1: Add pyproject.toml and install in editable mode
 
-**Scope:** Add a `typing.Protocol` class that formalizes the LLM client interface.
+**Scope:** Create `pyproject.toml`, add root `conftest.py`, and install the
+project in editable mode in the `WorkJournal` pyenv environment.
 
-**Why first:** Additive change — nothing breaks. Creates the type that
-subsequent steps depend on.
-
-**TDD approach:**
-1. Write tests verifying the Protocol exists and that a conforming class
-   passes `isinstance()` with `runtime_checkable`.
-2. Implement the Protocol.
-3. Verify all tests pass.
+**Why first:** Purely additive — the sys.path hacks still work alongside the
+editable install. This establishes the foundation that makes all subsequent
+removals safe.
 
 **Files touched:**
-- `llm_data_structures.py` (add Protocol)
-- `tests/test_llm_data_structures.py` (new test file)
+- `pyproject.toml` (new)
+- `conftest.py` (new — empty, ensures pytest discovers root as package)
 
 ```text
 PROMPT:
 
 Context: We are working on the WorkJournalMaker project on branch
-`improvements/code-review`. The file `llm_data_structures.py` already defines
-`AnalysisResult` and `APIStats` dataclasses. Three concrete LLM client classes
-exist: `BedrockClient`, `GoogleGenAIClient`, and `UnifiedLLMClient`. All share
-the same duck-typed interface:
+`improvements/code-review`. There is no pyproject.toml, no setup.py,
+and no conftest.py. Root-level modules (config_manager.py, logger.py,
+file_discovery.py, etc.) sit at the project root but are not part of
+a Python package. 83 files use sys.path.append/insert hacks to import
+them.
 
-- analyze_content(content: str, file_path: Path) -> AnalysisResult
-- get_stats() -> APIStats
-- reset_stats() -> None
-- test_connection() -> bool
-- get_provider_info() -> Dict[str, Any]
-
-Task (TDD):
-
-1. First, create `tests/test_llm_data_structures.py` with tests that:
-   - Verify `LLMClientProtocol` is defined and is `runtime_checkable`
-   - Verify that a minimal conforming class passes `isinstance()` check
-   - Verify that a non-conforming class fails `isinstance()` check
-   - Verify `AnalysisResult` and `APIStats` still work correctly
-
-2. Run the tests — they should FAIL because `LLMClientProtocol` doesn't
-   exist yet.
-
-3. Add `LLMClientProtocol` to `llm_data_structures.py` as a
-   `typing.Protocol` with `@runtime_checkable`. The Protocol should
-   specify the 5 methods listed above with correct type hints.
-
-4. Run the tests — they should PASS.
-
-5. Commit with a descriptive message.
-```
-
----
-
-### Step 2: Fix summary_generator.py imports and type hint (TDD)
-
-**Scope:** Change `summary_generator.py` to import from `llm_data_structures`
-and type-hint against `LLMClientProtocol`.
-
-**Why second:** Eliminates the wrong import before we delete the source file.
-
-**TDD approach:**
-1. Update test imports first, then fix production imports.
-2. Verify tests pass after each change.
-
-**Files touched:**
-- `summary_generator.py` (fix imports + type hint)
-- `tests/test_summary_generator.py` (fix imports + mock spec)
-
-```text
-PROMPT:
-
-Context: We just added `LLMClientProtocol` to `llm_data_structures.py`.
-`summary_generator.py` currently has `from llm_client import LLMClient,
-AnalysisResult` on line 22 and uses `LLMClient` as the type hint for its
-constructor parameter. `tests/test_summary_generator.py` also imports from
-`llm_client`.
-
-Task (TDD):
-
-1. Update `tests/test_summary_generator.py`:
-   - Change `from llm_client import LLMClient, AnalysisResult` to
-     `from llm_data_structures import AnalysisResult, LLMClientProtocol`
-   - Update the `mock_llm_client` fixture to use
-     `MagicMock(spec=LLMClientProtocol)` instead of `MagicMock(spec=LLMClient)`
-   - Remove the `@patch.object(LLMClient, 'analyze_content')` decorator on
-     `test_summary_generation` — the mock is already set up via the fixture
-   - Remove the `sys.path.insert` hack on line 20 if present
-
-2. Run the tests — they should FAIL because `summary_generator.py` still
-   imports `LLMClient` from `llm_client`.
-
-3. Fix `summary_generator.py`:
-   - Change `from llm_client import LLMClient, AnalysisResult` to
-     `from llm_data_structures import AnalysisResult, LLMClientProtocol`
-   - Change the constructor signature from `llm_client: LLMClient` to
-     `llm_client: LLMClientProtocol`
-
-4. Run all tests — they should PASS.
-
-5. Commit with a descriptive message.
-```
-
----
-
-### Step 3: Remove dead llm_client.py and its tests
-
-**Scope:** Delete `llm_client.py` and `tests/test_llm_client.py`.
-
-**Why third:** Now that nothing imports from `llm_client.py`, it can be safely
-removed.
-
-**Verification approach:**
-1. Grep to confirm no production code imports from `llm_client`.
-2. Delete files.
-3. Run full test suite.
-
-**Files touched:**
-- `llm_client.py` (delete)
-- `tests/test_llm_client.py` (delete)
-
-```text
-PROMPT:
-
-Context: `summary_generator.py` and its tests no longer import from
-`llm_client.py`. The `UnifiedLLMClient` delegates to `BedrockClient` and
-`GoogleGenAIClient`, never to `LLMClient`. The module is dead code.
+The project uses a pyenv virtualenv called `WorkJournal`. Dependencies
+are listed in `requirements.txt`.
 
 Task:
 
-1. Run `grep -r "from llm_client import\|import llm_client" --include="*.py"`
-   to confirm no production or test code imports from `llm_client` (ignore
-   documentation files like `.md`).
+1. Create `pyproject.toml` at the project root with:
+   - Build system: setuptools
+   - Project name: workjournalmaker
+   - Python requirement: >=3.8
+   - A `[tool.setuptools.packages.find]` section that includes
+     root-level .py modules plus the existing sub-packages (web,
+     desktop, scripts, build_system, debug_scripts)
+   - A `[tool.pytest.ini_options]` section with:
+     testpaths = ["tests"]
+     pythonpath = ["."]
+   - Dependencies from requirements.txt
 
-2. Delete `llm_client.py`.
+2. Create an empty `conftest.py` at the project root with ABOUTME
+   comments. This ensures pytest treats the root as importable.
 
-3. Delete `tests/test_llm_client.py` (this test file tested the dead module).
+3. Run `pip install -e .` in the WorkJournal pyenv to install the
+   project in editable mode.
 
-4. Run the full test suite (`pytest -v`) to confirm nothing breaks.
+4. Verify the install works:
+   - `python -c "import config_manager; print('OK')"`
+   - `python -c "from web.app import create_logger_with_config; print('OK')"`
 
-5. Commit with a descriptive message.
+5. Run the existing test suite to confirm nothing broke (the sys.path
+   hacks are still present — they just become redundant).
+
+6. Commit with a descriptive message.
 ```
 
 ---
 
-### Step 4: Remove duplicate rate_limit_delay from ProcessingConfig (TDD)
+### Step 2: Remove sys.path hacks from web/ modules (18 files)
 
-**Scope:** Remove the unused `rate_limit_delay` field from `ProcessingConfig`
-in `config_manager.py`.
+**Scope:** Remove all `sys.path.append`/`sys.path.insert` calls and their
+associated `import sys` / `from pathlib import Path` lines (when no longer
+used) from the 18 production files under `web/`.
 
-**Why last:** Independent cleanup with the smallest blast radius.
+**Why second:** Production code first — this is the most important batch
+because these run in long-lived server processes where sys.path accumulation
+is worst.
 
-**TDD approach:**
-1. Update test assertion first.
-2. Remove the field and its references.
-3. Run full test suite.
+**Special case:** `web/models/journal.py` needs its import changed from
+`from utils.timezone_utils import ...` to
+`from web.utils.timezone_utils import ...`.
 
-**Files touched:**
-- `config_manager.py` (remove field + references)
-- `tests/test_database_config.py` (remove assertion)
+**Files touched:** 18 files under `web/`
 
 ```text
 PROMPT:
 
-Context: `ProcessingConfig` in `config_manager.py` has a `rate_limit_delay`
-field (line 101, default 1.0). `BedrockConfig` also has `rate_limit_delay`
-(line 77). Only `BedrockConfig.rate_limit_delay` is used in production code
-(in `bedrock_client.py:237`). `ProcessingConfig.rate_limit_delay` is never
-read by any production code.
+Context: The project now has `pyproject.toml` and is installed in editable
+mode. Root-level modules are importable without sys.path manipulation.
 
-Task (TDD):
+Task:
 
-1. Update `tests/test_database_config.py`:
-   - In `test_default_processing_config_unchanged`, remove the line
-     `assert config.rate_limit_delay == 1.0`
+1. For each of these 18 files, remove the `sys.path.append(...)` line
+   and its comment. If `sys` and `Path` are no longer used after removal,
+   remove those imports too:
 
-2. Run the test — it should still PASS (the field still exists).
+   web/app.py
+   web/middleware.py
+   web/models/journal.py (SPECIAL: also change
+     `from utils.timezone_utils import ...` to
+     `from web.utils.timezone_utils import ...`)
+   web/api/calendar.py
+   web/api/entries.py
+   web/api/health.py
+   web/api/settings.py
+   web/api/summarization.py
+   web/api/sync.py
+   web/services/base_service.py
+   web/services/calendar_service.py
+   web/services/entry_manager.py
+   web/services/scheduler.py
+   web/services/settings_service.py
+   web/services/sync_service.py
+   web/services/web_summarizer.py
+   web/services/work_week_service.py
+   web/migrations/001_add_work_week_settings.py
 
-3. In `config_manager.py`:
-   - Remove `rate_limit_delay: float = 1.0` from `ProcessingConfig` (line 101)
-   - In `_parse_processing_config()`, remove the line that reads
-     `rate_limit_delay` from the processing dict (~line 313)
-   - In `_get_default_config()`, remove `'rate_limit_delay': 1.0` from the
-     processing section (~line 487)
+2. Run `python -c "from web.app import create_logger_with_config"` to
+   verify imports still resolve.
 
-4. Run the full test suite (`pytest -v`) to confirm nothing breaks.
+3. Run the test suite to confirm nothing broke.
 
-5. Commit with a descriptive message.
+4. Commit with a descriptive message.
+```
+
+---
+
+### Step 3: Remove sys.path hacks from tests/ (57 files)
+
+**Scope:** Remove all `sys.path.append`/`sys.path.insert` calls from the
+57 test files. Clean up unused `sys`/`Path` imports where possible.
+
+**Why third:** Test files are the largest batch. With `pythonpath = ["."]`
+in pyproject.toml's pytest config, pytest automatically adds the project
+root to sys.path, making all test imports work.
+
+**Files touched:** 57 files under `tests/`
+
+```text
+PROMPT:
+
+Context: The project has `pyproject.toml` with
+`[tool.pytest.ini_options] pythonpath = ["."]`. Root modules are
+importable. The web/ production code has already been cleaned up.
+
+Task:
+
+1. For ALL test files under `tests/` that contain
+   `sys.path.append(...)` or `sys.path.insert(...)`, remove those
+   lines and their comments. If `sys` and/or `Path` (from pathlib)
+   are no longer used after removal, remove those imports too.
+
+   There are 57 files to clean. The change is mechanical: delete
+   the sys.path line and its comment, then check if sys/Path are
+   still used elsewhere in the file.
+
+2. Run the test suite to confirm nothing broke.
+
+3. Commit with a descriptive message.
+```
+
+---
+
+### Step 4: Remove sys.path hacks from scripts/, debug_scripts/, and root (7 files)
+
+**Scope:** Clean up the remaining 7 files: 4 in `scripts/`, 2 in
+`debug_scripts/`, and 1 at root (`reset_database_with_fix.py`).
+
+**Why last:** Smallest batch, lowest risk.
+
+**Files touched:**
+- `scripts/build.py`
+- `scripts/build_clean.py`
+- `scripts/build_quick.py`
+- `scripts/build_test.py`
+- `debug_scripts/debug_settings_integration.py`
+- `debug_scripts/debug_database_write.py` (has 2 sys.path calls)
+- `reset_database_with_fix.py`
+
+```text
+PROMPT:
+
+Context: The project has `pyproject.toml` and is installed in editable
+mode. Web/ and tests/ have been cleaned up already.
+
+Task:
+
+1. Remove `sys.path.insert`/`sys.path.append` calls from these 7 files:
+   - scripts/build.py
+   - scripts/build_clean.py
+   - scripts/build_quick.py
+   - scripts/build_test.py
+   - debug_scripts/debug_settings_integration.py
+   - debug_scripts/debug_database_write.py (has 2 calls)
+   - reset_database_with_fix.py
+
+   Clean up unused sys/Path imports as before.
+
+2. Run the test suite to confirm nothing broke.
+
+3. Verify final state:
+   grep -r "sys.path.append\|sys.path.insert" --include="*.py" | \
+     grep -v ".pyenv" | grep -v "venv"
+   Should return ZERO results.
+
+4. Commit with a descriptive message.
 ```
 
 ---
@@ -250,16 +253,21 @@ Task (TDD):
 
 | Step | Risk | Mitigation |
 |------|------|------------|
-| 1 - Add Protocol | None (additive) | Tests verify conformance |
-| 2 - Fix imports | Low | Tests verify import works |
-| 3 - Delete dead code | Low | Grep verification first |
-| 4 - Remove config field | Low | Grep confirms unused |
+| 1 - Add pyproject.toml | None (additive) | Editable install coexists with sys.path hacks |
+| 2 - Clean web/ | Low | 18 files, same mechanical edit |
+| 3 - Clean tests/ | Low | 57 files, same mechanical edit. pytest pythonpath config handles it |
+| 4 - Clean scripts/ | None | 7 files, smallest batch |
 
 ## Verification
 
 After all steps, run:
 ```bash
+# No sys.path hacks remain
+grep -r "sys.path.append\|sys.path.insert" --include="*.py" | grep -v ".pyenv"
+
+# Editable install works
+python -c "import config_manager; import logger; import file_discovery; print('OK')"
+
+# Tests pass
 pytest -v
-grep -r "from llm_client import" --include="*.py"  # Should find nothing
-grep -r "ProcessingConfig.*rate_limit" --include="*.py"  # Should find nothing
 ```

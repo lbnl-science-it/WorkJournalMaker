@@ -16,9 +16,6 @@ from fastapi.testclient import TestClient
 import sys
 import os
 
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 from web.app import app
 from web.database import DatabaseManager
 from config_manager import ConfigManager, AppConfig, ProcessingConfig, LogConfig

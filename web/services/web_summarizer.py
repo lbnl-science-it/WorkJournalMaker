@@ -11,12 +11,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, Optional, List, AsyncGenerator
 import uuid
-import sys
 from dataclasses import dataclass, field
 from enum import Enum
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory

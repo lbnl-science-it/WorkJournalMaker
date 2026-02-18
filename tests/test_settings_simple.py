@@ -4,11 +4,6 @@ import asyncio
 import tempfile
 import shutil
 from pathlib import Path
-import sys
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
-
 from web.database import DatabaseManager
 from web.services.settings_service import SettingsService
 from config_manager import ConfigManager

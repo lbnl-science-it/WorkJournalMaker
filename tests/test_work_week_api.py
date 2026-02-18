@@ -11,13 +11,8 @@ import asyncio
 import tempfile
 import os
 import json
-from pathlib import Path
 from datetime import datetime
 from fastapi.testclient import TestClient
-import sys
-
-# Add parent directory to path to import modules
-sys.path.append(str(Path(__file__).parent.parent))
 from web.api.settings import router, get_settings_service
 from web.services.settings_service import SettingsService
 from web.database import DatabaseManager

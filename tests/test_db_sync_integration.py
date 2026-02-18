@@ -12,7 +12,6 @@ from unittest.mock import Mock
 
 # Add current directory to path
 import sys
-sys.path.append('.')
 
 from web.database import DatabaseManager, JournalEntryIndex
 from web.services.entry_manager import EntryManager  

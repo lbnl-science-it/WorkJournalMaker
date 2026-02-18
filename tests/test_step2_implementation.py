@@ -8,11 +8,7 @@ to ensure everything works correctly.
 
 import asyncio
 import sys
-from pathlib import Path
 from datetime import date, datetime
-
-# Add current directory to path for imports
-sys.path.append(str(Path(__file__).parent))
 
 from web.database import DatabaseManager
 from web.models.journal import JournalEntryCreate, EntryListRequest, EntrySearchRequest

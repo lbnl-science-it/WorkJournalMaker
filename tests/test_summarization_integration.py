@@ -9,14 +9,10 @@ import pytest
 import asyncio
 from datetime import date, datetime, timedelta
 from pathlib import Path
-import sys
 import tempfile
 import os
 import yaml
 from unittest.mock import Mock, patch
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from config_manager import AppConfig, ProcessingConfig, LogConfig, LLMConfig
 from logger import JournalSummarizerLogger

@@ -4,13 +4,9 @@ Debug script to diagnose journal entry access issues.
 This script will help identify the root cause of the file discovery problem.
 """
 
-import sys
 from pathlib import Path
 from datetime import date, timedelta
 import asyncio
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
 
 from file_discovery import FileDiscovery
 from config_manager import AppConfig
