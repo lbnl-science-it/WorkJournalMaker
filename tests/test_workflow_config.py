@@ -4,14 +4,10 @@
 import pytest
 import yaml
 import os
-from pathlib import Path
 from unittest.mock import Mock, patch, mock_open
 from typing import Dict, Any, List
 
 # Import the module we'll implement
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-
 # This will fail initially - that's expected in TDD
 try:
     from scripts.workflow_generator import WorkflowGenerator, WorkflowConfig, BuildMatrix

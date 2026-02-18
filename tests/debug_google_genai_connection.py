@@ -10,11 +10,6 @@ import os
 import sys
 import json
 import logging
-from pathlib import Path
-
-# Add current directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
-
 try:
     import google.genai as genai
     from google.genai import errors as genai_errors

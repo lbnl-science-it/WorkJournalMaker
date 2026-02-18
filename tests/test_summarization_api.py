@@ -8,16 +8,11 @@ including task creation, progress tracking, and file download functionality.
 import pytest
 import asyncio
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
-import sys
 import tempfile
 import os
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from web.api.summarization import router
 from web.services.web_summarizer import (

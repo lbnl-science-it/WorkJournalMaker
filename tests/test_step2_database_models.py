@@ -10,12 +10,6 @@ import asyncio
 import tempfile
 import os
 from datetime import date, datetime, timedelta
-from pathlib import Path
-import sys
-
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 from web.database import DatabaseManager, JournalEntryIndex, WebSettings, SyncStatus
 from web.models.journal import (
     JournalEntryCreate, JournalEntryUpdate, JournalEntryResponse,

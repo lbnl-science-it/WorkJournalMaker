@@ -17,13 +17,9 @@ import gc
 import threading
 from datetime import datetime, date, timedelta
 from typing import List, Dict, Any, Optional
-import sys
 import random
 import weakref
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from web.services.work_week_service import WorkWeekService, WorkWeekConfig, WorkWeekPreset
 from web.services.entry_manager import EntryManager

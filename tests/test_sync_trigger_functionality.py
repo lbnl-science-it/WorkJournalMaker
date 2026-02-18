@@ -9,7 +9,6 @@ Tests include API endpoint validation, frontend integration, and end-to-end sync
 
 import asyncio
 import json
-import sys
 import tempfile
 import shutil
 from datetime import date, datetime, timedelta
@@ -17,9 +16,6 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
-
-# Add project root to path
-sys.path.append(str(Path(__file__).parent.parent))
 
 from fastapi.testclient import TestClient
 from fastapi import BackgroundTasks

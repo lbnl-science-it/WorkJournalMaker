@@ -12,9 +12,6 @@ from pathlib import Path
 from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 from web.api.calendar import router as calendar_router
 from web.services.calendar_service import CalendarService
 from web.models.journal import CalendarMonth, CalendarEntry, TodayResponse, EntryStatus

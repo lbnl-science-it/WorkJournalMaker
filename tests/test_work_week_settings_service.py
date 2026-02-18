@@ -10,12 +10,7 @@ import pytest_asyncio
 import asyncio
 import tempfile
 import os
-from pathlib import Path
 from datetime import datetime
-import sys
-
-# Add parent directory to path to import modules
-sys.path.append(str(Path(__file__).parent.parent))
 from web.services.settings_service import SettingsService
 from web.database import DatabaseManager
 from config_manager import ConfigManager, AppConfig

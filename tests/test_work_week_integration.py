@@ -9,11 +9,6 @@ to verify that the Entry Manager properly uses work week calculations for direct
 import asyncio
 import sys
 from datetime import date, datetime, timedelta
-from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
-
 from config_manager import ConfigManager
 from logger import LogConfig, JournalSummarizerLogger
 from web.database import DatabaseManager

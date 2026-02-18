@@ -7,15 +7,11 @@ including sync services, scheduler, and API endpoints.
 """
 
 import asyncio
-import sys
 import tempfile
 import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
-
-# Add project root to path
-sys.path.append(str(Path(__file__).parent))
 
 from config_manager import ConfigManager, AppConfig
 from logger import JournalSummarizerLogger

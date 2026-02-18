@@ -3,10 +3,6 @@
 Test to confirm the prompt/parsing mismatch issue.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
-
 from config_manager import ConfigManager
 from google_genai_client import GoogleGenAIClient
 

@@ -4,13 +4,9 @@ Debug script to diagnose date mapping and parsing issues.
 This will identify why dates are being misinterpreted between file system and web interface.
 """
 
-import sys
 from pathlib import Path
 from datetime import date, datetime
 import asyncio
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
 
 from file_discovery import FileDiscovery
 from config_manager import AppConfig

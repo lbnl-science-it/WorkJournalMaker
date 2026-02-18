@@ -6,13 +6,7 @@ FileDiscovery system and database operations.
 """
 
 import asyncio
-import sys
 from datetime import date, timedelta
-from pathlib import Path
-
-# Add current directory to path for imports
-sys.path.append(str(Path(__file__).parent))
-
 from config_manager import ConfigManager
 from logger import JournalSummarizerLogger
 from web.database import DatabaseManager

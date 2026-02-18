@@ -11,11 +11,8 @@ discarded by a broken conditional expression.
 
 import pytest
 import pytest_asyncio
-import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-
-sys.path.append(str(Path(__file__).parent.parent))
 
 import web.api.settings as settings_module
 from web.api.settings import router

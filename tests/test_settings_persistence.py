@@ -39,9 +39,6 @@ from fastapi.testclient import TestClient
 from contextlib import asynccontextmanager
 import sys
 
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 from web.app import app
 from web.database import DatabaseManager, WebSettings
 from web.services.settings_service import SettingsService
