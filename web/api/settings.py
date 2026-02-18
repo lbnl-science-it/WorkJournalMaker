@@ -7,13 +7,9 @@ while maintaining compatibility with CLI configuration.
 
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Dict, Any, Optional, List
-import sys
 import json
 from datetime import datetime
 from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from config_manager import ConfigManager
 from logger import JournalSummarizerLogger

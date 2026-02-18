@@ -8,12 +8,6 @@ stays synchronized with the file system through automated background processes.
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-import sys
-from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
-
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager

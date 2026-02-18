@@ -12,11 +12,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 import aiofiles
 import os
-import sys
 from contextlib import asynccontextmanager
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from file_discovery import FileDiscovery, FileDiscoveryResult
 from config_manager import AppConfig
