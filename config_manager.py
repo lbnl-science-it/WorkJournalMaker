@@ -12,7 +12,7 @@ Version: Phase 8 - Configuration Management & API Fallback
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 import yaml
 import json
 import os
@@ -98,8 +98,9 @@ class CBORGConfig:
 
 @dataclass
 class LLMConfig:
-    """Configuration for LLM provider selection."""
+    """Configuration for LLM provider selection and fallback chain."""
     provider: str = "bedrock"  # Options: "bedrock", "google_genai", or "cborg"
+    fallback_providers: List[str] = field(default_factory=list)  # e.g. ["bedrock", "cborg"]
 
 
 @dataclass
@@ -311,7 +312,8 @@ class ConfigManager:
         # Extract LLM configuration
         llm_dict = config_dict.get('llm', {})
         llm_config = LLMConfig(
-            provider=llm_dict.get('provider', LLMConfig.provider)
+            provider=llm_dict.get('provider', LLMConfig.provider),
+            fallback_providers=llm_dict.get('fallback_providers', [])
         )
         
         # Extract processing configuration
@@ -364,9 +366,16 @@ class ConfigManager:
             ValueError: If configuration is invalid
         """
         # Validate LLM provider
-        valid_providers = ["bedrock", "google_genai"]
+        valid_providers = ["bedrock", "google_genai", "cborg"]
         if config.llm.provider not in valid_providers:
             raise ValueError(f"Invalid LLM provider '{config.llm.provider}'. Must be one of: {valid_providers}")
+
+        # Validate fallback providers
+        for fb in config.llm.fallback_providers:
+            if fb not in valid_providers:
+                raise ValueError(f"Invalid fallback provider '{fb}'. Must be one of: {valid_providers}")
+            if fb == config.llm.provider:
+                raise ValueError(f"Fallback provider '{fb}' cannot be the same as the primary provider")
         
         # Validate paths exist or can be created
         base_path = Path(config.processing.base_path).expanduser()
