@@ -9,9 +9,6 @@ from pathlib import Path
 from datetime import date, timedelta
 import asyncio
 
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
-
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, LogConfig
 from web.database import DatabaseManager, JournalEntryIndex

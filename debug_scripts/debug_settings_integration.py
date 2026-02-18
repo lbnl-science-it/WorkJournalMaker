@@ -5,12 +5,7 @@ This script will check if settings are being saved and retrieved correctly.
 """
 
 import asyncio
-import sys
-from pathlib import Path
 from datetime import date, datetime
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
 
 from web.database import DatabaseManager, WebSettings
 from web.services.settings_service import SettingsService
