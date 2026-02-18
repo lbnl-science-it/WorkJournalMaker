@@ -6,6 +6,7 @@ Integration tests for Cluster C Step 4: config → UnifiedLLMClient → CLI fall
 
 import json
 import os
+import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
@@ -391,6 +392,97 @@ class TestConfigSummaryWithFallback:
             assert "cborg.lbl.gov" in joined
         finally:
             config_path.unlink()
+
+
+# ---------------------------------------------------------------------------
+# 5. CLI end-to-end: subprocess invokes --save-example-config
+# ---------------------------------------------------------------------------
+
+
+class TestCLISaveExampleConfig:
+    """Invoke the real CLI to produce an example config and verify its contents."""
+
+    def test_save_example_config_via_cli_contains_cborg(self, tmp_path):
+        """CLI --save-example-config should produce YAML with cborg section."""
+        import subprocess
+
+        output_file = tmp_path / "example_config.yaml"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "work_journal_summarizer",
+                "--save-example-config",
+                str(output_file),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).parent.parent),
+            timeout=15,
+        )
+
+        assert result.returncode == 0, f"CLI failed: {result.stderr}"
+        assert output_file.exists(), "Example config file was not created"
+
+        with open(output_file) as f:
+            saved = yaml.safe_load(f)
+
+        assert "cborg" in saved, "cborg section missing from example config"
+        assert saved["cborg"]["endpoint"] == "https://cborg.lbl.gov/v1"
+        assert saved["cborg"]["model"] == "lbl/cborg-chat:latest"
+
+    def test_save_example_config_via_cli_contains_fallback_providers(self, tmp_path):
+        """CLI --save-example-config should include fallback_providers in llm section."""
+        import subprocess
+
+        output_file = tmp_path / "example_config.yaml"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "work_journal_summarizer",
+                "--save-example-config",
+                str(output_file),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).parent.parent),
+            timeout=15,
+        )
+
+        assert result.returncode == 0, f"CLI failed: {result.stderr}"
+
+        with open(output_file) as f:
+            saved = yaml.safe_load(f)
+
+        assert "llm" in saved
+        assert "fallback_providers" in saved["llm"]
+        assert isinstance(saved["llm"]["fallback_providers"], list)
+        assert len(saved["llm"]["fallback_providers"]) > 0
+        assert "bedrock" in saved["llm"]["fallback_providers"]
+        assert "cborg" in saved["llm"]["fallback_providers"]
+
+    def test_save_example_config_via_cli_stdout_confirmation(self, tmp_path):
+        """CLI should print a success message to stdout after saving."""
+        import subprocess
+
+        output_file = tmp_path / "example_config.yaml"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "work_journal_summarizer",
+                "--save-example-config",
+                str(output_file),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).parent.parent),
+            timeout=15,
+        )
+
+        assert result.returncode == 0
+        assert "Example configuration saved" in result.stdout
 
 
 if __name__ == "__main__":
