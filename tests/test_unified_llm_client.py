@@ -14,7 +14,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-from config_manager import AppConfig, BedrockConfig, GoogleGenAIConfig, LLMConfig
+from config_manager import AppConfig, BedrockConfig, GoogleGenAIConfig, CBORGConfig, LLMConfig
 from unified_llm_client import UnifiedLLMClient
 from llm_data_structures import AnalysisResult, APIStats
 
@@ -107,7 +107,7 @@ class TestUnifiedLLMClient:
             UnifiedLLMClient(invalid_config)
         
         assert "Unsupported LLM provider: 'invalid_provider'" in str(exc_info.value)
-        assert "Supported providers: ['bedrock', 'google_genai']" in str(exc_info.value)
+        assert "Supported providers: ['bedrock', 'google_genai', 'cborg']" in str(exc_info.value)
     
     @patch('unified_llm_client.BedrockClient')
     def test_init_with_client_creation_failure(self, mock_bedrock_client, bedrock_config):
@@ -319,6 +319,338 @@ class TestUnifiedLLMClient:
         # Check that initialization and connection test are logged
         assert "UnifiedLLMClient initialized with provider: bedrock" in caplog.text
         assert "Connection test successful for bedrock" in caplog.text
+
+
+class TestUnifiedLLMClientFallback:
+    """Test suite for provider fallback chain behavior."""
+
+    @pytest.fixture
+    def mock_analysis_result(self):
+        """Create a mock AnalysisResult for testing."""
+        return AnalysisResult(
+            file_path=Path("test.md"),
+            projects=["Test Project"],
+            participants=["John Doe"],
+            tasks=["Testing"],
+            themes=["Development"],
+            api_call_time=1.5,
+            raw_response='{"test": "response"}'
+        )
+
+    @pytest.fixture
+    def fallback_config(self):
+        """Config with google_genai primary, bedrock and cborg fallbacks."""
+        return AppConfig(
+            llm=LLMConfig(
+                provider="google_genai",
+                fallback_providers=["bedrock", "cborg"]
+            ),
+            bedrock=BedrockConfig(region="us-east-1", model_id="test-model"),
+            google_genai=GoogleGenAIConfig(project="test-project", model="test-model"),
+            cborg=CBORGConfig()
+        )
+
+    @pytest.fixture
+    def no_fallback_config(self):
+        """Config with no fallback providers."""
+        return AppConfig(
+            llm=LLMConfig(provider="google_genai", fallback_providers=[]),
+            google_genai=GoogleGenAIConfig(project="test-project", model="test-model"),
+        )
+
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_primary_succeeds_no_fallback_triggered(
+        self, mock_google_client, fallback_config, mock_analysis_result
+    ):
+        """When the primary provider succeeds, no fallback should be attempted."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.return_value = mock_analysis_result
+        mock_google_client.return_value = mock_primary
+        callback = Mock()
+
+        client = UnifiedLLMClient(fallback_config, on_fallback=callback)
+        result = client.analyze_content("test content", Path("test.md"))
+
+        assert result == mock_analysis_result
+        callback.assert_not_called()
+
+    @patch('unified_llm_client.BedrockClient')
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_primary_fails_secondary_succeeds(
+        self, mock_google_client, mock_bedrock_client,
+        fallback_config, mock_analysis_result
+    ):
+        """When primary fails, fallback to secondary with notification."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.side_effect = Exception("Google API down")
+        mock_google_client.return_value = mock_primary
+
+        mock_secondary = Mock()
+        mock_secondary.analyze_content.return_value = mock_analysis_result
+        mock_bedrock_client.return_value = mock_secondary
+
+        callback = Mock()
+        client = UnifiedLLMClient(fallback_config, on_fallback=callback)
+        result = client.analyze_content("test content", Path("test.md"))
+
+        assert result == mock_analysis_result
+        callback.assert_called_once()
+        msg = callback.call_args[0][0]
+        assert "google_genai" in msg
+        assert "bedrock" in msg
+
+    @patch('unified_llm_client.CBORGClient')
+    @patch('unified_llm_client.BedrockClient')
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_primary_and_secondary_fail_tertiary_succeeds(
+        self, mock_google_client, mock_bedrock_client, mock_cborg_client,
+        fallback_config, mock_analysis_result
+    ):
+        """When primary and secondary fail, fallback to tertiary."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.side_effect = Exception("Google down")
+        mock_google_client.return_value = mock_primary
+
+        mock_secondary = Mock()
+        mock_secondary.analyze_content.side_effect = Exception("Bedrock down")
+        mock_bedrock_client.return_value = mock_secondary
+
+        mock_tertiary = Mock()
+        mock_tertiary.analyze_content.return_value = mock_analysis_result
+        mock_cborg_client.return_value = mock_tertiary
+
+        callback = Mock()
+        client = UnifiedLLMClient(fallback_config, on_fallback=callback)
+        result = client.analyze_content("test content", Path("test.md"))
+
+        assert result == mock_analysis_result
+        assert callback.call_count == 2
+
+    @patch('unified_llm_client.CBORGClient')
+    @patch('unified_llm_client.BedrockClient')
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_all_providers_fail_raises_last_exception(
+        self, mock_google_client, mock_bedrock_client, mock_cborg_client,
+        fallback_config
+    ):
+        """When all providers fail, the last exception is raised."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.side_effect = Exception("Google down")
+        mock_google_client.return_value = mock_primary
+
+        mock_secondary = Mock()
+        mock_secondary.analyze_content.side_effect = Exception("Bedrock down")
+        mock_bedrock_client.return_value = mock_secondary
+
+        mock_tertiary = Mock()
+        mock_tertiary.analyze_content.side_effect = Exception("CBORG down")
+        mock_cborg_client.return_value = mock_tertiary
+
+        callback = Mock()
+        client = UnifiedLLMClient(fallback_config, on_fallback=callback)
+
+        with pytest.raises(Exception, match="CBORG down"):
+            client.analyze_content("test content", Path("test.md"))
+
+    @patch('unified_llm_client.BedrockClient')
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_notification_callback_message_format(
+        self, mock_google_client, mock_bedrock_client,
+        fallback_config, mock_analysis_result
+    ):
+        """Notification callback receives a message with provider names and error."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.side_effect = Exception("API quota exceeded")
+        mock_google_client.return_value = mock_primary
+
+        mock_secondary = Mock()
+        mock_secondary.analyze_content.return_value = mock_analysis_result
+        mock_bedrock_client.return_value = mock_secondary
+
+        callback = Mock()
+        client = UnifiedLLMClient(fallback_config, on_fallback=callback)
+        client.analyze_content("test content", Path("test.md"))
+
+        msg = callback.call_args[0][0]
+        assert "google_genai" in msg
+        assert "API quota exceeded" in msg
+        assert "bedrock" in msg
+
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_lazy_initialization_fallback_not_created_at_startup(
+        self, mock_google_client, fallback_config, mock_analysis_result
+    ):
+        """Fallback clients should NOT be created during __init__."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.return_value = mock_analysis_result
+        mock_google_client.return_value = mock_primary
+
+        with patch('unified_llm_client.BedrockClient') as mock_bedrock, \
+             patch('unified_llm_client.CBORGClient') as mock_cborg:
+            client = UnifiedLLMClient(fallback_config)
+
+            # Fallback clients not instantiated at init time
+            mock_bedrock.assert_not_called()
+            mock_cborg.assert_not_called()
+
+            # Primary succeeds — still no fallback creation
+            client.analyze_content("test content", Path("test.md"))
+            mock_bedrock.assert_not_called()
+            mock_cborg.assert_not_called()
+
+    @patch('unified_llm_client.BedrockClient')
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_lazy_initialization_fallback_created_on_failure(
+        self, mock_google_client, mock_bedrock_client,
+        fallback_config, mock_analysis_result
+    ):
+        """Fallback client should be created only when primary fails."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.side_effect = Exception("Google down")
+        mock_google_client.return_value = mock_primary
+
+        mock_secondary = Mock()
+        mock_secondary.analyze_content.return_value = mock_analysis_result
+        mock_bedrock_client.return_value = mock_secondary
+
+        client = UnifiedLLMClient(fallback_config)
+
+        # Before analyze, bedrock not created
+        mock_bedrock_client.assert_not_called()
+
+        client.analyze_content("test content", Path("test.md"))
+
+        # Now bedrock was created
+        mock_bedrock_client.assert_called_once()
+
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_get_provider_info_reports_fallback_chain(
+        self, mock_google_client, fallback_config
+    ):
+        """get_provider_info should report active provider and fallback list."""
+        mock_primary = Mock()
+        mock_primary.get_provider_info.return_value = {
+            "provider": "google_genai",
+            "project": "test-project",
+            "model": "test-model"
+        }
+        mock_google_client.return_value = mock_primary
+
+        client = UnifiedLLMClient(fallback_config)
+        info = client.get_provider_info()
+
+        assert info["active_provider"] == "google_genai"
+        assert info["fallback_providers"] == ["bedrock", "cborg"]
+
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_no_fallback_config_error_propagates(
+        self, mock_google_client, no_fallback_config
+    ):
+        """With no fallback providers, errors from the primary should propagate."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.side_effect = Exception("Google down")
+        mock_google_client.return_value = mock_primary
+
+        client = UnifiedLLMClient(no_fallback_config)
+
+        with pytest.raises(Exception, match="Google down"):
+            client.analyze_content("test content", Path("test.md"))
+
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_default_callback_uses_logging(self, mock_google_client, fallback_config, caplog):
+        """Without an on_fallback callback, fallback notification goes to logging.warning."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.side_effect = Exception("Google down")
+        mock_google_client.return_value = mock_primary
+
+        with patch('unified_llm_client.BedrockClient') as mock_bedrock:
+            mock_secondary = Mock()
+            mock_secondary.analyze_content.return_value = AnalysisResult(
+                file_path=Path("test.md"),
+                projects=[], participants=[], tasks=[], themes=[],
+                api_call_time=0.5, raw_response="{}"
+            )
+            mock_bedrock.return_value = mock_secondary
+
+            client = UnifiedLLMClient(fallback_config)
+
+            with caplog.at_level("WARNING"):
+                client.analyze_content("test content", Path("test.md"))
+
+            # Default callback uses logging.warning, producing a WARNING-level record
+            fallback_messages = [
+                r for r in caplog.records
+                if "Falling back to" in r.message and r.levelname == "WARNING"
+            ]
+            assert len(fallback_messages) >= 1
+
+    @patch('unified_llm_client.BedrockClient')
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_active_provider_updates_after_fallback(
+        self, mock_google_client, mock_bedrock_client,
+        fallback_config, mock_analysis_result
+    ):
+        """After a successful fallback, active_provider_name should update."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.side_effect = Exception("Google down")
+        mock_google_client.return_value = mock_primary
+
+        mock_secondary = Mock()
+        mock_secondary.analyze_content.return_value = mock_analysis_result
+        mock_bedrock_client.return_value = mock_secondary
+
+        client = UnifiedLLMClient(fallback_config)
+        assert client.active_provider_name == "google_genai"
+
+        client.analyze_content("test content", Path("test.md"))
+        assert client.active_provider_name == "bedrock"
+
+    @patch('unified_llm_client.BedrockClient')
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_test_connection_falls_back(
+        self, mock_google_client, mock_bedrock_client, fallback_config
+    ):
+        """test_connection should try fallbacks if the primary fails."""
+        mock_primary = Mock()
+        mock_primary.test_connection.return_value = False
+        mock_google_client.return_value = mock_primary
+
+        mock_secondary = Mock()
+        mock_secondary.test_connection.return_value = True
+        mock_bedrock_client.return_value = mock_secondary
+
+        callback = Mock()
+        client = UnifiedLLMClient(fallback_config, on_fallback=callback)
+        result = client.test_connection()
+
+        assert result is True
+        callback.assert_called_once()
+
+    @patch('unified_llm_client.BedrockClient')
+    @patch('unified_llm_client.GoogleGenAIClient')
+    def test_fallback_client_initialization_failure_skips_to_next(
+        self, mock_google_client, mock_bedrock_client, fallback_config, mock_analysis_result
+    ):
+        """If a fallback client fails to initialize, skip to the next fallback."""
+        mock_primary = Mock()
+        mock_primary.analyze_content.side_effect = Exception("Google down")
+        mock_google_client.return_value = mock_primary
+
+        # Bedrock fails to initialize
+        mock_bedrock_client.side_effect = Exception("AWS credentials missing")
+
+        with patch('unified_llm_client.CBORGClient') as mock_cborg:
+            mock_tertiary = Mock()
+            mock_tertiary.analyze_content.return_value = mock_analysis_result
+            mock_cborg.return_value = mock_tertiary
+
+            callback = Mock()
+            client = UnifiedLLMClient(fallback_config, on_fallback=callback)
+            result = client.analyze_content("test content", Path("test.md"))
+
+            assert result == mock_analysis_result
+            # Two notifications: google→bedrock (init fail), google→cborg (success)
+            assert callback.call_count == 2
 
 
 if __name__ == "__main__":
