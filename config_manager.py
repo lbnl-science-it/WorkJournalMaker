@@ -309,6 +309,17 @@ class ConfigManager:
             model=google_genai_dict.get('model', GoogleGenAIConfig.model)
         )
         
+        # Extract CBORG configuration
+        cborg_dict = config_dict.get('cborg', {})
+        cborg_config = CBORGConfig(
+            endpoint=cborg_dict.get('endpoint', CBORGConfig.endpoint),
+            api_key_env=cborg_dict.get('api_key_env', CBORGConfig.api_key_env),
+            model=cborg_dict.get('model', CBORGConfig.model),
+            max_retries=cborg_dict.get('max_retries', CBORGConfig.max_retries),
+            rate_limit_delay=cborg_dict.get('rate_limit_delay', CBORGConfig.rate_limit_delay),
+            timeout=cborg_dict.get('timeout', CBORGConfig.timeout)
+        )
+
         # Extract LLM configuration
         llm_dict = config_dict.get('llm', {})
         llm_config = LLMConfig(
@@ -350,6 +361,7 @@ class ConfigManager:
         return AppConfig(
             bedrock=bedrock_config,
             google_genai=google_genai_config,
+            cborg=cborg_config,
             llm=llm_config,
             processing=processing_config,
             logging=logging_config
@@ -483,7 +495,8 @@ class ConfigManager:
         """
         example_config = {
             'llm': {
-                'provider': 'bedrock'  # Options: 'bedrock' or 'google_genai'
+                'provider': 'google_genai',
+                'fallback_providers': ['bedrock', 'cborg']
             },
             'bedrock': {
                 'region': 'us-east-2',
@@ -496,6 +509,14 @@ class ConfigManager:
                 'project': 'geminijournal-463220',
                 'location': 'us-central1',
                 'model': 'gemini-2.0-flash-001'
+            },
+            'cborg': {
+                'endpoint': 'https://cborg.lbl.gov/v1',
+                'api_key_env': 'CBORG_API_KEY',
+                'model': 'lbl/cborg-chat:latest',
+                'max_retries': 3,
+                'rate_limit_delay': 1.0,
+                'timeout': 30
             },
             'processing': {
                 'base_path': '~/Desktop/worklogs/',
@@ -533,7 +554,7 @@ class ConfigManager:
             print("Config file: Using defaults (no config file found)")
         
         print(f"LLM Provider: {self.config.llm.provider}")
-        
+
         if self.config.llm.provider == "bedrock":
             print(f"AWS Region: {self.config.bedrock.region}")
             print(f"Model ID: {self.config.bedrock.model_id}")
@@ -541,7 +562,13 @@ class ConfigManager:
             print(f"GCP Project: {self.config.google_genai.project}")
             print(f"GCP Location: {self.config.google_genai.location}")
             print(f"Model: {self.config.google_genai.model}")
-        
+        elif self.config.llm.provider == "cborg":
+            print(f"CBORG Endpoint: {self.config.cborg.endpoint}")
+            print(f"CBORG Model: {self.config.cborg.model}")
+
+        if self.config.llm.fallback_providers:
+            print(f"Fallback Providers: {', '.join(self.config.llm.fallback_providers)}")
+
         print(f"Base Path: {self.config.processing.base_path}")
         print(f"Output Path: {self.config.processing.output_path}")
         print(f"Log Level: {self.config.logging.level.value}")
