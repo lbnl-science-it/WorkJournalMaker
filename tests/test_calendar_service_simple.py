@@ -4,12 +4,8 @@ Simple tests for CalendarService implementation
 
 import pytest
 import asyncio
-import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, LogConfig, LogLevel

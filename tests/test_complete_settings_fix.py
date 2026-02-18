@@ -5,13 +5,9 @@ Tests both work week settings AND filesystem settings.
 """
 
 import asyncio
-import sys
 import tempfile
 from pathlib import Path
 from datetime import date
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
 
 from web.database import DatabaseManager
 from web.services.settings_service import SettingsService

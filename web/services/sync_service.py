@@ -10,14 +10,10 @@ import asyncio
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Any
-import sys
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import Enum
 import json
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from file_discovery import FileDiscovery, FileDiscoveryResult
 from config_manager import AppConfig

@@ -8,11 +8,7 @@ the web interface functionality, responsiveness, and user experience.
 import pytest
 import asyncio
 import sys
-from pathlib import Path
 from datetime import date, timedelta
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 # Note: This test requires Playwright to be installed
 # pip install playwright

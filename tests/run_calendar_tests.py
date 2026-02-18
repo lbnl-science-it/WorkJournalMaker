@@ -13,9 +13,6 @@ import subprocess
 import time
 from pathlib import Path
 
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 
 def run_command(cmd, description=""):
     """Run a command and return the result."""

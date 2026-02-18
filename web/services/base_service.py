@@ -5,12 +5,7 @@ This module provides a base service class with common functionality
 for all business logic services in the web interface.
 """
 
-import sys
-from pathlib import Path
 from typing import Optional
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger

@@ -11,9 +11,6 @@ import subprocess
 from pathlib import Path
 import argparse
 
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 
 def run_tests(test_type="all", verbose=False, coverage=False):
     """

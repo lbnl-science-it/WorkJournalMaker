@@ -10,10 +10,6 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock
 from fastapi import FastAPI
 
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
-
 from web.api.summarization import router as summarization_router
 from web.services.web_summarizer import SummaryType
 

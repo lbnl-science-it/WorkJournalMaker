@@ -4,13 +4,9 @@ Debug script to diagnose database synchronization issues.
 This will help identify if the database is out of sync with the file system.
 """
 
-import sys
 from pathlib import Path
 from datetime import date, timedelta
 import asyncio
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent))
 
 from file_discovery import FileDiscovery
 from config_manager import AppConfig

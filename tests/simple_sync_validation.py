@@ -11,9 +11,6 @@ import sys
 import json
 from pathlib import Path
 
-# Add project root to path
-sys.path.append(str(Path(__file__).parent.parent))
-
 def test_api_client_structure():
     """Test that the API client has the correct structure."""
     print("🔍 Testing API client structure...")

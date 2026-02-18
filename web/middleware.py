@@ -11,12 +11,6 @@ from starlette.responses import JSONResponse
 import time
 import traceback
 from typing import Callable
-import sys
-from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 from logger import JournalSummarizerLogger, ErrorCategory
 
 

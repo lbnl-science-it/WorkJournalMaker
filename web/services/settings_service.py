@@ -10,13 +10,9 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import json
-import sys
 from dataclasses import dataclass
 import uuid
 import os
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from config_manager import ConfigManager, AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory, LogConfig

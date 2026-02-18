@@ -13,11 +13,6 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import sys
-from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent))
-
 from web.app import app
 
 
