@@ -9,11 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from datetime import date, datetime
 from typing import Optional, List
-import sys
 from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory

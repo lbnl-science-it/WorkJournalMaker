@@ -7,12 +7,8 @@ the web application status, configuration, and system metrics.
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pathlib import Path
-import sys
 import os
 from datetime import datetime
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger

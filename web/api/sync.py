@@ -9,12 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 from datetime import date, datetime, timedelta
 from typing import Optional, Dict, Any
-import sys
-from pathlib import Path
-
-# Add parent directory for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
-
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger
 from web.database import DatabaseManager
