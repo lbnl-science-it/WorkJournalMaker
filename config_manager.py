@@ -86,9 +86,20 @@ class GoogleGenAIConfig:
 
 
 @dataclass
+class CBORGConfig:
+    """Configuration for CBORG API integration (OpenAI-compatible at cborg.lbl.gov)."""
+    endpoint: str = "https://cborg.lbl.gov/v1"
+    api_key_env: str = "CBORG_API_KEY"
+    model: str = "lbl/cborg-chat:latest"
+    max_retries: int = 3
+    rate_limit_delay: float = 1.0
+    timeout: int = 30
+
+
+@dataclass
 class LLMConfig:
     """Configuration for LLM provider selection."""
-    provider: str = "bedrock"  # Options: "bedrock" or "google_genai"
+    provider: str = "bedrock"  # Options: "bedrock", "google_genai", or "cborg"
 
 
 @dataclass
@@ -106,6 +117,7 @@ class AppConfig:
     """Complete application configuration."""
     bedrock: BedrockConfig = field(default_factory=BedrockConfig)
     google_genai: GoogleGenAIConfig = field(default_factory=GoogleGenAIConfig)
+    cborg: CBORGConfig = field(default_factory=CBORGConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     logging: LogConfig = field(default_factory=LogConfig)
