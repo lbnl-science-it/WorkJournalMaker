@@ -58,17 +58,19 @@ should catch regressions.
 **Design decisions needed:** Protocol/ABC vs duck typing for LLM client interface.
 
 ### Cluster C: LLM Client Consolidation
-**Status:** Not yet planned. Depends on Cluster B.
+**Status:** Planned. Issues #56-#59 created. Ready for implementation.
 **Items:** #2, #6, #8, #9 from improvements.md
 **Scope:**
-- Extract shared code from 3 LLM clients into `BaseLLMClient`
-- Add provider fallback logic to `UnifiedLLMClient`
-- Add test coverage for `unified_llm_client.py`
-- Decide on CBORG provider (keep/drop from spec)
+- Extract shared code from 2 LLM clients into `BaseLLMClient`
+- Add CBORG as tertiary fallback provider (OpenAI-compatible API)
+- Add provider fallback logic to `UnifiedLLMClient` (GCP → AWS → CBORG)
+- Add test coverage for `unified_llm_client.py` fallback behavior
+- Wire fallback into CLI with user-visible notifications
 **Risk:** High. Core API integration layer. TDD is critical.
-**Design decisions needed:**
-- Provider fallback UX (silent retry vs user-visible?)
-- CBORG: still wanted or formally dropped?
+**Design decisions (resolved):**
+- Provider fallback UX: user-visible notification on every transition
+- CBORG: tertiary/deep-backup provider (GCP → AWS → CBORG)
+- Fallback notification via injectable callback
 
 ### Cluster D: Package Structure — COMPLETE
 **Status:** All 4 issues (#51-#54) implemented. All sys.path hacks removed.
@@ -106,7 +108,7 @@ careful test coverage to ensure phase ordering is preserved.
 |---------|-------|--------|--------|----|
 | A       | #12,15,20,21,22 | Complete | #41-#45 | — |
 | B       | #1,3,7,10 | Complete | #46-#49 | — |
-| C       | #2,6,8,9 | Not started | — | — |
+| C       | #2,6,8,9 | Planned | #56-#59 | — |
 | D       | #13,19 | Complete | #51-#54 | — |
 | E       | #14,17 | Not started | — | — |
 | F       | #4,5,11,18 | Not started | — | — |

@@ -1,12 +1,12 @@
-# Cluster D: Package Structure — Implementation Tracker
+# Cluster C: LLM Client Consolidation — Implementation Tracker
 
 **Plan:** `plan.md`
-**Source:** `improvements.md` items #13, #19
-**Branch:** `improvements/code-review`
+**Source:** `improvements.md` items #2, #6, #8, #9
+**Branch:** `improvements/cluster-c-llm-consolidation`
 
 ## Steps
 
-- [x] **Step 1:** Add `pyproject.toml` and install in editable mode ([#51](https://github.com/lbnl-science-it/WorkJournalMaker/issues/51))
-- [x] **Step 2:** Remove `sys.path` hacks from `web/` (18 files) ([#52](https://github.com/lbnl-science-it/WorkJournalMaker/issues/52))
-- [x] **Step 3:** Remove `sys.path` hacks from `tests/` (58 files) ([#53](https://github.com/lbnl-science-it/WorkJournalMaker/issues/53))
-- [x] **Step 4:** Remove `sys.path` hacks from `scripts/`, `debug_scripts/`, and root (7 files) ([#54](https://github.com/lbnl-science-it/WorkJournalMaker/issues/54))
+- [ ] **Step 1:** Extract `BaseLLMClient` with shared logic ([#56](https://github.com/lbnl-science-it/WorkJournalMaker/issues/56))
+- [ ] **Step 2:** Add `CBORGConfig` and CBORG client ([#57](https://github.com/lbnl-science-it/WorkJournalMaker/issues/57))
+- [ ] **Step 3:** Add provider fallback to `UnifiedLLMClient` ([#58](https://github.com/lbnl-science-it/WorkJournalMaker/issues/58))
+- [ ] **Step 4:** Wire fallback into CLI and verify end-to-end ([#59](https://github.com/lbnl-science-it/WorkJournalMaker/issues/59))
