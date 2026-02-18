@@ -41,6 +41,16 @@ from config_manager import ConfigManager, AppConfig
 from web.database import DatabaseManager
 
 
+def fallback_notification(message: str) -> None:
+    """
+    Print a fallback notification to stdout so the user sees provider transitions.
+
+    Args:
+        message: Description of the provider switch (from UnifiedLLMClient)
+    """
+    print(f"⚠ {message}")
+
+
 def parse_arguments() -> argparse.Namespace:
     """
     Parse and validate command line arguments.
@@ -355,7 +365,7 @@ def _perform_dry_run(args: argparse.Namespace, config: AppConfig, logger: Journa
     
     # Test LLM connection using unified client
     try:
-        llm_client = UnifiedLLMClient(config)
+        llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
         provider_name = llm_client.get_provider_name()
         provider_info = llm_client.get_provider_info()
         
@@ -644,7 +654,7 @@ def main() -> None:
             print("🤖 Phase 4: Analyzing content with LLM API...")
             try:
                 # Initialize Unified LLM client with configuration
-                llm_client = UnifiedLLMClient(config)
+                llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
                 
                 # Process content through LLM for entity extraction
                 analysis_results = []
