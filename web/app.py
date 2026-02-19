@@ -29,6 +29,7 @@ from web.services.calendar_service import CalendarService
 from web.services.web_summarizer import WebSummarizationService
 from web.services.sync_service import DatabaseSyncService
 from web.services.scheduler import SyncScheduler
+from web.services.settings_service import SettingsService
 from web.services.work_week_service import WorkWeekService
 
 
@@ -48,6 +49,7 @@ class WorkJournalWebApp:
         self.work_week_service: Optional[WorkWeekService] = None
         self.entry_manager: Optional[EntryManager] = None
         self.calendar_service: Optional[CalendarService] = None
+        self.settings_service: Optional[SettingsService] = None
         self.summarization_service: Optional[WebSummarizationService] = None
         self.sync_service: Optional['DatabaseSyncService'] = None
         self.scheduler: Optional[SyncScheduler] = None
@@ -79,7 +81,11 @@ class WorkJournalWebApp:
             # Initialize CalendarService
             self.calendar_service = CalendarService(self.config, self.logger, self.db_manager)
             self.logger.logger.info("CalendarService initialized successfully")
-            
+
+            # Initialize SettingsService
+            self.settings_service = SettingsService(self.config, self.logger, self.db_manager)
+            self.logger.logger.info("SettingsService initialized successfully")
+
             # Initialize DatabaseSyncService
             self.sync_service = DatabaseSyncService(self.config, self.logger, self.db_manager)
             self.logger.logger.info("DatabaseSyncService initialized successfully")
@@ -143,6 +149,7 @@ async def lifespan(app: FastAPI):
     app.state.work_week_service = web_app.work_week_service
     app.state.entry_manager = web_app.entry_manager
     app.state.calendar_service = web_app.calendar_service
+    app.state.settings_service = web_app.settings_service
     app.state.sync_service = web_app.sync_service
     app.state.summarization_service = web_app.summarization_service
     app.state.scheduler = web_app.scheduler
