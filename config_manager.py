@@ -12,7 +12,7 @@ Version: Phase 8 - Configuration Management & API Fallback
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 import yaml
 import json
 import os
@@ -86,9 +86,21 @@ class GoogleGenAIConfig:
 
 
 @dataclass
+class CBORGConfig:
+    """Configuration for CBORG API integration (OpenAI-compatible at cborg.lbl.gov)."""
+    endpoint: str = "https://cborg.lbl.gov/v1"
+    api_key_env: str = "CBORG_API_KEY"
+    model: str = "lbl/cborg-chat:latest"
+    max_retries: int = 3
+    rate_limit_delay: float = 1.0
+    timeout: int = 30
+
+
+@dataclass
 class LLMConfig:
-    """Configuration for LLM provider selection."""
-    provider: str = "bedrock"  # Options: "bedrock" or "google_genai"
+    """Configuration for LLM provider selection and fallback chain."""
+    provider: str = "bedrock"  # Options: "bedrock", "google_genai", or "cborg"
+    fallback_providers: List[str] = field(default_factory=list)  # e.g. ["bedrock", "cborg"]
 
 
 @dataclass
@@ -106,6 +118,7 @@ class AppConfig:
     """Complete application configuration."""
     bedrock: BedrockConfig = field(default_factory=BedrockConfig)
     google_genai: GoogleGenAIConfig = field(default_factory=GoogleGenAIConfig)
+    cborg: CBORGConfig = field(default_factory=CBORGConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     logging: LogConfig = field(default_factory=LogConfig)
@@ -296,10 +309,22 @@ class ConfigManager:
             model=google_genai_dict.get('model', GoogleGenAIConfig.model)
         )
         
+        # Extract CBORG configuration
+        cborg_dict = config_dict.get('cborg', {})
+        cborg_config = CBORGConfig(
+            endpoint=cborg_dict.get('endpoint', CBORGConfig.endpoint),
+            api_key_env=cborg_dict.get('api_key_env', CBORGConfig.api_key_env),
+            model=cborg_dict.get('model', CBORGConfig.model),
+            max_retries=cborg_dict.get('max_retries', CBORGConfig.max_retries),
+            rate_limit_delay=cborg_dict.get('rate_limit_delay', CBORGConfig.rate_limit_delay),
+            timeout=cborg_dict.get('timeout', CBORGConfig.timeout)
+        )
+
         # Extract LLM configuration
         llm_dict = config_dict.get('llm', {})
         llm_config = LLMConfig(
-            provider=llm_dict.get('provider', LLMConfig.provider)
+            provider=llm_dict.get('provider', LLMConfig.provider),
+            fallback_providers=llm_dict.get('fallback_providers', [])
         )
         
         # Extract processing configuration
@@ -336,6 +361,7 @@ class ConfigManager:
         return AppConfig(
             bedrock=bedrock_config,
             google_genai=google_genai_config,
+            cborg=cborg_config,
             llm=llm_config,
             processing=processing_config,
             logging=logging_config
@@ -352,9 +378,16 @@ class ConfigManager:
             ValueError: If configuration is invalid
         """
         # Validate LLM provider
-        valid_providers = ["bedrock", "google_genai"]
+        valid_providers = ["bedrock", "google_genai", "cborg"]
         if config.llm.provider not in valid_providers:
             raise ValueError(f"Invalid LLM provider '{config.llm.provider}'. Must be one of: {valid_providers}")
+
+        # Validate fallback providers
+        for fb in config.llm.fallback_providers:
+            if fb not in valid_providers:
+                raise ValueError(f"Invalid fallback provider '{fb}'. Must be one of: {valid_providers}")
+            if fb == config.llm.provider:
+                raise ValueError(f"Fallback provider '{fb}' cannot be the same as the primary provider")
         
         # Validate paths exist or can be created
         base_path = Path(config.processing.base_path).expanduser()
@@ -462,7 +495,8 @@ class ConfigManager:
         """
         example_config = {
             'llm': {
-                'provider': 'bedrock'  # Options: 'bedrock' or 'google_genai'
+                'provider': 'google_genai',
+                'fallback_providers': ['bedrock', 'cborg']
             },
             'bedrock': {
                 'region': 'us-east-2',
@@ -475,6 +509,14 @@ class ConfigManager:
                 'project': 'geminijournal-463220',
                 'location': 'us-central1',
                 'model': 'gemini-2.0-flash-001'
+            },
+            'cborg': {
+                'endpoint': 'https://cborg.lbl.gov/v1',
+                'api_key_env': 'CBORG_API_KEY',
+                'model': 'lbl/cborg-chat:latest',
+                'max_retries': 3,
+                'rate_limit_delay': 1.0,
+                'timeout': 30
             },
             'processing': {
                 'base_path': '~/Desktop/worklogs/',
@@ -512,7 +554,7 @@ class ConfigManager:
             print("Config file: Using defaults (no config file found)")
         
         print(f"LLM Provider: {self.config.llm.provider}")
-        
+
         if self.config.llm.provider == "bedrock":
             print(f"AWS Region: {self.config.bedrock.region}")
             print(f"Model ID: {self.config.bedrock.model_id}")
@@ -520,7 +562,13 @@ class ConfigManager:
             print(f"GCP Project: {self.config.google_genai.project}")
             print(f"GCP Location: {self.config.google_genai.location}")
             print(f"Model: {self.config.google_genai.model}")
-        
+        elif self.config.llm.provider == "cborg":
+            print(f"CBORG Endpoint: {self.config.cborg.endpoint}")
+            print(f"CBORG Model: {self.config.cborg.model}")
+
+        if self.config.llm.fallback_providers:
+            print(f"Fallback Providers: {', '.join(self.config.llm.fallback_providers)}")
+
         print(f"Base Path: {self.config.processing.base_path}")
         print(f"Output Path: {self.config.processing.output_path}")
         print(f"Log Level: {self.config.logging.level.value}")

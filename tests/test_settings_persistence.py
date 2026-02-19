@@ -49,7 +49,7 @@ from web.models.settings import (
 )
 from config_manager import ConfigManager
 from logger import JournalSummarizerLogger
-from debug_database_write import (
+from debug_scripts.debug_database_write import (
     DatabaseTestingUtility, test_database_connectivity,
     test_database_write_operations, verify_settings_persistence
 )

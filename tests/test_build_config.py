@@ -12,7 +12,7 @@ from typing import Dict, Any, List
 import pytest
 
 # Import the module we're testing
-from build.build_config import BuildConfig, PyInstallerSpecGenerator
+from build_system.build_config import BuildConfig, PyInstallerSpecGenerator
 
 
 class TestBuildConfig(unittest.TestCase):

@@ -138,7 +138,7 @@ class TestBedrockClient:
         assert result.participants == []
         assert result.tasks == []
         assert result.themes == []
-        assert "ERROR:" in result.raw_response
+        assert result.raw_response.startswith("ERROR")
     
     @patch.dict('os.environ', {
         'AWS_ACCESS_KEY_ID': 'test-access-key',

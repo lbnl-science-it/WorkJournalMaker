@@ -1,176 +1,250 @@
-#!/usr/bin/env python3
+# ABOUTME: Multi-provider LLM interface with ordered fallback chain.
+# ABOUTME: Delegates to Google GenAI, AWS Bedrock, or CBORG with lazy initialization and user-visible notifications.
 """
-Unified LLM Client - Multi-Provider LLM Interface
+Unified LLM Client - Multi-Provider LLM Interface with Fallback
 
 This module implements a unified interface that can switch between different LLM
-providers (AWS Bedrock, Google GenAI) based on configuration. It provides a
-transparent abstraction layer that allows the application to use different
-LLM providers without changing the calling code.
-
-Author: Work Journal Summarizer Project
-Version: Multi-Provider Support
+providers (AWS Bedrock, Google GenAI, CBORG) based on configuration. When the
+active provider fails, it falls back to the next provider in a configurable chain,
+notifying the user on every transition.
 """
 
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, Optional, Callable, List
 from pathlib import Path
 import logging
 
 from config_manager import AppConfig
 from bedrock_client import BedrockClient
 from google_genai_client import GoogleGenAIClient
+from cborg_client import CBORGClient
 from llm_data_structures import AnalysisResult, APIStats
 
 
 class UnifiedLLMClient:
     """
-    Unified LLM client that can switch between different providers based on configuration.
-    
-    This client provides a transparent interface that delegates all calls to the
-    appropriate underlying LLM client (BedrockClient or GoogleGenAIClient) based
-    on the configured provider. The interface is identical to the individual clients,
-    making it a drop-in replacement.
-    
-    Supported providers:
-    - "bedrock": AWS Bedrock with Claude models
-    - "google_genai": Google GenAI with Gemini models
-    
-    The client automatically creates and manages the underlying provider client
-    based on the configuration, handling all provider-specific initialization
-    and error handling.
+    Unified LLM client with ordered provider fallback.
+
+    Manages a chain of LLM providers (e.g. Google GenAI → Bedrock → CBORG).
+    The primary provider is created at init time; fallback providers are created
+    lazily only when needed. On every provider transition, a user-visible
+    notification is emitted via the on_fallback callback.
     """
-    
-    def __init__(self, config: AppConfig):
+
+    SUPPORTED_PROVIDERS = ["bedrock", "google_genai", "cborg"]
+
+    def __init__(self, config: AppConfig, on_fallback: Optional[Callable[[str], None]] = None):
         """
-        Initialize the unified LLM client with the specified configuration.
-        
+        Initialize the unified LLM client with provider fallback support.
+
         Args:
-            config (AppConfig): Complete application configuration including
-                               LLM provider selection and provider-specific configs
-        
+            config: Complete application configuration
+            on_fallback: Callback invoked with a message string when switching
+                        providers. Defaults to logging.warning.
+
         Raises:
-            ValueError: If an unsupported provider is specified in config.llm.provider
-            Exception: If the underlying client fails to initialize
+            ValueError: If an unsupported provider is specified
+            Exception: If the primary client fails to initialize
         """
         self.config = config
         self.provider_name = config.llm.provider
         self.logger = logging.getLogger(__name__)
-        
-        # Create the appropriate underlying client
-        self.client = self._create_client()
-        
+        self.on_fallback = on_fallback or logging.warning
+
+        # Build the ordered provider chain: [primary, fallback1, fallback2, ...]
+        self._provider_chain: List[str] = [config.llm.provider] + list(
+            config.llm.fallback_providers
+        )
+
+        # Cache for lazily initialized provider clients
+        self._clients: Dict[str, Union[BedrockClient, GoogleGenAIClient, CBORGClient]] = {}
+
+        # Create the primary client eagerly
+        self.client = self._create_client_for_provider(config.llm.provider)
+        self._clients[config.llm.provider] = self.client
+        self.active_provider_name = config.llm.provider
+
         self.logger.info(f"UnifiedLLMClient initialized with provider: {self.provider_name}")
-    
-    def _create_client(self) -> Union[BedrockClient, GoogleGenAIClient]:
+
+    def _create_client_for_provider(
+        self, provider_name: str
+    ) -> Union[BedrockClient, GoogleGenAIClient, CBORGClient]:
         """
-        Create the appropriate LLM client based on the configured provider.
-        
+        Create an LLM client for the given provider name.
+
+        Args:
+            provider_name: One of "bedrock", "google_genai", or "cborg"
+
         Returns:
-            Union[BedrockClient, GoogleGenAIClient]: The initialized client instance
-        
+            The initialized client instance
+
         Raises:
             ValueError: If the provider is not supported
             Exception: If client initialization fails
         """
         try:
-            if self.provider_name == "bedrock":
+            if provider_name == "bedrock":
                 self.logger.debug("Creating BedrockClient")
                 return BedrockClient(self.config.bedrock)
-            elif self.provider_name == "google_genai":
+            elif provider_name == "google_genai":
                 self.logger.debug("Creating GoogleGenAIClient")
                 return GoogleGenAIClient(self.config.google_genai)
+            elif provider_name == "cborg":
+                self.logger.debug("Creating CBORGClient")
+                return CBORGClient(self.config.cborg)
             else:
-                supported_providers = ["bedrock", "google_genai"]
                 raise ValueError(
-                    f"Unsupported LLM provider: '{self.provider_name}'. "
-                    f"Supported providers: {supported_providers}"
+                    f"Unsupported LLM provider: '{provider_name}'. "
+                    f"Supported providers: {self.SUPPORTED_PROVIDERS}"
                 )
         except Exception as e:
-            self.logger.error(f"Failed to create {self.provider_name} client: {e}")
+            self.logger.error(f"Failed to create {provider_name} client: {e}")
             raise
-    
+
+    def _get_or_create_client(
+        self, provider_name: str
+    ) -> Union[BedrockClient, GoogleGenAIClient, CBORGClient]:
+        """
+        Get a cached client or create a new one for the given provider.
+
+        Args:
+            provider_name: Provider to get or create a client for
+
+        Returns:
+            The client instance
+        """
+        if provider_name not in self._clients:
+            self._clients[provider_name] = self._create_client_for_provider(provider_name)
+        return self._clients[provider_name]
+
     def analyze_content(self, content: str, file_path: Path) -> AnalysisResult:
         """
-        Analyze journal content and extract structured information.
-        
-        This method delegates to the underlying provider client to perform
-        content analysis and entity extraction from journal entries.
-        
+        Analyze journal content, falling back to alternate providers on failure.
+
+        Tries the active provider first. On failure, walks the remaining fallback
+        chain, notifying the user at each transition. If all providers fail, the
+        last exception is raised.
+
         Args:
-            content (str): The journal content to analyze
-            file_path (Path): Path to the source file being analyzed
-        
+            content: The journal content to analyze
+            file_path: Path to the source file being analyzed
+
         Returns:
-            AnalysisResult: Structured analysis results containing extracted
-                          projects, participants, tasks, themes, and metadata
-        
+            AnalysisResult: Structured analysis results
+
         Raises:
-            Exception: Any exceptions from the underlying provider client
+            Exception: If all providers in the chain fail
         """
-        self.logger.debug(f"Analyzing content using {self.provider_name} provider")
-        return self.client.analyze_content(content, file_path)
-    
+        last_exception: Optional[Exception] = None
+        failed_provider: Optional[str] = None
+        active_index = self._provider_chain.index(self.active_provider_name)
+
+        for i in range(active_index, len(self._provider_chain)):
+            provider_name = self._provider_chain[i]
+
+            # Notify on transition from a previously failed provider
+            if failed_provider is not None:
+                self.on_fallback(
+                    f"Provider '{failed_provider}' failed: {last_exception}. "
+                    f"Falling back to '{provider_name}'."
+                )
+
+            try:
+                client = self._get_or_create_client(provider_name)
+            except Exception as init_err:
+                self.logger.warning(
+                    f"Failed to initialize fallback provider '{provider_name}': {init_err}"
+                )
+                failed_provider = provider_name
+                last_exception = init_err
+                continue
+
+            try:
+                self.logger.debug(f"Analyzing content using {provider_name} provider")
+                result = client.analyze_content(content, file_path)
+                self.active_provider_name = provider_name
+                self.client = client
+                return result
+            except Exception as e:
+                failed_provider = provider_name
+                last_exception = e
+                self.logger.warning(f"Provider '{provider_name}' failed: {e}")
+
+        raise last_exception
+
     def get_stats(self) -> APIStats:
         """
-        Get API usage statistics from the underlying client.
-        
+        Get API usage statistics from the active client.
+
         Returns:
             APIStats: Statistics including call counts, timing, and error rates
         """
         return self.client.get_stats()
-    
+
     def reset_stats(self) -> None:
         """
-        Reset API usage statistics in the underlying client.
-        
-        This clears all accumulated statistics including call counts,
-        timing information, and error counters.
+        Reset API usage statistics in the active client.
         """
-        self.logger.debug(f"Resetting stats for {self.provider_name} provider")
+        self.logger.debug(f"Resetting stats for {self.active_provider_name} provider")
         self.client.reset_stats()
-    
+
     def test_connection(self) -> bool:
         """
-        Test connection to the configured LLM provider.
-        
-        This method attempts to make a simple test call to verify that
-        the client can successfully connect to and communicate with the
-        configured LLM provider.
-        
+        Test connection to the active provider, falling back on failure.
+
         Returns:
-            bool: True if connection test succeeds, False otherwise
+            bool: True if any provider in the chain connects successfully
         """
-        self.logger.debug(f"Testing connection for {self.provider_name} provider")
-        try:
-            result = self.client.test_connection()
-            if result:
-                self.logger.info(f"Connection test successful for {self.provider_name}")
-            else:
-                self.logger.warning(f"Connection test failed for {self.provider_name}")
-            return result
-        except Exception as e:
-            self.logger.error(f"Connection test error for {self.provider_name}: {e}")
-            return False
-    
+        self.logger.debug(f"Testing connection for {self.active_provider_name} provider")
+        active_index = self._provider_chain.index(self.active_provider_name)
+
+        for i in range(active_index, len(self._provider_chain)):
+            provider_name = self._provider_chain[i]
+
+            if i > active_index:
+                self.on_fallback(
+                    f"Provider '{self._provider_chain[i - 1]}' connection failed. "
+                    f"Falling back to '{provider_name}'."
+                )
+
+            try:
+                client = self._get_or_create_client(provider_name)
+            except Exception as init_err:
+                self.logger.warning(
+                    f"Failed to initialize provider '{provider_name}': {init_err}"
+                )
+                continue
+
+            try:
+                result = client.test_connection()
+                if result:
+                    self.logger.info(f"Connection test successful for {provider_name}")
+                    self.active_provider_name = provider_name
+                    self.client = client
+                    return True
+                else:
+                    self.logger.warning(f"Connection test failed for {provider_name}")
+            except Exception as e:
+                self.logger.error(f"Connection test error for {provider_name}: {e}")
+
+        return False
+
     def get_provider_name(self) -> str:
         """
-        Get the name of the currently configured provider.
-        
+        Get the name of the currently active provider.
+
         Returns:
-            str: The provider name ("bedrock" or "google_genai")
+            str: The active provider name
         """
-        return self.provider_name
-    
+        return self.active_provider_name
+
     def get_provider_info(self) -> Dict[str, Any]:
         """
-        Get provider-specific configuration information.
-        
-        Returns provider-specific configuration details that are useful
-        for debugging, logging, and displaying current settings.
-        This method delegates to the underlying client's get_provider_info() method.
-        
+        Get provider configuration info including fallback chain.
+
         Returns:
-            Dict[str, Any]: Provider-specific configuration information
-                           - For bedrock: provider, region, model_id
-                           - For google_genai: provider, project, location, model
+            Dict[str, Any]: Active provider info plus fallback metadata
         """
-        return self.client.get_provider_info()
+        info = self.client.get_provider_info()
+        info["active_provider"] = self.active_provider_name
+        info["fallback_providers"] = list(self.config.llm.fallback_providers)
+        return info
