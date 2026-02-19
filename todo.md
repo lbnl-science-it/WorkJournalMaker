@@ -6,5 +6,5 @@
 
 ## Steps
 
-- [ ] **Step 1:** Refactor settings.py dependency injection to use app.state ([#62](https://github.com/lbnl-science-it/WorkJournalMaker/issues/62))
-- [ ] **Step 2:** Add ABOUTME comments to all 27 web/ Python files ([#63](https://github.com/lbnl-science-it/WorkJournalMaker/issues/63))
+- [x] **Step 1:** Refactor settings.py dependency injection to use app.state ([#62](https://github.com/lbnl-science-it/WorkJournalMaker/issues/62))
+- [x] **Step 2:** Add ABOUTME comments to all 27 web/ Python files ([#63](https://github.com/lbnl-science-it/WorkJournalMaker/issues/63))

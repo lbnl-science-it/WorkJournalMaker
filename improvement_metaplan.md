@@ -82,8 +82,8 @@ should catch regressions.
 tests pass after restructuring.
 **Design decision:** Flat layout with `pyproject.toml` at root (no file moves).
 
-### Cluster E: Web App Fixes
-**Status:** Planned. Issues #62-#63 created. Ready for implementation.
+### Cluster E: Web App Fixes — COMPLETE
+**Status:** Both issues implemented. PR pending.
 **Items:** #14, #17 from improvements.md
 **Scope:**
 - Refactor `web/api/settings.py` dependency injection to use `app.state`
@@ -111,5 +111,5 @@ careful test coverage to ensure phase ordering is preserved.
 | B       | #1,3,7,10 | Complete | #46-#49 | — |
 | C       | #2,6,8,9 | Complete | #56-#59 | #61 |
 | D       | #13,19 | Complete | #51-#54 | — |
-| E       | #14,17 | Planned | #62-#63 | — |
+| E       | #14,17 | Complete | #62-#63 | pending |
 | F       | #4,5,11,18 | Not started | — | — |
