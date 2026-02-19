@@ -1,3 +1,5 @@
+# ABOUTME: Service for synchronizing the SQLite index with the file system.
+# ABOUTME: Keeps the database consistent with on-disk work log files.
 """
 Database Synchronization Service for Work Journal Maker Web Interface
 

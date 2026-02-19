@@ -1,3 +1,5 @@
+# ABOUTME: REST API endpoints for web settings and work-week configuration.
+# ABOUTME: Supports CRUD, bulk updates, import/export, and filesystem path validation.
 """
 Settings API Endpoints for Daily Work Journal Web Interface
 

@@ -1,3 +1,5 @@
+# ABOUTME: Main FastAPI application with lifecycle management and middleware.
+# ABOUTME: Initializes all services during startup and exposes them on app.state.
 """
 Main FastAPI Application for Work Journal Maker Web Interface
 
