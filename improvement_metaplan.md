@@ -83,13 +83,14 @@ tests pass after restructuring.
 **Design decision:** Flat layout with `pyproject.toml` at root (no file moves).
 
 ### Cluster E: Web App Fixes
-**Status:** Not yet planned. Benefits from Cluster D (clean imports).
+**Status:** Planned. Issues #62-#63 created. Ready for implementation.
 **Items:** #14, #17 from improvements.md
 **Scope:**
-- Refactor FastAPI dependency injection to use `app.state` singletons
-  instead of module-level globals
+- Refactor `web/api/settings.py` dependency injection to use `app.state`
+  singletons instead of module-level globals (only file with this pattern)
 - Add ABOUTME comments to all 27 `web/` Python files
-**Risk:** Low-medium. Dependency injection change affects request lifecycle.
+**Risk:** Low-medium. DI change is confined to one API module; all other
+modules already use the correct pattern.
 
 ### Cluster F: CLI Cleanup
 **Status:** Not yet planned. Independent of B-E.
@@ -110,5 +111,5 @@ careful test coverage to ensure phase ordering is preserved.
 | B       | #1,3,7,10 | Complete | #46-#49 | — |
 | C       | #2,6,8,9 | Complete | #56-#59 | #61 |
 | D       | #13,19 | Complete | #51-#54 | — |
-| E       | #14,17 | Not started | — | — |
+| E       | #14,17 | Planned | #62-#63 | — |
 | F       | #4,5,11,18 | Not started | — | — |

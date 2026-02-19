@@ -1,12 +1,10 @@
-# Cluster C: LLM Client Consolidation — Implementation Tracker
+# Cluster E: Web App Fixes — Implementation Tracker
 
 **Plan:** `plan.md`
-**Source:** `improvements.md` items #2, #6, #8, #9
-**Branch:** `improvements/cluster-c-llm-consolidation`
+**Source:** `improvements.md` items #14, #17
+**Branch:** `improvements/cluster-e-web-app-fixes`
 
 ## Steps
 
-- [x] **Step 1:** Extract `BaseLLMClient` with shared logic ([#56](https://github.com/lbnl-science-it/WorkJournalMaker/issues/56))
-- [x] **Step 2:** Add `CBORGConfig` and CBORG client ([#57](https://github.com/lbnl-science-it/WorkJournalMaker/issues/57))
-- [x] **Step 3:** Add provider fallback to `UnifiedLLMClient` ([#58](https://github.com/lbnl-science-it/WorkJournalMaker/issues/58))
-- [x] **Step 4:** Wire fallback into CLI and verify end-to-end ([#59](https://github.com/lbnl-science-it/WorkJournalMaker/issues/59))
+- [ ] **Step 1:** Refactor settings.py dependency injection to use app.state ([#62](https://github.com/lbnl-science-it/WorkJournalMaker/issues/62))
+- [ ] **Step 2:** Add ABOUTME comments to all 27 web/ Python files ([#63](https://github.com/lbnl-science-it/WorkJournalMaker/issues/63))
