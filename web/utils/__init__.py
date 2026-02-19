@@ -1,3 +1,5 @@
+# ABOUTME: Package init for web utility modules.
+# ABOUTME: Re-exports timezone handling functions for convenient access.
 """
 Web utilities package for timezone handling and other common functions.
 """

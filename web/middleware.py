@@ -1,3 +1,5 @@
+# ABOUTME: Request/response middleware for logging, error handling, and CORS.
+# ABOUTME: Provides cross-cutting concerns for all API and page requests.
 """
 Custom Middleware for Work Journal Maker Web Interface
 

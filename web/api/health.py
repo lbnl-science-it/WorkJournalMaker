@@ -1,3 +1,5 @@
+# ABOUTME: REST API endpoints for application health checks and system metrics.
+# ABOUTME: Reports service status, database connectivity, and configuration validity.
 """
 Health Check API Endpoints
 

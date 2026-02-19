@@ -1,3 +1,5 @@
+# ABOUTME: REST API endpoints for journal entry CRUD and listing.
+# ABOUTME: Provides read/write access to daily work log files via EntryManager.
 """
 Entry API Endpoints for Work Journal Maker Web Interface
 

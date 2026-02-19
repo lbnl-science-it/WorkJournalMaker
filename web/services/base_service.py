@@ -1,3 +1,5 @@
+# ABOUTME: Abstract base class for all web services.
+# ABOUTME: Provides shared config, logger, and database manager access with operation logging.
 """
 Base Service Class
 

@@ -1,3 +1,5 @@
+# ABOUTME: Service for managing web-specific settings stored in the database.
+# ABOUTME: Handles settings CRUD, work-week configuration, and import/export.
 """
 Settings Service for Daily Work Journal Web Interface
 

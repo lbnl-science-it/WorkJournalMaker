@@ -1,3 +1,5 @@
+# ABOUTME: Background scheduler for periodic file-to-database sync.
+# ABOUTME: Runs automated sync tasks on a configurable interval.
 """
 Sync Scheduler for Work Journal Maker Web Interface
 
