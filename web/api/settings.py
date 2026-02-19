@@ -5,15 +5,12 @@ This module provides REST API endpoints for managing web-specific settings
 while maintaining compatibility with CLI configuration.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, Request, status
 from typing import Dict, Any, Optional, List
 import json
 from datetime import datetime
 from pathlib import Path
 
-from config_manager import ConfigManager
-from logger import JournalSummarizerLogger
-from web.database import DatabaseManager
 from web.services.settings_service import SettingsService
 from web.models.settings import (
     WebSettingResponse, WebSettingCreate, WebSettingUpdate,
@@ -24,27 +21,12 @@ from web.models.settings import (
     WorkWeekPresetInfo
 )
 
-# Initialize dependencies (will be initialized in dependency functions)
-config_manager = None
-config = None
-logger = None
-db_manager = None
-
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-async def get_settings_service() -> SettingsService:
-    """Dependency to get settings service instance."""
-    global config_manager, config, logger, db_manager
-    
-    if config_manager is None:
-        config_manager = ConfigManager()
-        config = config_manager.get_config()
-        logger = JournalSummarizerLogger(config.logging)
-        db_manager = DatabaseManager()
-    
-    if not db_manager.engine:
-        await db_manager.initialize()
-    return SettingsService(config, logger, db_manager)
+
+def get_settings_service(request: Request) -> SettingsService:
+    """Dependency to get SettingsService from app state."""
+    return request.app.state.settings_service
 
 @router.get("/", response_model=Dict[str, WebSettingResponse])
 async def get_all_settings(
@@ -55,10 +37,7 @@ async def get_all_settings(
         settings = await settings_service.get_all_settings()
         return settings
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to get all settings: {str(e)}")
-        else:
-            print(f"Failed to get all settings: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to get all settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve settings: {str(e)}"
@@ -73,10 +52,7 @@ async def get_settings_categories(
         categories = settings_service.get_setting_categories()
         return SettingsCategoryResponse(categories=categories)
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to get settings categories: {str(e)}")
-        else:
-            print(f"Failed to get settings categories: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to get settings categories: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve categories: {str(e)}"
@@ -98,8 +74,7 @@ async def settings_health_check(
             "categories": list(settings_service.get_setting_categories().keys())
         }
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Settings health check failed: {str(e)}")
+        settings_service.logger.logger.error(f"Settings health check failed: {str(e)}")
         return {
             "status": "unhealthy",
             "error": str(e),
@@ -157,8 +132,7 @@ async def get_work_week_configuration(
         settings = await settings_service.get_work_week_settings()
         return await _build_work_week_config_response(settings)
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to get work week configuration: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to get work week configuration: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve work week configuration: {str(e)}"
@@ -196,8 +170,7 @@ async def update_work_week_configuration(
             detail=str(e)
         )
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to update work week configuration: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to update work week configuration: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update work week configuration: {str(e)}"
@@ -230,8 +203,7 @@ async def get_work_week_presets(
         )
         
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to get work week presets: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to get work week presets: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve work week presets: {str(e)}"
@@ -290,8 +262,7 @@ async def validate_work_week_configuration(
         )
         
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to validate work week configuration: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to validate work week configuration: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to validate work week configuration: {str(e)}"
@@ -314,10 +285,7 @@ async def get_setting(
     except HTTPException:
         raise
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to get setting {key}: {str(e)}")
-        else:
-            print(f"Failed to get setting {key}: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to get setting {key}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve setting: {str(e)}"
@@ -344,10 +312,7 @@ async def update_setting(
             detail=str(e)
         )
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to update setting {key}: {str(e)}")
-        else:
-            print(f"Failed to update setting {key}: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to update setting {key}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update setting: {str(e)}"
@@ -362,62 +327,58 @@ async def bulk_update_settings(
     operation_start = datetime.now()
     request_id = f"api_{operation_start.strftime('%H%M%S')}_{id(bulk_request)}"
     
-    if logger:
-        logger.logger.info(
-            f"[API] Bulk update request received {request_id}",
-            extra={
-                'request_id': request_id,
-                'settings_count': len(bulk_request.settings),
-                'settings_keys': list(bulk_request.settings.keys()),
-                'client_ip': 'unknown',  # Could be enhanced with actual client IP
-                'timestamp': operation_start.isoformat()
-            }
-        )
-    
+    settings_service.logger.logger.info(
+        f"[API] Bulk update request received {request_id}",
+        extra={
+            'request_id': request_id,
+            'settings_count': len(bulk_request.settings),
+            'settings_keys': list(bulk_request.settings.keys()),
+            'client_ip': 'unknown',  # Could be enhanced with actual client IP
+            'timestamp': operation_start.isoformat()
+        }
+    )
+
     try:
         # Call the service method with comprehensive logging
         result = await settings_service.bulk_update_settings(bulk_request.settings)
-        
+
         # Determine appropriate HTTP status code based on result
         if result.error_count == 0:
             # All settings updated successfully
             status_code = status.HTTP_200_OK
-            if logger:
-                logger.logger.info(
-                    f"[API] Bulk update completed successfully {request_id}",
-                    extra={
-                        'request_id': request_id,
-                        'success_count': result.success_count,
-                        'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
-                    }
-                )
+            settings_service.logger.logger.info(
+                f"[API] Bulk update completed successfully {request_id}",
+                extra={
+                    'request_id': request_id,
+                    'success_count': result.success_count,
+                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                }
+            )
         elif result.success_count > 0:
             # Partial success - some settings updated, some failed
             status_code = status.HTTP_207_MULTI_STATUS
-            if logger:
-                logger.logger.warning(
-                    f"[API] Bulk update partially successful {request_id}",
-                    extra={
-                        'request_id': request_id,
-                        'success_count': result.success_count,
-                        'error_count': result.error_count,
-                        'failed_settings': [error.key for error in result.validation_errors],
-                        'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
-                    }
-                )
+            settings_service.logger.logger.warning(
+                f"[API] Bulk update partially successful {request_id}",
+                extra={
+                    'request_id': request_id,
+                    'success_count': result.success_count,
+                    'error_count': result.error_count,
+                    'failed_settings': [error.key for error in result.validation_errors],
+                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                }
+            )
         else:
             # Complete failure - no settings updated
             status_code = status.HTTP_400_BAD_REQUEST
-            if logger:
-                logger.logger.error(
-                    f"[API] Bulk update completely failed {request_id}",
-                    extra={
-                        'request_id': request_id,
-                        'error_count': result.error_count,
-                        'failed_settings': [error.key for error in result.validation_errors],
-                        'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
-                    }
-                )
+            settings_service.logger.logger.error(
+                f"[API] Bulk update completely failed {request_id}",
+                extra={
+                    'request_id': request_id,
+                    'error_count': result.error_count,
+                    'failed_settings': [error.key for error in result.validation_errors],
+                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+                }
+            )
         
         # Add metadata to response
         response_data = result.dict()
@@ -437,16 +398,15 @@ async def bulk_update_settings(
         
     except ValueError as ve:
         # Validation errors
-        if logger:
-            logger.logger.error(
-                f"[API] Bulk update validation error {request_id}: {str(ve)}",
-                extra={
-                    'request_id': request_id,
-                    'error_type': 'validation_error',
-                    'error_message': str(ve),
-                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
-                }
-            )
+        settings_service.logger.logger.error(
+            f"[API] Bulk update validation error {request_id}: {str(ve)}",
+            extra={
+                'request_id': request_id,
+                'error_type': 'validation_error',
+                'error_message': str(ve),
+                'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -458,16 +418,15 @@ async def bulk_update_settings(
         )
     except ConnectionError as ce:
         # Database connection errors
-        if logger:
-            logger.logger.error(
-                f"[API] Bulk update database connection error {request_id}: {str(ce)}",
-                extra={
-                    'request_id': request_id,
-                    'error_type': 'database_connection_error',
-                    'error_message': str(ce),
-                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
-                }
-            )
+        settings_service.logger.logger.error(
+            f"[API] Bulk update database connection error {request_id}: {str(ce)}",
+            extra={
+                'request_id': request_id,
+                'error_type': 'database_connection_error',
+                'error_message': str(ce),
+                'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
@@ -480,16 +439,15 @@ async def bulk_update_settings(
         )
     except TimeoutError as te:
         # Operation timeout errors
-        if logger:
-            logger.logger.error(
-                f"[API] Bulk update timeout error {request_id}: {str(te)}",
-                extra={
-                    'request_id': request_id,
-                    'error_type': 'timeout_error',
-                    'error_message': str(te),
-                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
-                }
-            )
+        settings_service.logger.logger.error(
+            f"[API] Bulk update timeout error {request_id}: {str(te)}",
+            extra={
+                'request_id': request_id,
+                'error_type': 'timeout_error',
+                'error_message': str(te),
+                'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
             detail={
@@ -501,17 +459,16 @@ async def bulk_update_settings(
         )
     except Exception as e:
         # Generic server errors
-        if logger:
-            logger.logger.error(
-                f"[API] Bulk update internal error {request_id}: {str(e)}",
-                extra={
-                    'request_id': request_id,
-                    'error_type': 'internal_server_error',
-                    'error_message': str(e),
-                    'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
-                },
-                exc_info=True
-            )
+        settings_service.logger.logger.error(
+            f"[API] Bulk update internal error {request_id}: {str(e)}",
+            extra={
+                'request_id': request_id,
+                'error_type': 'internal_server_error',
+                'error_message': str(e),
+                'duration_ms': (datetime.now() - operation_start).total_seconds() * 1000
+            },
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -542,10 +499,7 @@ async def reset_setting(
             detail=str(e)
         )
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to reset setting {key}: {str(e)}")
-        else:
-            print(f"Failed to reset setting {key}: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to reset setting {key}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to reset setting: {str(e)}"
@@ -560,10 +514,7 @@ async def reset_all_settings(
         reset_settings = await settings_service.reset_all_settings()
         return reset_settings
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to reset all settings: {str(e)}")
-        else:
-            print(f"Failed to reset all settings: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to reset all settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to reset all settings: {str(e)}"
@@ -578,10 +529,7 @@ async def export_settings(
         export_data = await settings_service.export_settings()
         return export_data
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to export settings: {str(e)}")
-        else:
-            print(f"Failed to export settings: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to export settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to export settings: {str(e)}"
@@ -602,10 +550,7 @@ async def import_settings(
             detail=str(e)
         )
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to import settings: {str(e)}")
-        else:
-            print(f"Failed to import settings: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to import settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to import settings: {str(e)}"
@@ -646,15 +591,9 @@ async def validate_filesystem_path(
                 exists = True
                 is_directory = True
                 is_writable = True
-                if logger:
-                    logger.logger.info(f"Created directory: {path_obj}")
-                else:
-                    print(f"Created directory: {path_obj}")
+                settings_service.logger.logger.info(f"Created directory: {path_obj}")
             except Exception as e:
-                if logger:
-                    logger.logger.error(f"Failed to create directory {path_obj}: {str(e)}")
-                else:
-                    print(f"Failed to create directory {path_obj}: {str(e)}")
+                settings_service.logger.logger.error(f"Failed to create directory {path_obj}: {str(e)}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Cannot create directory: {str(e)}"
@@ -671,10 +610,7 @@ async def validate_filesystem_path(
     except HTTPException:
         raise
     except Exception as e:
-        if logger:
-            logger.logger.error(f"Failed to validate path {path}: {str(e)}")
-        else:
-            print(f"Failed to validate path {path}: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to validate path {path}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid path: {str(e)}"
