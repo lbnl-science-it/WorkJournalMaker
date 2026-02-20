@@ -17,7 +17,7 @@ import argparse
 import datetime
 import sys
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 # Import Phase 2 components
 from file_discovery import FileDiscovery, FileDiscoveryResult
@@ -422,6 +422,94 @@ def _perform_dry_run(args: argparse.Namespace, config: AppConfig, logger: Journa
                 print(f"    Recovery: {report.recovery_action}")
 
 
+def _run_file_discovery(
+    config: 'AppConfig',
+    args: argparse.Namespace,
+    logger: 'JournalSummarizerLogger',
+) -> Optional[FileDiscoveryResult]:
+    """
+    Discover journal files in the configured date range.
+
+    Returns a FileDiscoveryResult on success, an empty result for recoverable
+    failures, or None when the logger indicates processing should stop.
+    """
+    logger.start_phase("File Discovery")
+    print("🔍 Phase 2: Discovering journal files...")
+
+    try:
+        file_discovery = FileDiscovery(base_path=config.processing.base_path)
+        discovery_result = file_discovery.discover_files(args.start_date, args.end_date)
+
+        logger.update_progress("File Discovery", 0.8, 0, discovery_result.total_expected)
+
+        # Log missing files as warnings
+        if discovery_result.missing_files:
+            for missing_file in discovery_result.missing_files:
+                logger.log_warning_with_category(
+                    ErrorCategory.FILE_SYSTEM,
+                    f"Expected journal file not found: {missing_file.name}",
+                    file_path=missing_file
+                )
+
+        # Display discovery statistics
+        print("📊 File Discovery Results:")
+        print("-" * 30)
+        print(f"Total files expected: {discovery_result.total_expected}")
+        print(f"Files found: {len(discovery_result.found_files)}")
+        print(f"Files missing: {len(discovery_result.missing_files)}")
+
+        if discovery_result.total_expected > 0:
+            success_rate = len(discovery_result.found_files)/discovery_result.total_expected*100
+            print(f"Discovery success rate: {success_rate:.1f}%")
+
+            # Log low success rate as warning
+            if success_rate < 50:
+                logger.log_warning_with_category(
+                    ErrorCategory.FILE_SYSTEM,
+                    f"Low file discovery success rate: {success_rate:.1f}%",
+                )
+
+        print(f"Processing time: {discovery_result.processing_time:.3f} seconds")
+        print()
+
+        # Display found files (first 5 for brevity)
+        if discovery_result.found_files:
+            print("📁 Found Files (showing first 5):")
+            for i, file_path in enumerate(discovery_result.found_files[:5]):
+                print(f"  {i+1}. {file_path}")
+            if len(discovery_result.found_files) > 5:
+                print(f"  ... and {len(discovery_result.found_files) - 5} more files")
+            print()
+
+        # Display missing files (first 5 for brevity)
+        if discovery_result.missing_files:
+            print("❌ Missing Files (showing first 5):")
+            for i, file_path in enumerate(discovery_result.missing_files[:5]):
+                print(f"  {i+1}. {file_path}")
+            if len(discovery_result.missing_files) > 5:
+                print(f"  ... and {len(discovery_result.missing_files) - 5} more missing files")
+            print()
+
+        logger.update_progress("File Discovery", 1.0, 0, discovery_result.total_expected)
+        logger.complete_phase("File Discovery")
+        return discovery_result
+
+    except Exception as e:
+        logger.log_error_with_category(
+            ErrorCategory.FILE_SYSTEM,
+            f"File discovery failed: {str(e)}",
+            exception=e,
+            recovery_action="Check base path exists and is accessible"
+        )
+
+        if not logger.should_continue_processing():
+            print("❌ Critical file discovery error - stopping processing")
+            return None
+
+        # Empty result for graceful degradation
+        return FileDiscoveryResult([], [], 0, (args.start_date, args.end_date), 0.0)
+
+
 def main() -> None:
     """
     Main entry point for the Work Journal Summarizer.
@@ -522,80 +610,9 @@ def main() -> None:
         logger.complete_phase("Initialization")
         
         # Phase 2: File Discovery
-        logger.start_phase("File Discovery")
-        print("🔍 Phase 2: Discovering journal files...")
-        
-        try:
-            file_discovery = FileDiscovery(base_path=config.processing.base_path)
-            discovery_result = file_discovery.discover_files(args.start_date, args.end_date)
-            
-            logger.update_progress("File Discovery", 0.8, 0, discovery_result.total_expected)
-            
-            # Log missing files as warnings
-            if discovery_result.missing_files:
-                for missing_file in discovery_result.missing_files:
-                    logger.log_warning_with_category(
-                        ErrorCategory.FILE_SYSTEM,
-                        f"Expected journal file not found: {missing_file.name}",
-                        file_path=missing_file
-                    )
-            
-            # Display discovery statistics
-            print("📊 File Discovery Results:")
-            print("-" * 30)
-            print(f"Total files expected: {discovery_result.total_expected}")
-            print(f"Files found: {len(discovery_result.found_files)}")
-            print(f"Files missing: {len(discovery_result.missing_files)}")
-            
-            if discovery_result.total_expected > 0:
-                success_rate = len(discovery_result.found_files)/discovery_result.total_expected*100
-                print(f"Discovery success rate: {success_rate:.1f}%")
-                
-                # Log low success rate as warning
-                if success_rate < 50:
-                    logger.log_warning_with_category(
-                        ErrorCategory.FILE_SYSTEM,
-                        f"Low file discovery success rate: {success_rate:.1f}%",
-                    )
-            
-            print(f"Processing time: {discovery_result.processing_time:.3f} seconds")
-            print()
-            
-            # Display found files (first 5 for brevity)
-            if discovery_result.found_files:
-                print("📁 Found Files (showing first 5):")
-                for i, file_path in enumerate(discovery_result.found_files[:5]):
-                    print(f"  {i+1}. {file_path}")
-                if len(discovery_result.found_files) > 5:
-                    print(f"  ... and {len(discovery_result.found_files) - 5} more files")
-                print()
-            
-            # Display missing files (first 5 for brevity)
-            if discovery_result.missing_files:
-                print("❌ Missing Files (showing first 5):")
-                for i, file_path in enumerate(discovery_result.missing_files[:5]):
-                    print(f"  {i+1}. {file_path}")
-                if len(discovery_result.missing_files) > 5:
-                    print(f"  ... and {len(discovery_result.missing_files) - 5} more missing files")
-                print()
-            
-            logger.update_progress("File Discovery", 1.0, 0, discovery_result.total_expected)
-            logger.complete_phase("File Discovery")
-            
-        except Exception as e:
-            logger.log_error_with_category(
-                ErrorCategory.FILE_SYSTEM,
-                f"File discovery failed: {str(e)}",
-                exception=e,
-                recovery_action="Check base path exists and is accessible"
-            )
-            
-            if not logger.should_continue_processing():
-                print("❌ Critical file discovery error - stopping processing")
-                return
-            
-            # Create empty result for graceful degradation
-            discovery_result = FileDiscoveryResult([], [], 0, (args.start_date, args.end_date), 0.0)
+        discovery_result = _run_file_discovery(config, args, logger)
+        if discovery_result is None:
+            return
         
         # Phase 3: Content Processing
         if len(discovery_result.found_files) > 0:
