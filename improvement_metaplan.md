@@ -92,8 +92,8 @@ tests pass after restructuring.
 **Risk:** Low-medium. DI change is confined to one API module; all other
 modules already use the correct pattern.
 
-### Cluster F: CLI Cleanup
-**Status:** Planned. Issues #65-#68 created.
+### Cluster F: CLI Cleanup — COMPLETE
+**Status:** All 4 issues (#65-#68) implemented.
 **Items:** #4, #5, #11, #18 from improvements.md
 **Scope:**
 - Remove migration scaffolding from `file_discovery.py` (#65)
@@ -112,4 +112,4 @@ careful test coverage to ensure phase ordering is preserved.
 | C       | #2,6,8,9 | Complete | #56-#59 | #61 |
 | D       | #13,19 | Complete | #51-#54 | — |
 | E       | #14,17 | Complete | #62-#63 | pending |
-| F       | #4,5,11,18 | Planned | #65-#68 | — |
+| F       | #4,5,11,18 | Complete | #65-#68 | pending |
