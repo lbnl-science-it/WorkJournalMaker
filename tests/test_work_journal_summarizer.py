@@ -9,7 +9,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import work_journal_summarizer as wjs
+from content_processor import ProcessedContent, ProcessingStats
 from file_discovery import FileDiscoveryResult
+from llm_data_structures import AnalysisResult, APIStats
 from logger import ErrorCategory
 
 
@@ -265,3 +267,156 @@ class TestRunFileDiscovery:
         assert "Total files expected: 2" in output
         assert "Files found: 1" in output
         assert "Files missing: 1" in output
+
+
+class TestRunContentProcessing:
+    """Tests for the extracted _run_content_processing phase function."""
+
+    def test_returns_processed_content_and_stats(self):
+        """_run_content_processing returns a tuple of (list, ProcessingStats)."""
+        found_files = [Path("/tmp/worklog_2025-01-06.txt")]
+        config = MagicMock()
+        config.processing.max_file_size_mb = 50
+
+        mock_processed = MagicMock(spec=ProcessedContent)
+        mock_processed.file_path = found_files[0]
+        mock_processed.date = datetime.date(2025, 1, 6)
+        mock_processed.encoding = "utf-8"
+        mock_processed.word_count = 100
+        mock_processed.line_count = 10
+        mock_processed.processing_time = 0.01
+        mock_processed.content = "Test content"
+        mock_processed.errors = []
+
+        mock_stats = ProcessingStats(
+            total_files=1, successful=1, failed=0,
+            total_size_bytes=500, total_words=100, processing_time=0.01,
+        )
+
+        with patch("work_journal_summarizer.ContentProcessor") as mock_cp_cls:
+            mock_cp = MagicMock()
+            mock_cp.process_files.return_value = ([mock_processed], mock_stats)
+            mock_cp_cls.return_value = mock_cp
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                content, stats = wjs._run_content_processing(found_files, config)
+
+        assert len(content) == 1
+        assert stats.total_files == 1
+        assert stats.successful == 1
+
+    def test_prints_processing_statistics(self):
+        """_run_content_processing prints content processing results."""
+        found_files = [Path("/tmp/worklog_2025-01-06.txt")]
+        config = MagicMock()
+        config.processing.max_file_size_mb = 50
+
+        mock_processed = MagicMock(spec=ProcessedContent)
+        mock_processed.file_path = found_files[0]
+        mock_processed.date = datetime.date(2025, 1, 6)
+        mock_processed.encoding = "utf-8"
+        mock_processed.word_count = 100
+        mock_processed.line_count = 10
+        mock_processed.processing_time = 0.01
+        mock_processed.content = "Test content for preview display here"
+        mock_processed.errors = []
+
+        mock_stats = ProcessingStats(
+            total_files=1, successful=1, failed=0,
+            total_size_bytes=500, total_words=100, processing_time=0.05,
+        )
+
+        with patch("work_journal_summarizer.ContentProcessor") as mock_cp_cls:
+            mock_cp = MagicMock()
+            mock_cp.process_files.return_value = ([mock_processed], mock_stats)
+            mock_cp_cls.return_value = mock_cp
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                wjs._run_content_processing(found_files, config)
+
+        output = captured.getvalue()
+        assert "Content Processing Results" in output
+        assert "Files processed: 1" in output
+
+
+class TestRunLLMAnalysis:
+    """Tests for the extracted _run_llm_analysis phase function."""
+
+    def test_returns_analysis_results_and_stats(self):
+        """_run_llm_analysis returns (results, stats, entity_sets) tuple."""
+        mock_content = MagicMock()
+        mock_content.content = "Worked on ProjectX"
+        mock_content.file_path = Path("/tmp/worklog_2025-01-06.txt")
+        processed = [mock_content]
+
+        config = MagicMock()
+
+        mock_result = MagicMock(spec=AnalysisResult)
+        mock_result.projects = ["ProjectX"]
+        mock_result.participants = ["Alice"]
+        mock_result.tasks = ["code review"]
+        mock_result.themes = ["engineering"]
+
+        mock_stats = MagicMock(spec=APIStats)
+        mock_stats.total_calls = 1
+        mock_stats.successful_calls = 1
+        mock_stats.failed_calls = 0
+        mock_stats.total_time = 0.5
+        mock_stats.average_response_time = 0.5
+        mock_stats.rate_limit_hits = 0
+
+        with patch("work_journal_summarizer.UnifiedLLMClient") as mock_llm_cls:
+            mock_llm = MagicMock()
+            mock_llm.analyze_content.return_value = mock_result
+            mock_llm.get_stats.return_value = mock_stats
+            mock_llm_cls.return_value = mock_llm
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                results, stats, entity_sets, client = wjs._run_llm_analysis(
+                    processed, config
+                )
+
+        assert len(results) == 1
+        assert stats.total_calls == 1
+        assert "ProjectX" in entity_sets["projects"]
+        assert "Alice" in entity_sets["participants"]
+
+    def test_prints_entity_extraction_summary(self):
+        """_run_llm_analysis prints entity extraction stats."""
+        mock_content = MagicMock()
+        mock_content.content = "Worked on ProjectX"
+        mock_content.file_path = Path("/tmp/worklog_2025-01-06.txt")
+        processed = [mock_content]
+
+        config = MagicMock()
+
+        mock_result = MagicMock(spec=AnalysisResult)
+        mock_result.projects = ["ProjectX"]
+        mock_result.participants = []
+        mock_result.tasks = ["code review"]
+        mock_result.themes = []
+
+        mock_stats = MagicMock(spec=APIStats)
+        mock_stats.total_calls = 1
+        mock_stats.successful_calls = 1
+        mock_stats.failed_calls = 0
+        mock_stats.total_time = 0.5
+        mock_stats.average_response_time = 0.5
+        mock_stats.rate_limit_hits = 0
+
+        with patch("work_journal_summarizer.UnifiedLLMClient") as mock_llm_cls:
+            mock_llm = MagicMock()
+            mock_llm.analyze_content.return_value = mock_result
+            mock_llm.get_stats.return_value = mock_stats
+            mock_llm_cls.return_value = mock_llm
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                wjs._run_llm_analysis(processed, config)
+
+        output = captured.getvalue()
+        assert "Entity Extraction Summary" in output
+        assert "Unique projects identified: 1" in output

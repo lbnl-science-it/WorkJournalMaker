@@ -17,7 +17,7 @@ import argparse
 import datetime
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Import Phase 2 components
 from file_discovery import FileDiscovery, FileDiscoveryResult
@@ -422,6 +422,168 @@ def _perform_dry_run(args: argparse.Namespace, config: AppConfig, logger: Journa
                 print(f"    Recovery: {report.recovery_action}")
 
 
+def _run_content_processing(
+    found_files: List[Path],
+    config: 'AppConfig',
+) -> Tuple[List['ProcessedContent'], 'ProcessingStats']:
+    """
+    Process discovered journal files and extract content.
+
+    Returns a tuple of (processed_content_list, processing_stats).
+    """
+    print("📝 Phase 3: Processing file content...")
+    content_processor = ContentProcessor(max_file_size_mb=config.processing.max_file_size_mb)
+
+    processed_content, processing_stats = content_processor.process_files(found_files)
+
+    # Display processing statistics
+    print("📊 Content Processing Results:")
+    print("-" * 30)
+    print(f"Files processed: {processing_stats.total_files}")
+    print(f"Successfully processed: {processing_stats.successful}")
+    print(f"Failed to process: {processing_stats.failed}")
+    print(f"Success rate: {processing_stats.successful/processing_stats.total_files*100:.1f}%")
+    print(f"Total content size: {processing_stats.total_size_bytes:,} bytes")
+    print(f"Total words extracted: {processing_stats.total_words:,}")
+    print(f"Processing time: {processing_stats.processing_time:.3f} seconds")
+    print(f"Average processing speed: {processing_stats.total_files/processing_stats.processing_time:.1f} files/second")
+    print()
+
+    # Display sample processed content
+    if processed_content:
+        print("📄 Sample Processed Content (first file):")
+        print("-" * 40)
+        sample = processed_content[0]
+        print(f"File: {sample.file_path.name}")
+        print(f"Date: {sample.date}")
+        print(f"Encoding: {sample.encoding}")
+        print(f"Word count: {sample.word_count}")
+        print(f"Line count: {sample.line_count}")
+        print(f"Processing time: {sample.processing_time:.3f}s")
+
+        # Show first 200 characters of content
+        content_preview = sample.content[:200]
+        if len(sample.content) > 200:
+            content_preview += "..."
+        print(f"Content preview: {content_preview}")
+
+        if sample.errors:
+            print(f"Errors: {', '.join(sample.errors)}")
+        print()
+
+    return processed_content, processing_stats
+
+
+def _run_llm_analysis(
+    processed_content: List['ProcessedContent'],
+    config: 'AppConfig',
+) -> Tuple[List['AnalysisResult'], 'APIStats', Dict[str, Set[str]], 'UnifiedLLMClient']:
+    """
+    Analyze processed content with LLM API for entity extraction.
+
+    Returns a tuple of (analysis_results, api_stats, entity_sets, llm_client).
+    The entity_sets dict contains 'projects', 'participants', 'tasks', 'themes'.
+    The llm_client is returned for reuse by summary generation.
+    """
+    print("🤖 Phase 4: Analyzing content with LLM API...")
+
+    # Initialize Unified LLM client with configuration
+    llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
+
+    # Process content through LLM for entity extraction
+    analysis_results = []
+    total_files = len(processed_content)
+
+    print(f"📊 Analyzing {total_files} files for entity extraction...")
+
+    for i, content in enumerate(processed_content, 1):
+        print(f"  Processing file {i}/{total_files}: {content.file_path.name}")
+
+        # Analyze content with LLM
+        analysis_result = llm_client.analyze_content(content.content, content.file_path)
+        analysis_results.append(analysis_result)
+
+        # Show progress for every 10 files or last file
+        if i % 10 == 0 or i == total_files:
+            print(f"    Progress: {i}/{total_files} files analyzed")
+
+    # Display LLM analysis statistics
+    api_stats = llm_client.get_stats()
+    print()
+    print("📊 LLM API Analysis Results:")
+    print("-" * 30)
+    print(f"Total API calls: {api_stats.total_calls}")
+    print(f"Successful calls: {api_stats.successful_calls}")
+    print(f"Failed calls: {api_stats.failed_calls}")
+    print(f"Success rate: {api_stats.successful_calls/api_stats.total_calls*100:.1f}%")
+    print(f"Total API time: {api_stats.total_time:.3f} seconds")
+    print(f"Average response time: {api_stats.average_response_time:.3f} seconds")
+    if api_stats.rate_limit_hits > 0:
+        print(f"Rate limit hits: {api_stats.rate_limit_hits}")
+    print()
+
+    # Aggregate extracted entities across all files
+    all_projects = set()
+    all_participants = set()
+    all_tasks = set()
+    all_themes = set()
+
+    for result in analysis_results:
+        all_projects.update(result.projects)
+        all_participants.update(result.participants)
+        all_tasks.update(result.tasks)
+        all_themes.update(result.themes)
+
+    # Display aggregated entity extraction results
+    print("🎯 Entity Extraction Summary:")
+    print("-" * 30)
+    print(f"Unique projects identified: {len(all_projects)}")
+    print(f"Unique participants identified: {len(all_participants)}")
+    print(f"Total tasks extracted: {len(all_tasks)}")
+    print(f"Major themes identified: {len(all_themes)}")
+    print()
+
+    # Display sample entities (first 5 of each type)
+    if all_projects:
+        projects_list = sorted(list(all_projects))
+        print("📋 Sample Projects (showing first 5):")
+        for i, project in enumerate(projects_list[:5]):
+            print(f"  {i+1}. {project}")
+        if len(projects_list) > 5:
+            print(f"  ... and {len(projects_list) - 5} more projects")
+        print()
+
+    if all_participants:
+        participants_list = sorted(list(all_participants))
+        print("👥 Sample Participants (showing first 5):")
+        for i, participant in enumerate(participants_list[:5]):
+            print(f"  {i+1}. {participant}")
+        if len(participants_list) > 5:
+            print(f"  ... and {len(participants_list) - 5} more participants")
+        print()
+
+    if all_themes:
+        themes_list = sorted(list(all_themes))
+        print("🎨 Sample Themes (showing first 5):")
+        for i, theme in enumerate(themes_list[:5]):
+            print(f"  {i+1}. {theme}")
+        if len(themes_list) > 5:
+            print(f"  ... and {len(themes_list) - 5} more themes")
+        print()
+
+    print("✅ Phase 4 Complete - LLM API integration successful!")
+    print()
+
+    entity_sets = {
+        "projects": all_projects,
+        "participants": all_participants,
+        "tasks": all_tasks,
+        "themes": all_themes,
+    }
+
+    return analysis_results, api_stats, entity_sets, llm_client
+
+
 def _run_file_discovery(
     config: 'AppConfig',
     args: argparse.Namespace,
@@ -616,47 +778,10 @@ def main() -> None:
         
         # Phase 3: Content Processing
         if len(discovery_result.found_files) > 0:
-            print("📝 Phase 3: Processing file content...")
-            content_processor = ContentProcessor(max_file_size_mb=config.processing.max_file_size_mb)
-            
-            # Process all found files
-            processed_content, processing_stats = content_processor.process_files(discovery_result.found_files)
-            
-            # Display processing statistics
-            print("📊 Content Processing Results:")
-            print("-" * 30)
-            print(f"Files processed: {processing_stats.total_files}")
-            print(f"Successfully processed: {processing_stats.successful}")
-            print(f"Failed to process: {processing_stats.failed}")
-            print(f"Success rate: {processing_stats.successful/processing_stats.total_files*100:.1f}%")
-            print(f"Total content size: {processing_stats.total_size_bytes:,} bytes")
-            print(f"Total words extracted: {processing_stats.total_words:,}")
-            print(f"Processing time: {processing_stats.processing_time:.3f} seconds")
-            print(f"Average processing speed: {processing_stats.total_files/processing_stats.processing_time:.1f} files/second")
-            print()
-            
-            # Display sample processed content
-            if processed_content:
-                print("📄 Sample Processed Content (first file):")
-                print("-" * 40)
-                sample = processed_content[0]
-                print(f"File: {sample.file_path.name}")
-                print(f"Date: {sample.date}")
-                print(f"Encoding: {sample.encoding}")
-                print(f"Word count: {sample.word_count}")
-                print(f"Line count: {sample.line_count}")
-                print(f"Processing time: {sample.processing_time:.3f}s")
-                
-                # Show first 200 characters of content
-                content_preview = sample.content[:200]
-                if len(sample.content) > 200:
-                    content_preview += "..."
-                print(f"Content preview: {content_preview}")
-                
-                if sample.errors:
-                    print(f"Errors: {', '.join(sample.errors)}")
-                print()
-            
+            processed_content, processing_stats = _run_content_processing(
+                discovery_result.found_files, config
+            )
+
             # Calculate summary estimates
             total_days = (args.end_date - args.start_date).days + 1
             if args.summary_type == 'weekly':
@@ -667,98 +792,18 @@ def main() -> None:
                 end_month = args.end_date.replace(day=1)
                 months = (end_month.year - start_month.year) * 12 + (end_month.month - start_month.month) + 1
                 print(f"📈 Estimated monthly summaries: {months}")
-            
+
             print()
-            
+
             # Phase 4: LLM API Integration
-            print("🤖 Phase 4: Analyzing content with LLM API...")
             try:
-                # Initialize Unified LLM client with configuration
-                llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
-                
-                # Process content through LLM for entity extraction
-                analysis_results = []
-                total_files = len(processed_content)
-                
-                print(f"📊 Analyzing {total_files} files for entity extraction...")
-                
-                for i, content in enumerate(processed_content, 1):
-                    print(f"  Processing file {i}/{total_files}: {content.file_path.name}")
-                    
-                    # Analyze content with LLM
-                    analysis_result = llm_client.analyze_content(content.content, content.file_path)
-                    analysis_results.append(analysis_result)
-                    
-                    # Show progress for every 10 files or last file
-                    if i % 10 == 0 or i == total_files:
-                        print(f"    Progress: {i}/{total_files} files analyzed")
-                
-                # Display LLM analysis statistics
-                api_stats = llm_client.get_stats()
-                print()
-                print("📊 LLM API Analysis Results:")
-                print("-" * 30)
-                print(f"Total API calls: {api_stats.total_calls}")
-                print(f"Successful calls: {api_stats.successful_calls}")
-                print(f"Failed calls: {api_stats.failed_calls}")
-                print(f"Success rate: {api_stats.successful_calls/api_stats.total_calls*100:.1f}%")
-                print(f"Total API time: {api_stats.total_time:.3f} seconds")
-                print(f"Average response time: {api_stats.average_response_time:.3f} seconds")
-                if api_stats.rate_limit_hits > 0:
-                    print(f"Rate limit hits: {api_stats.rate_limit_hits}")
-                print()
-                
-                # Aggregate extracted entities across all files
-                all_projects = set()
-                all_participants = set()
-                all_tasks = set()
-                all_themes = set()
-                
-                for result in analysis_results:
-                    all_projects.update(result.projects)
-                    all_participants.update(result.participants)
-                    all_tasks.update(result.tasks)
-                    all_themes.update(result.themes)
-                
-                # Display aggregated entity extraction results
-                print("🎯 Entity Extraction Summary:")
-                print("-" * 30)
-                print(f"Unique projects identified: {len(all_projects)}")
-                print(f"Unique participants identified: {len(all_participants)}")
-                print(f"Total tasks extracted: {len(all_tasks)}")
-                print(f"Major themes identified: {len(all_themes)}")
-                print()
-                
-                # Display sample entities (first 5 of each type)
-                if all_projects:
-                    projects_list = sorted(list(all_projects))
-                    print("📋 Sample Projects (showing first 5):")
-                    for i, project in enumerate(projects_list[:5]):
-                        print(f"  {i+1}. {project}")
-                    if len(projects_list) > 5:
-                        print(f"  ... and {len(projects_list) - 5} more projects")
-                    print()
-                
-                if all_participants:
-                    participants_list = sorted(list(all_participants))
-                    print("👥 Sample Participants (showing first 5):")
-                    for i, participant in enumerate(participants_list[:5]):
-                        print(f"  {i+1}. {participant}")
-                    if len(participants_list) > 5:
-                        print(f"  ... and {len(participants_list) - 5} more participants")
-                    print()
-                
-                if all_themes:
-                    themes_list = sorted(list(all_themes))
-                    print("🎨 Sample Themes (showing first 5):")
-                    for i, theme in enumerate(themes_list[:5]):
-                        print(f"  {i+1}. {theme}")
-                    if len(themes_list) > 5:
-                        print(f"  ... and {len(themes_list) - 5} more themes")
-                    print()
-                
-                print("✅ Phase 4 Complete - LLM API integration successful!")
-                print()
+                analysis_results, api_stats, entity_sets, llm_client = _run_llm_analysis(
+                    processed_content, config
+                )
+                all_projects = entity_sets["projects"]
+                all_participants = entity_sets["participants"]
+                all_tasks = entity_sets["tasks"]
+                all_themes = entity_sets["themes"]
                 
                 # Phase 5: Summary Generation
                 print("📝 Phase 5: Generating intelligent summaries...")
