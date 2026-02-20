@@ -1,10 +1,12 @@
-# Cluster E: Web App Fixes — Implementation Tracker
+# Cluster F: CLI Cleanup — Implementation Tracker
 
 **Plan:** `plan.md`
-**Source:** `improvements.md` items #14, #17
-**Branch:** `improvements/cluster-e-web-app-fixes`
+**Source:** `improvements.md` items #4, #5, #11, #18
+**Branch:** `improvements/cluster-f-cli-cleanup`
 
 ## Steps
 
-- [x] **Step 1:** Refactor settings.py dependency injection to use app.state ([#62](https://github.com/lbnl-science-it/WorkJournalMaker/issues/62))
-- [x] **Step 2:** Add ABOUTME comments to all 27 web/ Python files ([#63](https://github.com/lbnl-science-it/WorkJournalMaker/issues/63))
+- [x] **Step 1:** Remove migration scaffolding from file_discovery.py ([#65](https://github.com/lbnl-science-it/WorkJournalMaker/issues/65))
+- [x] **Step 2:** Remove mock-detection logic from file_discovery.py ([#66](https://github.com/lbnl-science-it/WorkJournalMaker/issues/66))
+- [x] **Step 3:** Fix hardcoded provider output in work_journal_summarizer.py ([#67](https://github.com/lbnl-science-it/WorkJournalMaker/issues/67))
+- [x] **Step 4:** Decompose main() into phase functions ([#68](https://github.com/lbnl-science-it/WorkJournalMaker/issues/68))
