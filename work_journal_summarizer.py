@@ -17,7 +17,7 @@ import argparse
 import datetime
 import sys
 from pathlib import Path
-from typing import Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Import Phase 2 components
 from file_discovery import FileDiscovery, FileDiscoveryResult
@@ -422,6 +422,440 @@ def _perform_dry_run(args: argparse.Namespace, config: AppConfig, logger: Journa
                 print(f"    Recovery: {report.recovery_action}")
 
 
+def _run_content_processing(
+    found_files: List[Path],
+    config: 'AppConfig',
+) -> Tuple[List['ProcessedContent'], 'ProcessingStats']:
+    """
+    Process discovered journal files and extract content.
+
+    Returns a tuple of (processed_content_list, processing_stats).
+    """
+    print("📝 Phase 3: Processing file content...")
+    content_processor = ContentProcessor(max_file_size_mb=config.processing.max_file_size_mb)
+
+    processed_content, processing_stats = content_processor.process_files(found_files)
+
+    # Display processing statistics
+    print("📊 Content Processing Results:")
+    print("-" * 30)
+    print(f"Files processed: {processing_stats.total_files}")
+    print(f"Successfully processed: {processing_stats.successful}")
+    print(f"Failed to process: {processing_stats.failed}")
+    print(f"Success rate: {processing_stats.successful/processing_stats.total_files*100:.1f}%")
+    print(f"Total content size: {processing_stats.total_size_bytes:,} bytes")
+    print(f"Total words extracted: {processing_stats.total_words:,}")
+    print(f"Processing time: {processing_stats.processing_time:.3f} seconds")
+    print(f"Average processing speed: {processing_stats.total_files/processing_stats.processing_time:.1f} files/second")
+    print()
+
+    # Display sample processed content
+    if processed_content:
+        print("📄 Sample Processed Content (first file):")
+        print("-" * 40)
+        sample = processed_content[0]
+        print(f"File: {sample.file_path.name}")
+        print(f"Date: {sample.date}")
+        print(f"Encoding: {sample.encoding}")
+        print(f"Word count: {sample.word_count}")
+        print(f"Line count: {sample.line_count}")
+        print(f"Processing time: {sample.processing_time:.3f}s")
+
+        # Show first 200 characters of content
+        content_preview = sample.content[:200]
+        if len(sample.content) > 200:
+            content_preview += "..."
+        print(f"Content preview: {content_preview}")
+
+        if sample.errors:
+            print(f"Errors: {', '.join(sample.errors)}")
+        print()
+
+    return processed_content, processing_stats
+
+
+def _run_llm_analysis(
+    processed_content: List['ProcessedContent'],
+    config: 'AppConfig',
+) -> Tuple[List['AnalysisResult'], 'APIStats', Dict[str, Set[str]], 'UnifiedLLMClient']:
+    """
+    Analyze processed content with LLM API for entity extraction.
+
+    Returns a tuple of (analysis_results, api_stats, entity_sets, llm_client).
+    The entity_sets dict contains 'projects', 'participants', 'tasks', 'themes'.
+    The llm_client is returned for reuse by summary generation.
+    """
+    print("🤖 Phase 4: Analyzing content with LLM API...")
+
+    # Initialize Unified LLM client with configuration
+    llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
+
+    # Process content through LLM for entity extraction
+    analysis_results = []
+    total_files = len(processed_content)
+
+    print(f"📊 Analyzing {total_files} files for entity extraction...")
+
+    for i, content in enumerate(processed_content, 1):
+        print(f"  Processing file {i}/{total_files}: {content.file_path.name}")
+
+        # Analyze content with LLM
+        analysis_result = llm_client.analyze_content(content.content, content.file_path)
+        analysis_results.append(analysis_result)
+
+        # Show progress for every 10 files or last file
+        if i % 10 == 0 or i == total_files:
+            print(f"    Progress: {i}/{total_files} files analyzed")
+
+    # Display LLM analysis statistics
+    api_stats = llm_client.get_stats()
+    print()
+    print("📊 LLM API Analysis Results:")
+    print("-" * 30)
+    print(f"Total API calls: {api_stats.total_calls}")
+    print(f"Successful calls: {api_stats.successful_calls}")
+    print(f"Failed calls: {api_stats.failed_calls}")
+    print(f"Success rate: {api_stats.successful_calls/api_stats.total_calls*100:.1f}%")
+    print(f"Total API time: {api_stats.total_time:.3f} seconds")
+    print(f"Average response time: {api_stats.average_response_time:.3f} seconds")
+    if api_stats.rate_limit_hits > 0:
+        print(f"Rate limit hits: {api_stats.rate_limit_hits}")
+    print()
+
+    # Aggregate extracted entities across all files
+    all_projects = set()
+    all_participants = set()
+    all_tasks = set()
+    all_themes = set()
+
+    for result in analysis_results:
+        all_projects.update(result.projects)
+        all_participants.update(result.participants)
+        all_tasks.update(result.tasks)
+        all_themes.update(result.themes)
+
+    # Display aggregated entity extraction results
+    print("🎯 Entity Extraction Summary:")
+    print("-" * 30)
+    print(f"Unique projects identified: {len(all_projects)}")
+    print(f"Unique participants identified: {len(all_participants)}")
+    print(f"Total tasks extracted: {len(all_tasks)}")
+    print(f"Major themes identified: {len(all_themes)}")
+    print()
+
+    # Display sample entities (first 5 of each type)
+    if all_projects:
+        projects_list = sorted(list(all_projects))
+        print("📋 Sample Projects (showing first 5):")
+        for i, project in enumerate(projects_list[:5]):
+            print(f"  {i+1}. {project}")
+        if len(projects_list) > 5:
+            print(f"  ... and {len(projects_list) - 5} more projects")
+        print()
+
+    if all_participants:
+        participants_list = sorted(list(all_participants))
+        print("👥 Sample Participants (showing first 5):")
+        for i, participant in enumerate(participants_list[:5]):
+            print(f"  {i+1}. {participant}")
+        if len(participants_list) > 5:
+            print(f"  ... and {len(participants_list) - 5} more participants")
+        print()
+
+    if all_themes:
+        themes_list = sorted(list(all_themes))
+        print("🎨 Sample Themes (showing first 5):")
+        for i, theme in enumerate(themes_list[:5]):
+            print(f"  {i+1}. {theme}")
+        if len(themes_list) > 5:
+            print(f"  ... and {len(themes_list) - 5} more themes")
+        print()
+
+    print("✅ Phase 4 Complete - LLM API integration successful!")
+    print()
+
+    entity_sets = {
+        "projects": all_projects,
+        "participants": all_participants,
+        "tasks": all_tasks,
+        "themes": all_themes,
+    }
+
+    return analysis_results, api_stats, entity_sets, llm_client
+
+
+def _run_summary_generation(
+    analysis_results: List['AnalysisResult'],
+    llm_client: 'UnifiedLLMClient',
+    args: argparse.Namespace,
+) -> Tuple[List['PeriodSummary'], 'SummaryStats']:
+    """
+    Generate period summaries from LLM analysis results.
+
+    Returns a tuple of (summaries, summary_stats).
+    """
+    print("📝 Phase 5: Generating intelligent summaries...")
+
+    summary_generator = SummaryGenerator(llm_client)
+    summaries, summary_stats = summary_generator.generate_summaries(
+        analysis_results, args.summary_type, args.start_date, args.end_date
+    )
+
+    # Display summary generation statistics
+    print("📊 Summary Generation Results:")
+    print("-" * 30)
+    print(f"Total periods processed: {summary_stats.total_periods}")
+    print(f"Successful summaries: {summary_stats.successful_summaries}")
+    print(f"Failed summaries: {summary_stats.failed_summaries}")
+    print(f"Success rate: {summary_stats.successful_summaries/summary_stats.total_periods*100:.1f}%" if summary_stats.total_periods > 0 else "N/A")
+    print(f"Total entries processed: {summary_stats.total_entries_processed}")
+    print(f"Generation time: {summary_stats.total_generation_time:.3f} seconds")
+    print(f"Average summary length: {summary_stats.average_summary_length} words")
+    print()
+
+    # Display generated summaries
+    if summaries:
+        print("📋 Generated Summaries:")
+        print("=" * 50)
+
+        for i, summary in enumerate(summaries, 1):
+            print(f"\n{i}. {summary.period_name}")
+            print(f"   Date Range: {summary.start_date} to {summary.end_date}")
+            print(f"   Journal Entries: {summary.entry_count}")
+            print(f"   Word Count: {summary.word_count}")
+            print(f"   Generation Time: {summary.generation_time:.3f}s")
+            print()
+
+            # Display key entities
+            if summary.projects:
+                print(f"   📋 Projects: {', '.join(summary.projects[:3])}")
+                if len(summary.projects) > 3:
+                    print(f"        ... and {len(summary.projects) - 3} more")
+
+            if summary.participants:
+                print(f"   👥 Participants: {', '.join(summary.participants[:3])}")
+                if len(summary.participants) > 3:
+                    print(f"        ... and {len(summary.participants) - 3} more")
+
+            if summary.themes:
+                print(f"   🎨 Themes: {', '.join(summary.themes[:3])}")
+                if len(summary.themes) > 3:
+                    print(f"        ... and {len(summary.themes) - 3} more")
+
+            print()
+            print("   📄 Summary:")
+            print("   " + "-" * 40)
+
+            # Display summary text with proper wrapping
+            summary_lines = summary.summary_text.split('\n')
+            for line in summary_lines:
+                if len(line) <= 70:
+                    print(f"   {line}")
+                else:
+                    # Simple word wrapping
+                    words = line.split()
+                    current_line = "   "
+                    for word in words:
+                        if len(current_line + word) <= 70:
+                            current_line += word + " "
+                        else:
+                            print(current_line.rstrip())
+                            current_line = "   " + word + " "
+                    if current_line.strip():
+                        print(current_line.rstrip())
+
+            print()
+            print("   " + "=" * 40)
+
+        print()
+        print("✅ Phase 5 Complete - Summary generation successful!")
+        print()
+
+    else:
+        print("⚠️  No summaries were generated")
+        print("This could be due to:")
+        print("- No journal entries found in the specified date range")
+        print("- All summary generation attempts failed")
+        print("- Issues with LLM API responses")
+
+    return summaries, summary_stats
+
+
+def _run_output_generation(
+    summaries: List['PeriodSummary'],
+    args: argparse.Namespace,
+    processing_metadata: 'ProcessingMetadata',
+    config: 'AppConfig',
+    summary_stats: 'SummaryStats',
+) -> 'OutputResult':
+    """
+    Generate markdown output files from summaries.
+
+    Returns an OutputResult with the output file path and metadata.
+    """
+    print("📄 Phase 6: Generating markdown output...")
+
+    # Initialize output manager with configuration
+    output_manager = OutputManager(output_dir=config.processing.output_path)
+
+    # Generate output file
+    output_result = output_manager.generate_output(
+        summaries, args.summary_type, args.start_date, args.end_date, processing_metadata
+    )
+
+    # Display output generation results
+    print("📊 Output Generation Results:")
+    print("-" * 30)
+    print(f"Output file: {output_result.output_path}")
+    print(f"File size: {output_result.file_size_bytes:,} bytes")
+    print(f"Generation time: {output_result.generation_time:.3f} seconds")
+    print(f"Sections count: {output_result.sections_count}")
+    print(f"Metadata included: {'Yes' if output_result.metadata_included else 'No'}")
+    print(f"Validation passed: {'Yes' if output_result.validation_passed else 'No'}")
+    print()
+
+    print("✅ Phase 6 Complete - Output management successful!")
+    print()
+    print("🎉 Work Journal Summarizer - All Phases Complete!")
+    print("=" * 50)
+    print(f"📁 Summary file created: {output_result.output_path}")
+    print(f"📊 Total processing time: {processing_metadata.processing_duration:.2f} seconds")
+    print(f"📈 Files processed: {processing_metadata.files_successfully_processed}/{processing_metadata.total_files_found}")
+    print(f"🤖 API calls made: {processing_metadata.successful_api_calls}/{processing_metadata.api_calls_made}")
+    print(f"📋 Summaries generated: {summary_stats.successful_summaries}")
+    print()
+    print("Your professional work journal summary is ready!")
+
+    return output_result
+
+
+def _display_banner(
+    args: argparse.Namespace,
+    config: 'AppConfig',
+    provider_info: Dict[str, Any],
+) -> None:
+    """Display the startup banner with configuration and provider details."""
+    print("✅ Work Journal Summarizer - Phase 8")
+    print("=" * 50)
+    print(f"Start Date: {args.start_date}")
+    print(f"End Date: {args.end_date}")
+    print(f"Summary Type: {args.summary_type}")
+    print(f"Base Path: {config.processing.base_path}")
+    print(f"Output Path: {config.processing.output_path}")
+    print(f"Date Range: {(args.end_date - args.start_date).days + 1} days")
+    for key, value in provider_info.items():
+        if key not in ("fallback_providers",):
+            print(f"{key.replace('_', ' ').title()}: {value}")
+    print()
+
+
+def _display_quality_metrics(processed_content: List['ProcessedContent']) -> None:
+    """Display content quality metrics for processed journal files."""
+    avg_words_per_file = sum(c.word_count for c in processed_content) / len(processed_content)
+    avg_lines_per_file = sum(c.line_count for c in processed_content) / len(processed_content)
+    print()
+    print("📈 Content Quality Metrics:")
+    print(f"Average words per file: {avg_words_per_file:.1f}")
+    print(f"Average lines per file: {avg_lines_per_file:.1f}")
+
+    # Check for encoding diversity
+    encodings = set(c.encoding for c in processed_content)
+    print(f"Encodings detected: {', '.join(encodings)}")
+
+    # Check for files with errors
+    files_with_errors = [c for c in processed_content if c.errors]
+    if files_with_errors:
+        print(f"Files with processing warnings: {len(files_with_errors)}")
+
+
+def _run_file_discovery(
+    config: 'AppConfig',
+    args: argparse.Namespace,
+    logger: 'JournalSummarizerLogger',
+) -> Optional[FileDiscoveryResult]:
+    """
+    Discover journal files in the configured date range.
+
+    Returns a FileDiscoveryResult on success, an empty result for recoverable
+    failures, or None when the logger indicates processing should stop.
+    """
+    logger.start_phase("File Discovery")
+    print("🔍 Phase 2: Discovering journal files...")
+
+    try:
+        file_discovery = FileDiscovery(base_path=config.processing.base_path)
+        discovery_result = file_discovery.discover_files(args.start_date, args.end_date)
+
+        logger.update_progress("File Discovery", 0.8, 0, discovery_result.total_expected)
+
+        # Log missing files as warnings
+        if discovery_result.missing_files:
+            for missing_file in discovery_result.missing_files:
+                logger.log_warning_with_category(
+                    ErrorCategory.FILE_SYSTEM,
+                    f"Expected journal file not found: {missing_file.name}",
+                    file_path=missing_file
+                )
+
+        # Display discovery statistics
+        print("📊 File Discovery Results:")
+        print("-" * 30)
+        print(f"Total files expected: {discovery_result.total_expected}")
+        print(f"Files found: {len(discovery_result.found_files)}")
+        print(f"Files missing: {len(discovery_result.missing_files)}")
+
+        if discovery_result.total_expected > 0:
+            success_rate = len(discovery_result.found_files)/discovery_result.total_expected*100
+            print(f"Discovery success rate: {success_rate:.1f}%")
+
+            # Log low success rate as warning
+            if success_rate < 50:
+                logger.log_warning_with_category(
+                    ErrorCategory.FILE_SYSTEM,
+                    f"Low file discovery success rate: {success_rate:.1f}%",
+                )
+
+        print(f"Processing time: {discovery_result.processing_time:.3f} seconds")
+        print()
+
+        # Display found files (first 5 for brevity)
+        if discovery_result.found_files:
+            print("📁 Found Files (showing first 5):")
+            for i, file_path in enumerate(discovery_result.found_files[:5]):
+                print(f"  {i+1}. {file_path}")
+            if len(discovery_result.found_files) > 5:
+                print(f"  ... and {len(discovery_result.found_files) - 5} more files")
+            print()
+
+        # Display missing files (first 5 for brevity)
+        if discovery_result.missing_files:
+            print("❌ Missing Files (showing first 5):")
+            for i, file_path in enumerate(discovery_result.missing_files[:5]):
+                print(f"  {i+1}. {file_path}")
+            if len(discovery_result.missing_files) > 5:
+                print(f"  ... and {len(discovery_result.missing_files) - 5} more missing files")
+            print()
+
+        logger.update_progress("File Discovery", 1.0, 0, discovery_result.total_expected)
+        logger.complete_phase("File Discovery")
+        return discovery_result
+
+    except Exception as e:
+        logger.log_error_with_category(
+            ErrorCategory.FILE_SYSTEM,
+            f"File discovery failed: {str(e)}",
+            exception=e,
+            recovery_action="Check base path exists and is accessible"
+        )
+
+        if not logger.should_continue_processing():
+            print("❌ Critical file discovery error - stopping processing")
+            return None
+
+        # Empty result for graceful degradation
+        return FileDiscoveryResult([], [], 0, (args.start_date, args.end_date), 0.0)
+
+
 def main() -> None:
     """
     Main entry point for the Work Journal Summarizer.
@@ -502,141 +936,25 @@ def main() -> None:
             _perform_dry_run(args, config, logger)
             return
         
-        # Display successful validation message
-        print("✅ Work Journal Summarizer - Phase 8")
-        print("=" * 50)
-        print(f"Start Date: {args.start_date}")
-        print(f"End Date: {args.end_date}")
-        print(f"Summary Type: {args.summary_type}")
-        print(f"Base Path: {config.processing.base_path}")
-        print(f"Output Path: {config.processing.output_path}")
-        print(f"Date Range: {(args.end_date - args.start_date).days + 1} days")
-        print(f"AWS Region: {config.bedrock.region}")
-        print(f"Model: {config.bedrock.model_id}")
-        print()
+        # Display startup banner
+        llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
+        provider_info = llm_client.get_provider_info()
+        _display_banner(args, config, provider_info)
         
         logger.update_progress("Initialization", 1.0)
         logger.complete_phase("Initialization")
         
         # Phase 2: File Discovery
-        logger.start_phase("File Discovery")
-        print("🔍 Phase 2: Discovering journal files...")
-        
-        try:
-            file_discovery = FileDiscovery(base_path=config.processing.base_path)
-            discovery_result = file_discovery.discover_files(args.start_date, args.end_date)
-            
-            logger.update_progress("File Discovery", 0.8, 0, discovery_result.total_expected)
-            
-            # Log missing files as warnings
-            if discovery_result.missing_files:
-                for missing_file in discovery_result.missing_files:
-                    logger.log_warning_with_category(
-                        ErrorCategory.FILE_SYSTEM,
-                        f"Expected journal file not found: {missing_file.name}",
-                        file_path=missing_file
-                    )
-            
-            # Display discovery statistics
-            print("📊 File Discovery Results:")
-            print("-" * 30)
-            print(f"Total files expected: {discovery_result.total_expected}")
-            print(f"Files found: {len(discovery_result.found_files)}")
-            print(f"Files missing: {len(discovery_result.missing_files)}")
-            
-            if discovery_result.total_expected > 0:
-                success_rate = len(discovery_result.found_files)/discovery_result.total_expected*100
-                print(f"Discovery success rate: {success_rate:.1f}%")
-                
-                # Log low success rate as warning
-                if success_rate < 50:
-                    logger.log_warning_with_category(
-                        ErrorCategory.FILE_SYSTEM,
-                        f"Low file discovery success rate: {success_rate:.1f}%",
-                    )
-            
-            print(f"Processing time: {discovery_result.processing_time:.3f} seconds")
-            print()
-            
-            # Display found files (first 5 for brevity)
-            if discovery_result.found_files:
-                print("📁 Found Files (showing first 5):")
-                for i, file_path in enumerate(discovery_result.found_files[:5]):
-                    print(f"  {i+1}. {file_path}")
-                if len(discovery_result.found_files) > 5:
-                    print(f"  ... and {len(discovery_result.found_files) - 5} more files")
-                print()
-            
-            # Display missing files (first 5 for brevity)
-            if discovery_result.missing_files:
-                print("❌ Missing Files (showing first 5):")
-                for i, file_path in enumerate(discovery_result.missing_files[:5]):
-                    print(f"  {i+1}. {file_path}")
-                if len(discovery_result.missing_files) > 5:
-                    print(f"  ... and {len(discovery_result.missing_files) - 5} more missing files")
-                print()
-            
-            logger.update_progress("File Discovery", 1.0, 0, discovery_result.total_expected)
-            logger.complete_phase("File Discovery")
-            
-        except Exception as e:
-            logger.log_error_with_category(
-                ErrorCategory.FILE_SYSTEM,
-                f"File discovery failed: {str(e)}",
-                exception=e,
-                recovery_action="Check base path exists and is accessible"
-            )
-            
-            if not logger.should_continue_processing():
-                print("❌ Critical file discovery error - stopping processing")
-                return
-            
-            # Create empty result for graceful degradation
-            discovery_result = FileDiscoveryResult([], [], 0, (args.start_date, args.end_date), 0.0)
+        discovery_result = _run_file_discovery(config, args, logger)
+        if discovery_result is None:
+            return
         
         # Phase 3: Content Processing
         if len(discovery_result.found_files) > 0:
-            print("📝 Phase 3: Processing file content...")
-            content_processor = ContentProcessor(max_file_size_mb=config.processing.max_file_size_mb)
-            
-            # Process all found files
-            processed_content, processing_stats = content_processor.process_files(discovery_result.found_files)
-            
-            # Display processing statistics
-            print("📊 Content Processing Results:")
-            print("-" * 30)
-            print(f"Files processed: {processing_stats.total_files}")
-            print(f"Successfully processed: {processing_stats.successful}")
-            print(f"Failed to process: {processing_stats.failed}")
-            print(f"Success rate: {processing_stats.successful/processing_stats.total_files*100:.1f}%")
-            print(f"Total content size: {processing_stats.total_size_bytes:,} bytes")
-            print(f"Total words extracted: {processing_stats.total_words:,}")
-            print(f"Processing time: {processing_stats.processing_time:.3f} seconds")
-            print(f"Average processing speed: {processing_stats.total_files/processing_stats.processing_time:.1f} files/second")
-            print()
-            
-            # Display sample processed content
-            if processed_content:
-                print("📄 Sample Processed Content (first file):")
-                print("-" * 40)
-                sample = processed_content[0]
-                print(f"File: {sample.file_path.name}")
-                print(f"Date: {sample.date}")
-                print(f"Encoding: {sample.encoding}")
-                print(f"Word count: {sample.word_count}")
-                print(f"Line count: {sample.line_count}")
-                print(f"Processing time: {sample.processing_time:.3f}s")
-                
-                # Show first 200 characters of content
-                content_preview = sample.content[:200]
-                if len(sample.content) > 200:
-                    content_preview += "..."
-                print(f"Content preview: {content_preview}")
-                
-                if sample.errors:
-                    print(f"Errors: {', '.join(sample.errors)}")
-                print()
-            
+            processed_content, processing_stats = _run_content_processing(
+                discovery_result.found_files, config
+            )
+
             # Calculate summary estimates
             total_days = (args.end_date - args.start_date).days + 1
             if args.summary_type == 'weekly':
@@ -647,184 +965,24 @@ def main() -> None:
                 end_month = args.end_date.replace(day=1)
                 months = (end_month.year - start_month.year) * 12 + (end_month.month - start_month.month) + 1
                 print(f"📈 Estimated monthly summaries: {months}")
-            
+
             print()
-            
+
             # Phase 4: LLM API Integration
-            print("🤖 Phase 4: Analyzing content with LLM API...")
             try:
-                # Initialize Unified LLM client with configuration
-                llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
-                
-                # Process content through LLM for entity extraction
-                analysis_results = []
-                total_files = len(processed_content)
-                
-                print(f"📊 Analyzing {total_files} files for entity extraction...")
-                
-                for i, content in enumerate(processed_content, 1):
-                    print(f"  Processing file {i}/{total_files}: {content.file_path.name}")
-                    
-                    # Analyze content with LLM
-                    analysis_result = llm_client.analyze_content(content.content, content.file_path)
-                    analysis_results.append(analysis_result)
-                    
-                    # Show progress for every 10 files or last file
-                    if i % 10 == 0 or i == total_files:
-                        print(f"    Progress: {i}/{total_files} files analyzed")
-                
-                # Display LLM analysis statistics
-                api_stats = llm_client.get_stats()
-                print()
-                print("📊 LLM API Analysis Results:")
-                print("-" * 30)
-                print(f"Total API calls: {api_stats.total_calls}")
-                print(f"Successful calls: {api_stats.successful_calls}")
-                print(f"Failed calls: {api_stats.failed_calls}")
-                print(f"Success rate: {api_stats.successful_calls/api_stats.total_calls*100:.1f}%")
-                print(f"Total API time: {api_stats.total_time:.3f} seconds")
-                print(f"Average response time: {api_stats.average_response_time:.3f} seconds")
-                if api_stats.rate_limit_hits > 0:
-                    print(f"Rate limit hits: {api_stats.rate_limit_hits}")
-                print()
-                
-                # Aggregate extracted entities across all files
-                all_projects = set()
-                all_participants = set()
-                all_tasks = set()
-                all_themes = set()
-                
-                for result in analysis_results:
-                    all_projects.update(result.projects)
-                    all_participants.update(result.participants)
-                    all_tasks.update(result.tasks)
-                    all_themes.update(result.themes)
-                
-                # Display aggregated entity extraction results
-                print("🎯 Entity Extraction Summary:")
-                print("-" * 30)
-                print(f"Unique projects identified: {len(all_projects)}")
-                print(f"Unique participants identified: {len(all_participants)}")
-                print(f"Total tasks extracted: {len(all_tasks)}")
-                print(f"Major themes identified: {len(all_themes)}")
-                print()
-                
-                # Display sample entities (first 5 of each type)
-                if all_projects:
-                    projects_list = sorted(list(all_projects))
-                    print("📋 Sample Projects (showing first 5):")
-                    for i, project in enumerate(projects_list[:5]):
-                        print(f"  {i+1}. {project}")
-                    if len(projects_list) > 5:
-                        print(f"  ... and {len(projects_list) - 5} more projects")
-                    print()
-                
-                if all_participants:
-                    participants_list = sorted(list(all_participants))
-                    print("👥 Sample Participants (showing first 5):")
-                    for i, participant in enumerate(participants_list[:5]):
-                        print(f"  {i+1}. {participant}")
-                    if len(participants_list) > 5:
-                        print(f"  ... and {len(participants_list) - 5} more participants")
-                    print()
-                
-                if all_themes:
-                    themes_list = sorted(list(all_themes))
-                    print("🎨 Sample Themes (showing first 5):")
-                    for i, theme in enumerate(themes_list[:5]):
-                        print(f"  {i+1}. {theme}")
-                    if len(themes_list) > 5:
-                        print(f"  ... and {len(themes_list) - 5} more themes")
-                    print()
-                
-                print("✅ Phase 4 Complete - LLM API integration successful!")
-                print()
-                
+                analysis_results, api_stats, entity_sets, llm_client = _run_llm_analysis(
+                    processed_content, config
+                )
+
                 # Phase 5: Summary Generation
-                print("📝 Phase 5: Generating intelligent summaries...")
                 try:
-                    # Initialize summary generator
-                    summary_generator = SummaryGenerator(llm_client)
-                    
-                    # Generate summaries
-                    summaries, summary_stats = summary_generator.generate_summaries(
-                        analysis_results, args.summary_type, args.start_date, args.end_date
+                    summaries, summary_stats = _run_summary_generation(
+                        analysis_results, llm_client, args
                     )
-                    
-                    # Display summary generation statistics
-                    print("📊 Summary Generation Results:")
-                    print("-" * 30)
-                    print(f"Total periods processed: {summary_stats.total_periods}")
-                    print(f"Successful summaries: {summary_stats.successful_summaries}")
-                    print(f"Failed summaries: {summary_stats.failed_summaries}")
-                    print(f"Success rate: {summary_stats.successful_summaries/summary_stats.total_periods*100:.1f}%" if summary_stats.total_periods > 0 else "N/A")
-                    print(f"Total entries processed: {summary_stats.total_entries_processed}")
-                    print(f"Generation time: {summary_stats.total_generation_time:.3f} seconds")
-                    print(f"Average summary length: {summary_stats.average_summary_length} words")
-                    print()
-                    
-                    # Display generated summaries
+
+                    # Phase 6: Output Management
                     if summaries:
-                        print("📋 Generated Summaries:")
-                        print("=" * 50)
-                        
-                        for i, summary in enumerate(summaries, 1):
-                            print(f"\n{i}. {summary.period_name}")
-                            print(f"   Date Range: {summary.start_date} to {summary.end_date}")
-                            print(f"   Journal Entries: {summary.entry_count}")
-                            print(f"   Word Count: {summary.word_count}")
-                            print(f"   Generation Time: {summary.generation_time:.3f}s")
-                            print()
-                            
-                            # Display key entities
-                            if summary.projects:
-                                print(f"   📋 Projects: {', '.join(summary.projects[:3])}")
-                                if len(summary.projects) > 3:
-                                    print(f"        ... and {len(summary.projects) - 3} more")
-                            
-                            if summary.participants:
-                                print(f"   👥 Participants: {', '.join(summary.participants[:3])}")
-                                if len(summary.participants) > 3:
-                                    print(f"        ... and {len(summary.participants) - 3} more")
-                            
-                            if summary.themes:
-                                print(f"   🎨 Themes: {', '.join(summary.themes[:3])}")
-                                if len(summary.themes) > 3:
-                                    print(f"        ... and {len(summary.themes) - 3} more")
-                            
-                            print()
-                            print("   📄 Summary:")
-                            print("   " + "-" * 40)
-                            
-                            # Display summary text with proper wrapping
-                            summary_lines = summary.summary_text.split('\n')
-                            for line in summary_lines:
-                                if len(line) <= 70:
-                                    print(f"   {line}")
-                                else:
-                                    # Simple word wrapping
-                                    words = line.split()
-                                    current_line = "   "
-                                    for word in words:
-                                        if len(current_line + word) <= 70:
-                                            current_line += word + " "
-                                        else:
-                                            print(current_line.rstrip())
-                                            current_line = "   " + word + " "
-                                    if current_line.strip():
-                                        print(current_line.rstrip())
-                            
-                            print()
-                            print("   " + "=" * 40)
-                        
-                        print()
-                        print("✅ Phase 5 Complete - Summary generation successful!")
-                        print()
-                        
-                        # Phase 6: Output Management
-                        print("📄 Phase 6: Generating markdown output...")
                         try:
-                            # Create processing metadata
                             processing_metadata = ProcessingMetadata(
                                 total_files_found=discovery_result.total_expected,
                                 files_successfully_processed=processing_stats.successful,
@@ -832,66 +990,30 @@ def main() -> None:
                                 api_calls_made=api_stats.total_calls,
                                 successful_api_calls=api_stats.successful_calls,
                                 failed_api_calls=api_stats.failed_calls,
-                                unique_projects=len(all_projects),
-                                unique_participants=len(all_participants),
-                                total_tasks=len(all_tasks),
-                                major_themes=len(all_themes),
+                                unique_projects=len(entity_sets["projects"]),
+                                unique_participants=len(entity_sets["participants"]),
+                                total_tasks=len(entity_sets["tasks"]),
+                                major_themes=len(entity_sets["themes"]),
                                 processing_duration=(discovery_result.processing_time +
                                                    processing_stats.processing_time +
                                                    api_stats.total_time +
                                                    summary_stats.total_generation_time)
                             )
-                            
-                            # Initialize output manager with configuration
-                            output_manager = OutputManager(output_dir=config.processing.output_path)
-                            
-                            # Generate output file
-                            output_result = output_manager.generate_output(
-                                summaries, args.summary_type, args.start_date, args.end_date, processing_metadata
+                            _run_output_generation(
+                                summaries, args, processing_metadata, config, summary_stats
                             )
-                            
-                            # Display output generation results
-                            print("📊 Output Generation Results:")
-                            print("-" * 30)
-                            print(f"Output file: {output_result.output_path}")
-                            print(f"File size: {output_result.file_size_bytes:,} bytes")
-                            print(f"Generation time: {output_result.generation_time:.3f} seconds")
-                            print(f"Sections count: {output_result.sections_count}")
-                            print(f"Metadata included: {'Yes' if output_result.metadata_included else 'No'}")
-                            print(f"Validation passed: {'Yes' if output_result.validation_passed else 'No'}")
-                            print()
-                            
-                            print("✅ Phase 6 Complete - Output management successful!")
-                            print()
-                            print("🎉 Work Journal Summarizer - All Phases Complete!")
-                            print("=" * 50)
-                            print(f"📁 Summary file created: {output_result.output_path}")
-                            print(f"📊 Total processing time: {processing_metadata.processing_duration:.2f} seconds")
-                            print(f"📈 Files processed: {processing_metadata.files_successfully_processed}/{processing_metadata.total_files_found}")
-                            print(f"🤖 API calls made: {processing_metadata.successful_api_calls}/{processing_metadata.api_calls_made}")
-                            print(f"📋 Summaries generated: {summary_stats.successful_summaries}")
-                            print()
-                            print("Your professional work journal summary is ready!")
-                            
                         except Exception as e:
                             print(f"❌ Output Generation Error: {e}")
                             print()
                             print("Output generation failed, but summaries were created successfully.")
                             print("You can review the generated summaries above.")
-                    
-                    else:
-                        print("⚠️  No summaries were generated")
-                        print("This could be due to:")
-                        print("- No journal entries found in the specified date range")
-                        print("- All summary generation attempts failed")
-                        print("- Issues with LLM API responses")
-                
+
                 except Exception as e:
                     print(f"❌ Summary Generation Error: {e}")
                     print()
                     print("Summary generation failed, but entity extraction was successful.")
                     print("You can review the extracted entities above.")
-                
+
             except ValueError as e:
                 print(f"❌ LLM API Configuration Error: {e}")
                 print()
@@ -901,7 +1023,7 @@ def main() -> None:
                 print("- Verify AWS Bedrock access permissions")
                 print()
                 print("Continuing with content processing results only...")
-                
+
             except Exception as e:
                 print(f"❌ LLM API Integration Error: {e}")
                 print()
@@ -910,21 +1032,7 @@ def main() -> None:
             
             # Display processing quality metrics
             if processed_content:
-                avg_words_per_file = sum(c.word_count for c in processed_content) / len(processed_content)
-                avg_lines_per_file = sum(c.line_count for c in processed_content) / len(processed_content)
-                print()
-                print("📈 Content Quality Metrics:")
-                print(f"Average words per file: {avg_words_per_file:.1f}")
-                print(f"Average lines per file: {avg_lines_per_file:.1f}")
-                
-                # Check for encoding diversity
-                encodings = set(c.encoding for c in processed_content)
-                print(f"Encodings detected: {', '.join(encodings)}")
-                
-                # Check for files with errors
-                files_with_errors = [c for c in processed_content if c.errors]
-                if files_with_errors:
-                    print(f"Files with processing warnings: {len(files_with_errors)}")
+                _display_quality_metrics(processed_content)
         
         else:
             print("⚠️  No files found for processing!")
