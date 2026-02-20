@@ -93,13 +93,13 @@ tests pass after restructuring.
 modules already use the correct pattern.
 
 ### Cluster F: CLI Cleanup
-**Status:** Not yet planned. Independent of B-E.
+**Status:** Planned. Issues #65-#68 created.
 **Items:** #4, #5, #11, #18 from improvements.md
 **Scope:**
-- Fix provider-specific output in `work_journal_summarizer.py`
-- Decompose 400-line `main()` into phase functions
-- Remove mock-detection logic from `file_discovery.py`
-- Remove migration scaffolding from `file_discovery.py`
+- Remove migration scaffolding from `file_discovery.py` (#65)
+- Remove mock-detection logic from `file_discovery.py` (#66)
+- Fix provider-specific output in `work_journal_summarizer.py` (#67)
+- Decompose 519-line `main()` into phase functions (#68)
 **Risk:** Medium. `main()` decomposition is the largest change and needs
 careful test coverage to ensure phase ordering is preserved.
 
@@ -112,4 +112,4 @@ careful test coverage to ensure phase ordering is preserved.
 | C       | #2,6,8,9 | Complete | #56-#59 | #61 |
 | D       | #13,19 | Complete | #51-#54 | — |
 | E       | #14,17 | Complete | #62-#63 | pending |
-| F       | #4,5,11,18 | Not started | — | — |
+| F       | #4,5,11,18 | Planned | #65-#68 | — |
