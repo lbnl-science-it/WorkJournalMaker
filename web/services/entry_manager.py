@@ -1,3 +1,5 @@
+# ABOUTME: Service for journal entry CRUD via the file system.
+# ABOUTME: Bridges the web API to FileDiscovery for reading and writing work log files.
 """
 EntryManager Service for Work Journal Maker Web Interface
 

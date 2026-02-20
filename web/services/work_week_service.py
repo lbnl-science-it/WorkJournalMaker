@@ -1,3 +1,5 @@
+# ABOUTME: Service for timezone-aware work-week calculations and schedule configuration.
+# ABOUTME: Determines week boundaries for journal directory organization.
 """
 Work Week Service for Daily Work Journal Web Interface
 

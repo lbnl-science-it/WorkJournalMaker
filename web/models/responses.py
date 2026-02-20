@@ -1,3 +1,5 @@
+# ABOUTME: Pydantic models for standardized API responses and error payloads.
+# ABOUTME: Provides consistent structure for success, error, and status reporting.
 """
 API Response Models
 

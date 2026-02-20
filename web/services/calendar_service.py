@@ -1,3 +1,5 @@
+# ABOUTME: Service for calendar navigation and date-based entry lookups.
+# ABOUTME: Wraps FileDiscovery to provide month/week/day views of journal entries.
 """
 Calendar Service for Work Journal Maker Web Interface
 

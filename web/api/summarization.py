@@ -1,3 +1,5 @@
+# ABOUTME: REST API and WebSocket endpoints for LLM-powered summarization.
+# ABOUTME: Provides async task management and real-time progress streaming.
 """
 Summarization API Endpoints
 

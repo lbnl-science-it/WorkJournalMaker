@@ -1,3 +1,5 @@
+# ABOUTME: REST API endpoints for calendar navigation and date-range queries.
+# ABOUTME: Provides month/week views of journal entries via CalendarService.
 """
 Calendar API Endpoints for Work Journal Maker Web Interface
 

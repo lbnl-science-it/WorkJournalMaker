@@ -1,3 +1,5 @@
+# ABOUTME: REST API endpoints for database synchronization operations.
+# ABOUTME: Triggers and monitors file-system-to-database sync tasks.
 """
 Sync API Endpoints for Work Journal Maker Web Interface
 

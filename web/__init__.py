@@ -1,3 +1,5 @@
+# ABOUTME: Package init for the Work Journal Maker web interface.
+# ABOUTME: Provides FastAPI-based web UI and REST API for journal management.
 """
 Work Journal Maker Web Interface
 

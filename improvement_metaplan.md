@@ -57,8 +57,8 @@ build artifacts, delete empty file, remove debug artifacts.
 should catch regressions.
 **Design decisions needed:** Protocol/ABC vs duck typing for LLM client interface.
 
-### Cluster C: LLM Client Consolidation
-**Status:** Planned. Issues #56-#59 created. Ready for implementation.
+### Cluster C: LLM Client Consolidation — COMPLETE
+**Status:** All 4 issues (#56-#59) implemented. PR #61 merged.
 **Items:** #2, #6, #8, #9 from improvements.md
 **Scope:**
 - Extract shared code from 2 LLM clients into `BaseLLMClient`
@@ -82,14 +82,15 @@ should catch regressions.
 tests pass after restructuring.
 **Design decision:** Flat layout with `pyproject.toml` at root (no file moves).
 
-### Cluster E: Web App Fixes
-**Status:** Not yet planned. Benefits from Cluster D (clean imports).
+### Cluster E: Web App Fixes — COMPLETE
+**Status:** Both issues implemented. PR pending.
 **Items:** #14, #17 from improvements.md
 **Scope:**
-- Refactor FastAPI dependency injection to use `app.state` singletons
-  instead of module-level globals
+- Refactor `web/api/settings.py` dependency injection to use `app.state`
+  singletons instead of module-level globals (only file with this pattern)
 - Add ABOUTME comments to all 27 `web/` Python files
-**Risk:** Low-medium. Dependency injection change affects request lifecycle.
+**Risk:** Low-medium. DI change is confined to one API module; all other
+modules already use the correct pattern.
 
 ### Cluster F: CLI Cleanup
 **Status:** Not yet planned. Independent of B-E.
@@ -108,7 +109,7 @@ careful test coverage to ensure phase ordering is preserved.
 |---------|-------|--------|--------|----|
 | A       | #12,15,20,21,22 | Complete | #41-#45 | — |
 | B       | #1,3,7,10 | Complete | #46-#49 | — |
-| C       | #2,6,8,9 | Planned | #56-#59 | — |
+| C       | #2,6,8,9 | Complete | #56-#59 | #61 |
 | D       | #13,19 | Complete | #51-#54 | — |
-| E       | #14,17 | Not started | — | — |
+| E       | #14,17 | Complete | #62-#63 | pending |
 | F       | #4,5,11,18 | Not started | — | — |
