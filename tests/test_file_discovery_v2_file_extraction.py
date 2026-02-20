@@ -182,40 +182,36 @@ class TestFileExtractionEngine:
 
     def test_extract_files_missing_files_tracking(self):
         """Test tracking of missing expected files."""
-        # Create mock directory
-        week_dir = MagicMock(spec=Path)
-        week_dir.__str__ = lambda self: "/test/week_ending_2024-04-19"
-        directories = [(week_dir, date(2024, 4, 19))]
-        
-        # Mock only some files exist
-        existing_file = MagicMock()
-        existing_file.name = "worklog_2024-04-15.txt"
-        existing_file.is_file.return_value = True
-        existing_file.suffix = ".txt"
-        
-        # Setup mock behavior
-        week_dir.exists.return_value = True
-        week_dir.iterdir.return_value = [existing_file]
-        
-        # Test date range that expects more files than exist
-        start_date = date(2024, 4, 15)
-        end_date = date(2024, 4, 17)  # Expects 3 files but only 1 exists
-        
-        found_files, missing_files = self.discovery._extract_files_from_directories(
-            directories, start_date, end_date
-        )
-        
-        # Should find 1 file and track 2 missing
-        assert len(found_files) == 1
-        assert len(missing_files) == 2
-        
-        # Verify the found file
-        assert found_files[0].name == "worklog_2024-04-15.txt"
-        
-        # Verify missing files are tracked
-        missing_names = [f.name for f in missing_files]
-        assert "worklog_2024-04-16.txt" in missing_names
-        assert "worklog_2024-04-17.txt" in missing_names
+        import tempfile
+        # Use a real temporary directory structure
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            week_dir = Path(tmp_dir) / "week_ending_2024-04-19"
+            week_dir.mkdir()
+
+            # Create only one file — the other two expected dates will be missing
+            (week_dir / "worklog_2024-04-15.txt").write_text("test content")
+
+            directories = [(week_dir, date(2024, 4, 19))]
+
+            # Test date range that expects more files than exist
+            start_date = date(2024, 4, 15)
+            end_date = date(2024, 4, 17)  # Expects 3 files but only 1 exists
+
+            found_files, missing_files = self.discovery._extract_files_from_directories(
+                directories, start_date, end_date
+            )
+
+            # Should find 1 file and track 2 missing
+            assert len(found_files) == 1
+            assert len(missing_files) == 2
+
+            # Verify the found file
+            assert found_files[0].name == "worklog_2024-04-15.txt"
+
+            # Verify missing files are tracked
+            missing_names = [f.name for f in missing_files]
+            assert "worklog_2024-04-16.txt" in missing_names
+            assert "worklog_2024-04-17.txt" in missing_names
 
     @patch('pathlib.Path.iterdir')
     @patch('pathlib.Path.exists')
@@ -736,6 +732,130 @@ class TestFileExtractionEdgeCases:
         
         # Should have tracked missing files
         assert len(missing_files) >= 10  # At least most of the expected missing files
+
+
+class TestConstructMissingFilePath:
+    """Test suite for _construct_missing_file_path() using real Path objects.
+
+    Validates all three fallback strategies:
+    1. Exact match: date falls within a directory's week range
+    2. Closest future: smallest week_ending_date >= missing_date
+    3. First available: fallback to first directory in list
+    """
+
+    def setup_method(self):
+        """Set up test fixtures with real Path objects."""
+        self.discovery = FileDiscovery(base_path="/tmp/test_worklogs")
+
+    def test_exact_match_returns_path_in_matching_week(self):
+        """When missing_date falls within a directory's week range, return that directory."""
+        week_dir = Path("/tmp/worklogs/week_ending_2024-04-19")
+        directories = [(week_dir, date(2024, 4, 19))]
+
+        # 2024-04-15 is within the week ending 2024-04-19 (Apr 13 - Apr 19)
+        result = self.discovery._construct_missing_file_path(date(2024, 4, 15), directories)
+
+        assert result is not None
+        assert isinstance(result, Path)
+        assert result == week_dir / "worklog_2024-04-15.txt"
+        assert result.name == "worklog_2024-04-15.txt"
+        assert result.parent == week_dir
+
+    def test_exact_match_boundary_week_start(self):
+        """Test exact match at the start of a week range (week_ending - 6 days)."""
+        week_dir = Path("/tmp/worklogs/week_ending_2024-04-19")
+        directories = [(week_dir, date(2024, 4, 19))]
+
+        # Apr 13 is exactly week_ending - 6 days (start of week)
+        result = self.discovery._construct_missing_file_path(date(2024, 4, 13), directories)
+
+        assert result is not None
+        assert result == week_dir / "worklog_2024-04-13.txt"
+
+    def test_exact_match_boundary_week_end(self):
+        """Test exact match at the week_ending date itself."""
+        week_dir = Path("/tmp/worklogs/week_ending_2024-04-19")
+        directories = [(week_dir, date(2024, 4, 19))]
+
+        result = self.discovery._construct_missing_file_path(date(2024, 4, 19), directories)
+
+        assert result is not None
+        assert result == week_dir / "worklog_2024-04-19.txt"
+
+    def test_closest_future_directory_when_no_exact_match(self):
+        """When no exact match, use the directory with closest future week_ending_date."""
+        dir_early = Path("/tmp/worklogs/week_ending_2024-04-05")
+        dir_late = Path("/tmp/worklogs/week_ending_2024-04-26")
+        directories = [
+            (dir_early, date(2024, 4, 5)),
+            (dir_late, date(2024, 4, 26)),
+        ]
+
+        # Apr 20 doesn't fall within either week range, but Apr 26 is the closest future
+        result = self.discovery._construct_missing_file_path(date(2024, 4, 20), directories)
+
+        assert result is not None
+        assert result == dir_late / "worklog_2024-04-20.txt"
+
+    def test_first_directory_fallback_when_all_in_past(self):
+        """When all directories have week_ending < missing_date, fall back to first."""
+        dir1 = Path("/tmp/worklogs/week_ending_2024-04-05")
+        dir2 = Path("/tmp/worklogs/week_ending_2024-04-12")
+        directories = [
+            (dir1, date(2024, 4, 5)),
+            (dir2, date(2024, 4, 12)),
+        ]
+
+        # Apr 20 is after all week_ending dates — no exact match, no future directory
+        result = self.discovery._construct_missing_file_path(date(2024, 4, 20), directories)
+
+        assert result is not None
+        assert result == dir1 / "worklog_2024-04-20.txt"
+
+    def test_empty_directories_returns_none(self):
+        """When no directories are available, return None."""
+        result = self.discovery._construct_missing_file_path(date(2024, 4, 15), [])
+
+        assert result is None
+
+    def test_filename_format_matches_convention(self):
+        """Verify generated filename follows worklog_YYYY-MM-DD.txt convention."""
+        week_dir = Path("/tmp/worklogs/week_ending_2024-01-05")
+        directories = [(week_dir, date(2024, 1, 5))]
+
+        result = self.discovery._construct_missing_file_path(date(2024, 1, 3), directories)
+
+        assert result is not None
+        assert result.name == "worklog_2024-01-03.txt"
+
+    def test_multiple_directories_prefers_exact_match(self):
+        """When multiple directories exist, prefer the one whose range contains the date."""
+        dir1 = Path("/tmp/worklogs/week_ending_2024-04-12")
+        dir2 = Path("/tmp/worklogs/week_ending_2024-04-19")
+        dir3 = Path("/tmp/worklogs/week_ending_2024-04-26")
+        directories = [
+            (dir1, date(2024, 4, 12)),
+            (dir2, date(2024, 4, 19)),
+            (dir3, date(2024, 4, 26)),
+        ]
+
+        # Apr 15 falls within week ending Apr 19 (Apr 13-19)
+        result = self.discovery._construct_missing_file_path(date(2024, 4, 15), directories)
+
+        assert result is not None
+        assert result.parent == dir2
+
+    def test_result_is_real_path_object(self):
+        """Verify the result is a genuine Path, not a mock or string."""
+        week_dir = Path("/tmp/worklogs/week_ending_2024-04-19")
+        directories = [(week_dir, date(2024, 4, 19))]
+
+        result = self.discovery._construct_missing_file_path(date(2024, 4, 15), directories)
+
+        assert isinstance(result, Path)
+        # Path division should work normally on the result
+        assert result.suffix == ".txt"
+        assert result.stem == "worklog_2024-04-15"
 
 
 if __name__ == "__main__":
