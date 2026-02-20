@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import work_journal_summarizer as wjs
+from file_discovery import FileDiscoveryResult
+from logger import ErrorCategory
 
 
 class TestBannerProviderOutput:
@@ -157,3 +159,109 @@ class TestBannerProviderOutput:
         )
         # fallback_providers should NOT appear
         assert "Fallback Providers" not in output
+
+
+class TestRunFileDiscovery:
+    """Tests for the extracted _run_file_discovery phase function."""
+
+    def test_returns_file_discovery_result_on_success(self):
+        """_run_file_discovery returns the FileDiscoveryResult from FileDiscovery."""
+        config = MagicMock()
+        config.processing.base_path = "/tmp/journals"
+        args = MagicMock()
+        args.start_date = datetime.date(2025, 1, 6)
+        args.end_date = datetime.date(2025, 1, 10)
+        logger = MagicMock()
+
+        expected_result = FileDiscoveryResult(
+            found_files=[Path("/tmp/journals/worklog_2025-01-06.txt")],
+            missing_files=[],
+            total_expected=1,
+            date_range=(datetime.date(2025, 1, 6), datetime.date(2025, 1, 10)),
+            processing_time=0.01,
+        )
+
+        with patch("work_journal_summarizer.FileDiscovery") as mock_fd_cls:
+            mock_fd = MagicMock()
+            mock_fd.discover_files.return_value = expected_result
+            mock_fd_cls.return_value = mock_fd
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                result = wjs._run_file_discovery(config, args, logger)
+
+        assert isinstance(result, FileDiscoveryResult)
+        assert len(result.found_files) == 1
+        assert result.total_expected == 1
+
+    def test_returns_empty_result_on_exception(self):
+        """_run_file_discovery returns an empty FileDiscoveryResult when discovery fails."""
+        config = MagicMock()
+        config.processing.base_path = "/nonexistent"
+        args = MagicMock()
+        args.start_date = datetime.date(2025, 1, 6)
+        args.end_date = datetime.date(2025, 1, 10)
+        logger = MagicMock()
+        logger.should_continue_processing.return_value = True
+
+        with patch("work_journal_summarizer.FileDiscovery") as mock_fd_cls:
+            mock_fd_cls.side_effect = OSError("No such directory")
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                result = wjs._run_file_discovery(config, args, logger)
+
+        assert isinstance(result, FileDiscoveryResult)
+        assert result.found_files == []
+        assert result.total_expected == 0
+
+    def test_returns_none_on_critical_failure(self):
+        """_run_file_discovery returns None when logger says stop processing."""
+        config = MagicMock()
+        config.processing.base_path = "/nonexistent"
+        args = MagicMock()
+        args.start_date = datetime.date(2025, 1, 6)
+        args.end_date = datetime.date(2025, 1, 10)
+        logger = MagicMock()
+        logger.should_continue_processing.return_value = False
+
+        with patch("work_journal_summarizer.FileDiscovery") as mock_fd_cls:
+            mock_fd_cls.side_effect = OSError("No such directory")
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                result = wjs._run_file_discovery(config, args, logger)
+
+        assert result is None
+
+    def test_prints_discovery_statistics(self):
+        """_run_file_discovery prints discovery results to stdout."""
+        config = MagicMock()
+        config.processing.base_path = "/tmp/journals"
+        args = MagicMock()
+        args.start_date = datetime.date(2025, 1, 6)
+        args.end_date = datetime.date(2025, 1, 10)
+        logger = MagicMock()
+
+        expected_result = FileDiscoveryResult(
+            found_files=[Path("/tmp/journals/worklog_2025-01-06.txt")],
+            missing_files=[Path("/tmp/journals/worklog_2025-01-07.txt")],
+            total_expected=2,
+            date_range=(datetime.date(2025, 1, 6), datetime.date(2025, 1, 10)),
+            processing_time=0.05,
+        )
+
+        with patch("work_journal_summarizer.FileDiscovery") as mock_fd_cls:
+            mock_fd = MagicMock()
+            mock_fd.discover_files.return_value = expected_result
+            mock_fd_cls.return_value = mock_fd
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                wjs._run_file_discovery(config, args, logger)
+
+        output = captured.getvalue()
+        assert "File Discovery Results" in output
+        assert "Total files expected: 2" in output
+        assert "Files found: 1" in output
+        assert "Files missing: 1" in output
