@@ -1,3 +1,5 @@
+# ABOUTME: Timezone detection, conversion, and formatting utilities.
+# ABOUTME: Provides consistent local-time display across the web interface.
 """
 Timezone utilities for handling system timezone detection and conversions.
 Ensures all dates display correctly in the system's local timezone.

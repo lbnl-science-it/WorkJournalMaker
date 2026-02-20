@@ -1,3 +1,5 @@
+# ABOUTME: Async SQLite database layer for the web interface.
+# ABOUTME: Provides ORM models, session management, and schema for journal indexing.
 """
 Database Management for Work Journal Maker Web Interface
 

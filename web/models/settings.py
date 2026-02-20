@@ -1,3 +1,5 @@
+# ABOUTME: Pydantic models for settings management requests and responses.
+# ABOUTME: Covers CRUD, bulk updates, work-week config, and import/export schemas.
 """
 Settings Models for Daily Work Journal Web Interface
 

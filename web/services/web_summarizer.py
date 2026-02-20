@@ -1,3 +1,5 @@
+# ABOUTME: Async wrapper around the CLI summarization pipeline for the web interface.
+# ABOUTME: Adds progress tracking, task management, and WebSocket-based status updates.
 """
 Web Summarization Service
 

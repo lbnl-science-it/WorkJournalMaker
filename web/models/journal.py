@@ -1,3 +1,5 @@
+# ABOUTME: Pydantic models for journal entry requests and responses.
+# ABOUTME: Defines schemas for entry creation, listing, search, and metadata.
 """
 Journal Entry Pydantic Models
 

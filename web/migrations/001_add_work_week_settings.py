@@ -1,3 +1,5 @@
+# ABOUTME: Database migration to add the WorkWeekSettings table.
+# ABOUTME: Populates default work-week configuration for existing installations.
 """
 Database Migration Script: Add Work Week Settings
 
