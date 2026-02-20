@@ -731,19 +731,7 @@ class FileDiscovery:
             week_start = week_ending_date - timedelta(days=6)
             
             if week_start <= missing_date <= week_ending_date:
-                # This directory should contain the missing file
-                try:
-                    # Try to use Path division operator
-                    result = directory_path / filename
-                    # Check if result is a real Path object or a mock
-                    if hasattr(result, 'name') and not hasattr(result, '_mock_name'):
-                        return result
-                    else:
-                        # It's a mock object, create a real Path
-                        return Path(str(directory_path)) / filename
-                except (TypeError, AttributeError):
-                    # Handle mock objects or other non-Path objects
-                    return Path(str(directory_path)) / filename
+                return directory_path / filename
         
         # If no exact match, use the directory with the closest week_ending_date
         for directory_path, week_ending_date in directories:
@@ -753,28 +741,11 @@ class FileDiscovery:
                     best_week_ending = week_ending_date
         
         if best_directory:
-            try:
-                result = best_directory / filename
-                # Check if result is a real Path object or a mock
-                if hasattr(result, 'name') and not hasattr(result, '_mock_name'):
-                    return result
-                else:
-                    return Path(str(best_directory)) / filename
-            except (TypeError, AttributeError):
-                return Path(str(best_directory)) / filename
+            return best_directory / filename
         
         # Fallback: use the first directory if no better option
         if directories:
-            first_directory = directories[0][0]
-            try:
-                result = first_directory / filename
-                # Check if result is a real Path object or a mock
-                if hasattr(result, 'name') and not hasattr(result, '_mock_name'):
-                    return result
-                else:
-                    return Path(str(first_directory)) / filename
-            except (TypeError, AttributeError):
-                return Path(str(first_directory)) / filename
+            return directories[0][0] / filename
         
         return None
 
