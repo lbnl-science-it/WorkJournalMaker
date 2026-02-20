@@ -481,7 +481,7 @@ class TestGoogleGenAIClient:
                 # Create proper mock structure for candidates
                 mock_candidate = MagicMock()
                 mock_content = MagicMock()
-                mock_part = MagicMock()
+                mock_part = MagicMock(spec=[])
                 mock_part.text = response_format['candidates'][0]['content']['parts'][0]['text']
                 mock_content.parts = [mock_part]
                 mock_candidate.content = mock_content
@@ -894,7 +894,7 @@ class TestGoogleGenAIClient:
             ('{"projects": ["Alpha"], "participants":}', True),  # Invalid JSON - should succeed with empty
             ('{"projects": "not a list"}', True),  # Wrong data type - should succeed with empty
             ('```json\n{"incomplete": true\n```', True),  # Incomplete JSON - should succeed with empty
-            ('', True),  # Empty response - should succeed with empty
+            ('', False),  # Empty response - API returned no content
             ('{"wrong_fields": ["data"]}', True),  # Missing fields - should succeed with empty
         ]
         
@@ -984,13 +984,13 @@ class TestGoogleGenAIClient:
         mock_response_2.text = None
         mock_candidate = MagicMock()
         mock_content = MagicMock()
-        mock_part = MagicMock()
+        mock_part = MagicMock(spec=[])
         mock_part.text = "Candidates structure response"
         mock_content.parts = [mock_part]
         mock_candidate.content = mock_content
         mock_response_2.candidates = [mock_candidate]
         mock_client.models.generate_content.return_value = mock_response_2
-        
+
         result_2 = genai_client._make_api_call_with_retry("test prompt", max_retries=0)
         assert result_2 == "Candidates structure response"
         
@@ -1002,7 +1002,27 @@ class TestGoogleGenAIClient:
         
         with pytest.raises(ValueError, match="No text content found in API response"):
             genai_client._make_api_call_with_retry("test prompt", max_retries=0)
-    
+
+        # Test 4: Thinking model response with thought and text parts
+        mock_response_4 = MagicMock()
+        mock_response_4.text = None
+        mock_candidate = MagicMock()
+        mock_content = MagicMock()
+        # Thought part (should be skipped)
+        thought_part = MagicMock(spec=[])
+        thought_part.thought = True
+        thought_part.text = "Let me think about this..."
+        # Text part (should be extracted)
+        text_part = MagicMock(spec=[])
+        text_part.text = '{"projects": ["Alpha"]}'
+        mock_content.parts = [thought_part, text_part]
+        mock_candidate.content = mock_content
+        mock_response_4.candidates = [mock_candidate]
+        mock_client.models.generate_content.return_value = mock_response_4
+
+        result_4 = genai_client._make_api_call_with_retry("test prompt", max_retries=0)
+        assert result_4 == '{"projects": ["Alpha"]}'
+
     @patch('google_genai_client.genai')
     def test_analyze_content_timing_accuracy(self, mock_genai, google_genai_config):
         """Test that analyze_content timing measurements are accurate."""

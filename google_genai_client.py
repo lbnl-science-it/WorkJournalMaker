@@ -126,20 +126,15 @@ class GoogleGenAIClient(BaseLLMClient):
                     config={
                         'temperature': 0.1,  # Low temperature for consistent extraction
                         'top_p': 0.9,
-                        'max_output_tokens': 1000
+                        'max_output_tokens': 8192
                     }
                 )
 
-                # Extract text from response
-                if hasattr(response, 'text') and response.text:
-                    return response.text
-                elif hasattr(response, 'candidates') and response.candidates:
-                    # Handle structured response format
-                    candidate = response.candidates[0]
-                    if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
-                        parts = candidate.content.parts
-                        if parts and hasattr(parts[0], 'text'):
-                            return parts[0].text
+                # Extract text from response, skipping thought parts
+                # from thinking models (e.g., Gemini 2.5 Flash)
+                text = self._extract_response_text(response)
+                if text:
+                    return text
 
                 raise ValueError("No text content found in API response")
 
@@ -198,6 +193,41 @@ class GoogleGenAIClient(BaseLLMClient):
                     raise
 
         raise Exception(f"Failed to complete API call after {max_retries + 1} attempts")
+
+    def _extract_response_text(self, response) -> str:
+        """
+        Extract non-thought text from an API response.
+
+        Thinking models (e.g., Gemini 2.5 Flash) include internal reasoning
+        as thought parts in the response. This method skips those and returns
+        only the actual output text.
+
+        Args:
+            response: GenerateContent response object.
+
+        Returns:
+            str: The model's text output, or empty string if none found.
+        """
+        # Try candidates first for precise part-level control
+        if hasattr(response, 'candidates') and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                parts = candidate.content.parts
+                if parts:
+                    # Collect text from non-thought parts
+                    text_parts = []
+                    for part in parts:
+                        is_thought = getattr(part, 'thought', False)
+                        if not is_thought and hasattr(part, 'text') and part.text:
+                            text_parts.append(part.text)
+                    if text_parts:
+                        return ''.join(text_parts)
+
+        # Fallback: response.text (works for non-thinking models)
+        if hasattr(response, 'text') and response.text:
+            return response.text
+
+        return ''
 
     def _is_rate_limit_error(self, error: Exception) -> bool:
         """
