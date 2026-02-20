@@ -511,8 +511,11 @@ def main() -> None:
         print(f"Base Path: {config.processing.base_path}")
         print(f"Output Path: {config.processing.output_path}")
         print(f"Date Range: {(args.end_date - args.start_date).days + 1} days")
-        print(f"AWS Region: {config.bedrock.region}")
-        print(f"Model: {config.bedrock.model_id}")
+        llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
+        provider_info = llm_client.get_provider_info()
+        for key, value in provider_info.items():
+            if key not in ("fallback_providers",):
+                print(f"{key.replace('_', ' ').title()}: {value}")
         print()
         
         logger.update_progress("Initialization", 1.0)
