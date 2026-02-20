@@ -729,6 +729,45 @@ def _run_output_generation(
     return output_result
 
 
+def _display_banner(
+    args: argparse.Namespace,
+    config: 'AppConfig',
+    provider_info: Dict[str, Any],
+) -> None:
+    """Display the startup banner with configuration and provider details."""
+    print("✅ Work Journal Summarizer - Phase 8")
+    print("=" * 50)
+    print(f"Start Date: {args.start_date}")
+    print(f"End Date: {args.end_date}")
+    print(f"Summary Type: {args.summary_type}")
+    print(f"Base Path: {config.processing.base_path}")
+    print(f"Output Path: {config.processing.output_path}")
+    print(f"Date Range: {(args.end_date - args.start_date).days + 1} days")
+    for key, value in provider_info.items():
+        if key not in ("fallback_providers",):
+            print(f"{key.replace('_', ' ').title()}: {value}")
+    print()
+
+
+def _display_quality_metrics(processed_content: List['ProcessedContent']) -> None:
+    """Display content quality metrics for processed journal files."""
+    avg_words_per_file = sum(c.word_count for c in processed_content) / len(processed_content)
+    avg_lines_per_file = sum(c.line_count for c in processed_content) / len(processed_content)
+    print()
+    print("📈 Content Quality Metrics:")
+    print(f"Average words per file: {avg_words_per_file:.1f}")
+    print(f"Average lines per file: {avg_lines_per_file:.1f}")
+
+    # Check for encoding diversity
+    encodings = set(c.encoding for c in processed_content)
+    print(f"Encodings detected: {', '.join(encodings)}")
+
+    # Check for files with errors
+    files_with_errors = [c for c in processed_content if c.errors]
+    if files_with_errors:
+        print(f"Files with processing warnings: {len(files_with_errors)}")
+
+
 def _run_file_discovery(
     config: 'AppConfig',
     args: argparse.Namespace,
@@ -897,21 +936,10 @@ def main() -> None:
             _perform_dry_run(args, config, logger)
             return
         
-        # Display successful validation message
-        print("✅ Work Journal Summarizer - Phase 8")
-        print("=" * 50)
-        print(f"Start Date: {args.start_date}")
-        print(f"End Date: {args.end_date}")
-        print(f"Summary Type: {args.summary_type}")
-        print(f"Base Path: {config.processing.base_path}")
-        print(f"Output Path: {config.processing.output_path}")
-        print(f"Date Range: {(args.end_date - args.start_date).days + 1} days")
+        # Display startup banner
         llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
         provider_info = llm_client.get_provider_info()
-        for key, value in provider_info.items():
-            if key not in ("fallback_providers",):
-                print(f"{key.replace('_', ' ').title()}: {value}")
-        print()
+        _display_banner(args, config, provider_info)
         
         logger.update_progress("Initialization", 1.0)
         logger.complete_phase("Initialization")
@@ -1004,21 +1032,7 @@ def main() -> None:
             
             # Display processing quality metrics
             if processed_content:
-                avg_words_per_file = sum(c.word_count for c in processed_content) / len(processed_content)
-                avg_lines_per_file = sum(c.line_count for c in processed_content) / len(processed_content)
-                print()
-                print("📈 Content Quality Metrics:")
-                print(f"Average words per file: {avg_words_per_file:.1f}")
-                print(f"Average lines per file: {avg_lines_per_file:.1f}")
-                
-                # Check for encoding diversity
-                encodings = set(c.encoding for c in processed_content)
-                print(f"Encodings detected: {', '.join(encodings)}")
-                
-                # Check for files with errors
-                files_with_errors = [c for c in processed_content if c.errors]
-                if files_with_errors:
-                    print(f"Files with processing warnings: {len(files_with_errors)}")
+                _display_quality_metrics(processed_content)
         
         else:
             print("⚠️  No files found for processing!")

@@ -603,3 +603,78 @@ class TestRunOutputGeneration:
         output = captured.getvalue()
         assert "Output Generation Results" in output
         assert "All Phases Complete" in output
+
+
+class TestDisplayBanner:
+    """Tests for the extracted _display_banner function."""
+
+    def test_prints_date_range_and_provider_info(self):
+        """_display_banner prints start/end dates and provider info."""
+        args = MagicMock()
+        args.start_date = datetime.date(2025, 1, 6)
+        args.end_date = datetime.date(2025, 1, 10)
+        args.summary_type = "weekly"
+
+        config = MagicMock()
+        config.processing.base_path = "/tmp/journals"
+        config.processing.output_path = "/tmp/output"
+
+        provider_info = {
+            "provider": "google_genai",
+            "project": "my-project",
+            "model": "gemini-2.0-flash",
+            "active_provider": "google_genai",
+            "fallback_providers": [],
+        }
+
+        captured = StringIO()
+        with patch("sys.stdout", captured):
+            wjs._display_banner(args, config, provider_info)
+
+        output = captured.getvalue()
+        assert "Start Date: 2025-01-06" in output
+        assert "End Date: 2025-01-10" in output
+        assert "Provider: google_genai" in output
+        assert "Fallback Providers" not in output
+
+
+class TestDisplayQualityMetrics:
+    """Tests for the extracted _display_quality_metrics function."""
+
+    def test_prints_quality_stats(self):
+        """_display_quality_metrics prints average words and lines per file."""
+        mock_content = MagicMock()
+        mock_content.word_count = 200
+        mock_content.line_count = 20
+        mock_content.encoding = "utf-8"
+        mock_content.errors = []
+
+        captured = StringIO()
+        with patch("sys.stdout", captured):
+            wjs._display_quality_metrics([mock_content])
+
+        output = captured.getvalue()
+        assert "Content Quality Metrics" in output
+        assert "Average words per file: 200.0" in output
+
+    def test_reports_encoding_diversity(self):
+        """_display_quality_metrics reports detected encodings."""
+        mock1 = MagicMock()
+        mock1.word_count = 100
+        mock1.line_count = 10
+        mock1.encoding = "utf-8"
+        mock1.errors = []
+
+        mock2 = MagicMock()
+        mock2.word_count = 150
+        mock2.line_count = 15
+        mock2.encoding = "ascii"
+        mock2.errors = []
+
+        captured = StringIO()
+        with patch("sys.stdout", captured):
+            wjs._display_quality_metrics([mock1, mock2])
+
+        output = captured.getvalue()
+        assert "utf-8" in output
+        assert "ascii" in output
