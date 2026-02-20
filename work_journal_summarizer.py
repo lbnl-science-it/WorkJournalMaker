@@ -584,6 +584,151 @@ def _run_llm_analysis(
     return analysis_results, api_stats, entity_sets, llm_client
 
 
+def _run_summary_generation(
+    analysis_results: List['AnalysisResult'],
+    llm_client: 'UnifiedLLMClient',
+    args: argparse.Namespace,
+) -> Tuple[List['PeriodSummary'], 'SummaryStats']:
+    """
+    Generate period summaries from LLM analysis results.
+
+    Returns a tuple of (summaries, summary_stats).
+    """
+    print("📝 Phase 5: Generating intelligent summaries...")
+
+    summary_generator = SummaryGenerator(llm_client)
+    summaries, summary_stats = summary_generator.generate_summaries(
+        analysis_results, args.summary_type, args.start_date, args.end_date
+    )
+
+    # Display summary generation statistics
+    print("📊 Summary Generation Results:")
+    print("-" * 30)
+    print(f"Total periods processed: {summary_stats.total_periods}")
+    print(f"Successful summaries: {summary_stats.successful_summaries}")
+    print(f"Failed summaries: {summary_stats.failed_summaries}")
+    print(f"Success rate: {summary_stats.successful_summaries/summary_stats.total_periods*100:.1f}%" if summary_stats.total_periods > 0 else "N/A")
+    print(f"Total entries processed: {summary_stats.total_entries_processed}")
+    print(f"Generation time: {summary_stats.total_generation_time:.3f} seconds")
+    print(f"Average summary length: {summary_stats.average_summary_length} words")
+    print()
+
+    # Display generated summaries
+    if summaries:
+        print("📋 Generated Summaries:")
+        print("=" * 50)
+
+        for i, summary in enumerate(summaries, 1):
+            print(f"\n{i}. {summary.period_name}")
+            print(f"   Date Range: {summary.start_date} to {summary.end_date}")
+            print(f"   Journal Entries: {summary.entry_count}")
+            print(f"   Word Count: {summary.word_count}")
+            print(f"   Generation Time: {summary.generation_time:.3f}s")
+            print()
+
+            # Display key entities
+            if summary.projects:
+                print(f"   📋 Projects: {', '.join(summary.projects[:3])}")
+                if len(summary.projects) > 3:
+                    print(f"        ... and {len(summary.projects) - 3} more")
+
+            if summary.participants:
+                print(f"   👥 Participants: {', '.join(summary.participants[:3])}")
+                if len(summary.participants) > 3:
+                    print(f"        ... and {len(summary.participants) - 3} more")
+
+            if summary.themes:
+                print(f"   🎨 Themes: {', '.join(summary.themes[:3])}")
+                if len(summary.themes) > 3:
+                    print(f"        ... and {len(summary.themes) - 3} more")
+
+            print()
+            print("   📄 Summary:")
+            print("   " + "-" * 40)
+
+            # Display summary text with proper wrapping
+            summary_lines = summary.summary_text.split('\n')
+            for line in summary_lines:
+                if len(line) <= 70:
+                    print(f"   {line}")
+                else:
+                    # Simple word wrapping
+                    words = line.split()
+                    current_line = "   "
+                    for word in words:
+                        if len(current_line + word) <= 70:
+                            current_line += word + " "
+                        else:
+                            print(current_line.rstrip())
+                            current_line = "   " + word + " "
+                    if current_line.strip():
+                        print(current_line.rstrip())
+
+            print()
+            print("   " + "=" * 40)
+
+        print()
+        print("✅ Phase 5 Complete - Summary generation successful!")
+        print()
+
+    else:
+        print("⚠️  No summaries were generated")
+        print("This could be due to:")
+        print("- No journal entries found in the specified date range")
+        print("- All summary generation attempts failed")
+        print("- Issues with LLM API responses")
+
+    return summaries, summary_stats
+
+
+def _run_output_generation(
+    summaries: List['PeriodSummary'],
+    args: argparse.Namespace,
+    processing_metadata: 'ProcessingMetadata',
+    config: 'AppConfig',
+    summary_stats: 'SummaryStats',
+) -> 'OutputResult':
+    """
+    Generate markdown output files from summaries.
+
+    Returns an OutputResult with the output file path and metadata.
+    """
+    print("📄 Phase 6: Generating markdown output...")
+
+    # Initialize output manager with configuration
+    output_manager = OutputManager(output_dir=config.processing.output_path)
+
+    # Generate output file
+    output_result = output_manager.generate_output(
+        summaries, args.summary_type, args.start_date, args.end_date, processing_metadata
+    )
+
+    # Display output generation results
+    print("📊 Output Generation Results:")
+    print("-" * 30)
+    print(f"Output file: {output_result.output_path}")
+    print(f"File size: {output_result.file_size_bytes:,} bytes")
+    print(f"Generation time: {output_result.generation_time:.3f} seconds")
+    print(f"Sections count: {output_result.sections_count}")
+    print(f"Metadata included: {'Yes' if output_result.metadata_included else 'No'}")
+    print(f"Validation passed: {'Yes' if output_result.validation_passed else 'No'}")
+    print()
+
+    print("✅ Phase 6 Complete - Output management successful!")
+    print()
+    print("🎉 Work Journal Summarizer - All Phases Complete!")
+    print("=" * 50)
+    print(f"📁 Summary file created: {output_result.output_path}")
+    print(f"📊 Total processing time: {processing_metadata.processing_duration:.2f} seconds")
+    print(f"📈 Files processed: {processing_metadata.files_successfully_processed}/{processing_metadata.total_files_found}")
+    print(f"🤖 API calls made: {processing_metadata.successful_api_calls}/{processing_metadata.api_calls_made}")
+    print(f"📋 Summaries generated: {summary_stats.successful_summaries}")
+    print()
+    print("Your professional work journal summary is ready!")
+
+    return output_result
+
+
 def _run_file_discovery(
     config: 'AppConfig',
     args: argparse.Namespace,
@@ -800,96 +945,16 @@ def main() -> None:
                 analysis_results, api_stats, entity_sets, llm_client = _run_llm_analysis(
                     processed_content, config
                 )
-                all_projects = entity_sets["projects"]
-                all_participants = entity_sets["participants"]
-                all_tasks = entity_sets["tasks"]
-                all_themes = entity_sets["themes"]
-                
+
                 # Phase 5: Summary Generation
-                print("📝 Phase 5: Generating intelligent summaries...")
                 try:
-                    # Initialize summary generator
-                    summary_generator = SummaryGenerator(llm_client)
-                    
-                    # Generate summaries
-                    summaries, summary_stats = summary_generator.generate_summaries(
-                        analysis_results, args.summary_type, args.start_date, args.end_date
+                    summaries, summary_stats = _run_summary_generation(
+                        analysis_results, llm_client, args
                     )
-                    
-                    # Display summary generation statistics
-                    print("📊 Summary Generation Results:")
-                    print("-" * 30)
-                    print(f"Total periods processed: {summary_stats.total_periods}")
-                    print(f"Successful summaries: {summary_stats.successful_summaries}")
-                    print(f"Failed summaries: {summary_stats.failed_summaries}")
-                    print(f"Success rate: {summary_stats.successful_summaries/summary_stats.total_periods*100:.1f}%" if summary_stats.total_periods > 0 else "N/A")
-                    print(f"Total entries processed: {summary_stats.total_entries_processed}")
-                    print(f"Generation time: {summary_stats.total_generation_time:.3f} seconds")
-                    print(f"Average summary length: {summary_stats.average_summary_length} words")
-                    print()
-                    
-                    # Display generated summaries
+
+                    # Phase 6: Output Management
                     if summaries:
-                        print("📋 Generated Summaries:")
-                        print("=" * 50)
-                        
-                        for i, summary in enumerate(summaries, 1):
-                            print(f"\n{i}. {summary.period_name}")
-                            print(f"   Date Range: {summary.start_date} to {summary.end_date}")
-                            print(f"   Journal Entries: {summary.entry_count}")
-                            print(f"   Word Count: {summary.word_count}")
-                            print(f"   Generation Time: {summary.generation_time:.3f}s")
-                            print()
-                            
-                            # Display key entities
-                            if summary.projects:
-                                print(f"   📋 Projects: {', '.join(summary.projects[:3])}")
-                                if len(summary.projects) > 3:
-                                    print(f"        ... and {len(summary.projects) - 3} more")
-                            
-                            if summary.participants:
-                                print(f"   👥 Participants: {', '.join(summary.participants[:3])}")
-                                if len(summary.participants) > 3:
-                                    print(f"        ... and {len(summary.participants) - 3} more")
-                            
-                            if summary.themes:
-                                print(f"   🎨 Themes: {', '.join(summary.themes[:3])}")
-                                if len(summary.themes) > 3:
-                                    print(f"        ... and {len(summary.themes) - 3} more")
-                            
-                            print()
-                            print("   📄 Summary:")
-                            print("   " + "-" * 40)
-                            
-                            # Display summary text with proper wrapping
-                            summary_lines = summary.summary_text.split('\n')
-                            for line in summary_lines:
-                                if len(line) <= 70:
-                                    print(f"   {line}")
-                                else:
-                                    # Simple word wrapping
-                                    words = line.split()
-                                    current_line = "   "
-                                    for word in words:
-                                        if len(current_line + word) <= 70:
-                                            current_line += word + " "
-                                        else:
-                                            print(current_line.rstrip())
-                                            current_line = "   " + word + " "
-                                    if current_line.strip():
-                                        print(current_line.rstrip())
-                            
-                            print()
-                            print("   " + "=" * 40)
-                        
-                        print()
-                        print("✅ Phase 5 Complete - Summary generation successful!")
-                        print()
-                        
-                        # Phase 6: Output Management
-                        print("📄 Phase 6: Generating markdown output...")
                         try:
-                            # Create processing metadata
                             processing_metadata = ProcessingMetadata(
                                 total_files_found=discovery_result.total_expected,
                                 files_successfully_processed=processing_stats.successful,
@@ -897,66 +962,30 @@ def main() -> None:
                                 api_calls_made=api_stats.total_calls,
                                 successful_api_calls=api_stats.successful_calls,
                                 failed_api_calls=api_stats.failed_calls,
-                                unique_projects=len(all_projects),
-                                unique_participants=len(all_participants),
-                                total_tasks=len(all_tasks),
-                                major_themes=len(all_themes),
+                                unique_projects=len(entity_sets["projects"]),
+                                unique_participants=len(entity_sets["participants"]),
+                                total_tasks=len(entity_sets["tasks"]),
+                                major_themes=len(entity_sets["themes"]),
                                 processing_duration=(discovery_result.processing_time +
                                                    processing_stats.processing_time +
                                                    api_stats.total_time +
                                                    summary_stats.total_generation_time)
                             )
-                            
-                            # Initialize output manager with configuration
-                            output_manager = OutputManager(output_dir=config.processing.output_path)
-                            
-                            # Generate output file
-                            output_result = output_manager.generate_output(
-                                summaries, args.summary_type, args.start_date, args.end_date, processing_metadata
+                            _run_output_generation(
+                                summaries, args, processing_metadata, config, summary_stats
                             )
-                            
-                            # Display output generation results
-                            print("📊 Output Generation Results:")
-                            print("-" * 30)
-                            print(f"Output file: {output_result.output_path}")
-                            print(f"File size: {output_result.file_size_bytes:,} bytes")
-                            print(f"Generation time: {output_result.generation_time:.3f} seconds")
-                            print(f"Sections count: {output_result.sections_count}")
-                            print(f"Metadata included: {'Yes' if output_result.metadata_included else 'No'}")
-                            print(f"Validation passed: {'Yes' if output_result.validation_passed else 'No'}")
-                            print()
-                            
-                            print("✅ Phase 6 Complete - Output management successful!")
-                            print()
-                            print("🎉 Work Journal Summarizer - All Phases Complete!")
-                            print("=" * 50)
-                            print(f"📁 Summary file created: {output_result.output_path}")
-                            print(f"📊 Total processing time: {processing_metadata.processing_duration:.2f} seconds")
-                            print(f"📈 Files processed: {processing_metadata.files_successfully_processed}/{processing_metadata.total_files_found}")
-                            print(f"🤖 API calls made: {processing_metadata.successful_api_calls}/{processing_metadata.api_calls_made}")
-                            print(f"📋 Summaries generated: {summary_stats.successful_summaries}")
-                            print()
-                            print("Your professional work journal summary is ready!")
-                            
                         except Exception as e:
                             print(f"❌ Output Generation Error: {e}")
                             print()
                             print("Output generation failed, but summaries were created successfully.")
                             print("You can review the generated summaries above.")
-                    
-                    else:
-                        print("⚠️  No summaries were generated")
-                        print("This could be due to:")
-                        print("- No journal entries found in the specified date range")
-                        print("- All summary generation attempts failed")
-                        print("- Issues with LLM API responses")
-                
+
                 except Exception as e:
                     print(f"❌ Summary Generation Error: {e}")
                     print()
                     print("Summary generation failed, but entity extraction was successful.")
                     print("You can review the extracted entities above.")
-                
+
             except ValueError as e:
                 print(f"❌ LLM API Configuration Error: {e}")
                 print()
@@ -966,7 +995,7 @@ def main() -> None:
                 print("- Verify AWS Bedrock access permissions")
                 print()
                 print("Continuing with content processing results only...")
-                
+
             except Exception as e:
                 print(f"❌ LLM API Integration Error: {e}")
                 print()

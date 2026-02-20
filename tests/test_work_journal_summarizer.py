@@ -13,6 +13,8 @@ from content_processor import ProcessedContent, ProcessingStats
 from file_discovery import FileDiscoveryResult
 from llm_data_structures import AnalysisResult, APIStats
 from logger import ErrorCategory
+from output_manager import OutputResult, ProcessingMetadata
+from summary_generator import PeriodSummary, SummaryStats
 
 
 class TestBannerProviderOutput:
@@ -420,3 +422,184 @@ class TestRunLLMAnalysis:
         output = captured.getvalue()
         assert "Entity Extraction Summary" in output
         assert "Unique projects identified: 1" in output
+
+
+class TestRunSummaryGeneration:
+    """Tests for the extracted _run_summary_generation phase function."""
+
+    def test_returns_summaries_and_stats(self):
+        """_run_summary_generation returns (summaries, summary_stats) tuple."""
+        mock_analysis = MagicMock(spec=AnalysisResult)
+        analysis_results = [mock_analysis]
+        llm_client = MagicMock()
+        args = MagicMock()
+        args.summary_type = "weekly"
+        args.start_date = datetime.date(2025, 1, 6)
+        args.end_date = datetime.date(2025, 1, 10)
+
+        mock_summary = MagicMock(spec=PeriodSummary)
+        mock_summary.period_name = "Week of Jan 6"
+        mock_summary.start_date = datetime.date(2025, 1, 6)
+        mock_summary.end_date = datetime.date(2025, 1, 10)
+        mock_summary.entry_count = 5
+        mock_summary.word_count = 500
+        mock_summary.generation_time = 1.0
+        mock_summary.projects = ["ProjectX"]
+        mock_summary.participants = ["Alice"]
+        mock_summary.themes = ["engineering"]
+        mock_summary.summary_text = "Weekly summary text."
+
+        mock_stats = MagicMock(spec=SummaryStats)
+        mock_stats.total_periods = 1
+        mock_stats.successful_summaries = 1
+        mock_stats.failed_summaries = 0
+        mock_stats.total_entries_processed = 5
+        mock_stats.total_generation_time = 1.0
+        mock_stats.average_summary_length = 500
+
+        with patch("work_journal_summarizer.SummaryGenerator") as mock_sg_cls:
+            mock_sg = MagicMock()
+            mock_sg.generate_summaries.return_value = ([mock_summary], mock_stats)
+            mock_sg_cls.return_value = mock_sg
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                summaries, stats = wjs._run_summary_generation(
+                    analysis_results, llm_client, args
+                )
+
+        assert len(summaries) == 1
+        assert stats.total_periods == 1
+
+    def test_prints_summary_statistics(self):
+        """_run_summary_generation prints summary generation stats."""
+        mock_analysis = MagicMock(spec=AnalysisResult)
+        llm_client = MagicMock()
+        args = MagicMock()
+        args.summary_type = "weekly"
+        args.start_date = datetime.date(2025, 1, 6)
+        args.end_date = datetime.date(2025, 1, 10)
+
+        mock_summary = MagicMock(spec=PeriodSummary)
+        mock_summary.period_name = "Week of Jan 6"
+        mock_summary.start_date = datetime.date(2025, 1, 6)
+        mock_summary.end_date = datetime.date(2025, 1, 10)
+        mock_summary.entry_count = 5
+        mock_summary.word_count = 500
+        mock_summary.generation_time = 1.0
+        mock_summary.projects = ["ProjectX"]
+        mock_summary.participants = []
+        mock_summary.themes = []
+        mock_summary.summary_text = "Weekly summary."
+
+        mock_stats = MagicMock(spec=SummaryStats)
+        mock_stats.total_periods = 1
+        mock_stats.successful_summaries = 1
+        mock_stats.failed_summaries = 0
+        mock_stats.total_entries_processed = 5
+        mock_stats.total_generation_time = 1.0
+        mock_stats.average_summary_length = 500
+
+        with patch("work_journal_summarizer.SummaryGenerator") as mock_sg_cls:
+            mock_sg = MagicMock()
+            mock_sg.generate_summaries.return_value = ([mock_summary], mock_stats)
+            mock_sg_cls.return_value = mock_sg
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                wjs._run_summary_generation([mock_analysis], llm_client, args)
+
+        output = captured.getvalue()
+        assert "Summary Generation Results" in output
+        assert "Successful summaries: 1" in output
+
+
+class TestRunOutputGeneration:
+    """Tests for the extracted _run_output_generation phase function."""
+
+    def test_returns_output_result(self):
+        """_run_output_generation returns an OutputResult."""
+        mock_summary = MagicMock(spec=PeriodSummary)
+        summaries = [mock_summary]
+        args = MagicMock()
+        args.summary_type = "weekly"
+        args.start_date = datetime.date(2025, 1, 6)
+        args.end_date = datetime.date(2025, 1, 10)
+
+        mock_metadata = MagicMock(spec=ProcessingMetadata)
+        mock_metadata.processing_duration = 5.0
+        mock_metadata.files_successfully_processed = 5
+        mock_metadata.total_files_found = 5
+        mock_metadata.successful_api_calls = 5
+        mock_metadata.api_calls_made = 5
+
+        mock_output = MagicMock(spec=OutputResult)
+        mock_output.output_path = Path("/tmp/output/summary.md")
+        mock_output.file_size_bytes = 2048
+        mock_output.generation_time = 0.1
+        mock_output.sections_count = 3
+        mock_output.metadata_included = True
+        mock_output.validation_passed = True
+
+        config = MagicMock()
+        config.processing.output_path = "/tmp/output"
+
+        mock_stats = MagicMock(spec=SummaryStats)
+        mock_stats.successful_summaries = 1
+
+        with patch("work_journal_summarizer.OutputManager") as mock_om_cls:
+            mock_om = MagicMock()
+            mock_om.generate_output.return_value = mock_output
+            mock_om_cls.return_value = mock_om
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                result = wjs._run_output_generation(
+                    summaries, args, mock_metadata, config, mock_stats
+                )
+
+        assert result.output_path == Path("/tmp/output/summary.md")
+
+    def test_prints_output_results(self):
+        """_run_output_generation prints output generation results."""
+        mock_summary = MagicMock(spec=PeriodSummary)
+        args = MagicMock()
+        args.summary_type = "weekly"
+        args.start_date = datetime.date(2025, 1, 6)
+        args.end_date = datetime.date(2025, 1, 10)
+
+        mock_metadata = MagicMock(spec=ProcessingMetadata)
+        mock_metadata.processing_duration = 5.0
+        mock_metadata.files_successfully_processed = 5
+        mock_metadata.total_files_found = 5
+        mock_metadata.successful_api_calls = 5
+        mock_metadata.api_calls_made = 5
+
+        mock_output = MagicMock(spec=OutputResult)
+        mock_output.output_path = Path("/tmp/output/summary.md")
+        mock_output.file_size_bytes = 2048
+        mock_output.generation_time = 0.1
+        mock_output.sections_count = 3
+        mock_output.metadata_included = True
+        mock_output.validation_passed = True
+
+        config = MagicMock()
+        config.processing.output_path = "/tmp/output"
+
+        mock_stats = MagicMock(spec=SummaryStats)
+        mock_stats.successful_summaries = 1
+
+        with patch("work_journal_summarizer.OutputManager") as mock_om_cls:
+            mock_om = MagicMock()
+            mock_om.generate_output.return_value = mock_output
+            mock_om_cls.return_value = mock_om
+
+            captured = StringIO()
+            with patch("sys.stdout", captured):
+                wjs._run_output_generation(
+                    [mock_summary], args, mock_metadata, config, mock_stats
+                )
+
+        output = captured.getvalue()
+        assert "Output Generation Results" in output
+        assert "All Phases Complete" in output
