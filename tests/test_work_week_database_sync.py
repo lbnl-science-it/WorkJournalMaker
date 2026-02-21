@@ -6,6 +6,7 @@ including entry synchronization, migration, and data integrity validation.
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -20,7 +21,7 @@ from logger import JournalSummarizerLogger
 
 
 # Test fixtures - defined at module level
-@pytest.fixture
+@pytest_asyncio.fixture
 async def temp_database():
     """Create temporary database for testing."""
     with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp:
@@ -51,12 +52,12 @@ def mock_logger():
     logger.error = Mock()
     return logger
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def work_week_service(mock_config, mock_logger, temp_database):
     """Create WorkWeekService instance."""
     return WorkWeekService(mock_config, mock_logger, temp_database)
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def entry_manager(mock_config, mock_logger, temp_database, work_week_service):
     """Create EntryManager instance with WorkWeekService."""
     return EntryManager(mock_config, mock_logger, temp_database, work_week_service)
