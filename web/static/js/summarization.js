@@ -97,9 +97,6 @@ class SummarizationInterface {
             const task = await this.createSummaryTask(formData);
 
             if (task) {
-                // Start the task
-                await this.startSummaryTask(task.task_id);
-
                 // Show progress modal
                 this.showProgressModal(task);
 
@@ -155,7 +152,7 @@ class SummarizationInterface {
 
     async createSummaryTask(formData) {
         try {
-            const response = await fetch('/api/summarization/create', {
+            const response = await fetch('/api/summarization/tasks', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -175,25 +172,6 @@ class SummarizationInterface {
 
         } catch (error) {
             console.error('Failed to create summary task:', error);
-            throw error;
-        }
-    }
-
-    async startSummaryTask(taskId) {
-        try {
-            const response = await fetch(`/api/summarization/${taskId}/start`, {
-                method: 'POST'
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || 'Failed to start summary task');
-            }
-
-            Utils.showToast('Summary task started successfully', 'success');
-
-        } catch (error) {
-            console.error('Failed to start summary task:', error);
             throw error;
         }
     }
@@ -241,7 +219,7 @@ class SummarizationInterface {
     connectToTaskProgress(taskId) {
         try {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/api/summarization/${taskId}/progress`;
+            const wsUrl = `${protocol}//${window.location.host}/api/summarization/ws/${taskId}`;
 
             const ws = new WebSocket(wsUrl);
 
@@ -285,7 +263,7 @@ class SummarizationInterface {
     startProgressPolling(taskId) {
         const pollInterval = setInterval(async () => {
             try {
-                const response = await fetch(`/api/summarization/${taskId}/status`);
+                const response = await fetch(`/api/summarization/tasks/${taskId}`);
                 if (response.ok) {
                     const data = await response.json();
                     this.handleProgressUpdate(data);
@@ -306,7 +284,7 @@ class SummarizationInterface {
 
     async checkTaskStatus(taskId) {
         try {
-            const response = await fetch(`/api/summarization/${taskId}/status`);
+            const response = await fetch(`/api/summarization/tasks/${taskId}`);
             if (response.ok) {
                 const data = await response.json();
                 this.handleProgressUpdate(data);
@@ -377,7 +355,7 @@ class SummarizationInterface {
 
             const taskId = taskIds[0]; // Cancel the first active task
 
-            const response = await fetch(`/api/summarization/${taskId}/cancel`, {
+            const response = await fetch(`/api/summarization/tasks/${taskId}/cancel`, {
                 method: 'POST'
             });
 
@@ -400,7 +378,7 @@ class SummarizationInterface {
 
         try {
             // Get full result from API
-            const response = await fetch(`/api/summarization/${this.currentResult.task_id}/result`);
+            const response = await fetch(`/api/summarization/tasks/${this.currentResult.task_id}/result`);
 
             if (!response.ok) {
                 throw new Error('Failed to get task result');
@@ -456,7 +434,7 @@ class SummarizationInterface {
         if (!this.currentResultData) return;
 
         try {
-            const response = await fetch(`/api/summarization/${this.currentResultData.task_id}/download`);
+            const response = await fetch(`/api/summarization/tasks/${this.currentResultData.task_id}/download`);
 
             if (!response.ok) {
                 throw new Error('Failed to download result');
@@ -492,14 +470,14 @@ class SummarizationInterface {
         </div>
       `;
 
-            const response = await fetch('/api/summarization/history?limit=10');
+            const response = await fetch('/api/summarization/tasks');
 
             if (!response.ok) {
                 throw new Error('Failed to fetch summary history');
             }
 
             const data = await response.json();
-            this.summaryHistory = data.summaries || [];
+            this.summaryHistory = Array.isArray(data) ? data : [];
 
             this.renderSummaryHistory();
 
@@ -561,7 +539,7 @@ class SummarizationInterface {
 
     async viewHistoryItem(taskId) {
         try {
-            const response = await fetch(`/api/summarization/${taskId}/result`);
+            const response = await fetch(`/api/summarization/tasks/${taskId}/result`);
             if (response.ok) {
                 const result = await response.json();
                 this.showResultModal(result);
@@ -576,7 +554,7 @@ class SummarizationInterface {
 
     async downloadHistoryItem(taskId) {
         try {
-            const response = await fetch(`/api/summarization/${taskId}/download`);
+            const response = await fetch(`/api/summarization/tasks/${taskId}/download`);
 
             if (!response.ok) {
                 throw new Error('Failed to download summary');
