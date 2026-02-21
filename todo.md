@@ -1,12 +1,22 @@
-# Cluster F: CLI Cleanup — Implementation Tracker
+# Issue #60 — Fix Pre-existing Test Failures (CLOSED)
 
 **Plan:** `plan.md`
-**Source:** `improvements.md` items #4, #5, #11, #18
-**Branch:** `improvements/cluster-f-cli-cleanup`
+**Branch:** `fix/issue-60-test-failures`
+**Result:** 6 tests recovered, Phase 2 cancelled, rewrite filed as #81
 
-## Steps
+## Phase 1: Async Fixture Decorator Fixes (COMPLETE)
 
-- [x] **Step 1:** Remove migration scaffolding from file_discovery.py ([#65](https://github.com/lbnl-science-it/WorkJournalMaker/issues/65))
-- [x] **Step 2:** Remove mock-detection logic from file_discovery.py ([#66](https://github.com/lbnl-science-it/WorkJournalMaker/issues/66))
-- [x] **Step 3:** Fix hardcoded provider output in work_journal_summarizer.py ([#67](https://github.com/lbnl-science-it/WorkJournalMaker/issues/67))
-- [x] **Step 4:** Decompose main() into phase functions ([#68](https://github.com/lbnl-science-it/WorkJournalMaker/issues/68))
+- [x] **Step 1.1:** Fix work_week async test fixtures ([#73](https://github.com/lbnl-science-it/WorkJournalMaker/issues/73)) — 6 tests recovered
+- [x] **Step 1.2:** Calendar tests — no async fixture issues found ([#74](https://github.com/lbnl-science-it/WorkJournalMaker/issues/74))
+- [x] **Step 1.3:** Web tests — no async fixture issues found ([#75](https://github.com/lbnl-science-it/WorkJournalMaker/issues/75))
+- [x] **Step 1.4:** Decision gate — 11% recovery, below 50% threshold
+
+## Decision Gate Result: DO NOT PROCEED
+
+- Recovery rate: 11% (6 of 55 broken tests)
+- Root cause: tests were never validated against production code
+- Action: Phase 2 closed, rewrite issue filed
+
+## Phase 2: CANCELLED
+
+- [x] ~~#76, #77, #78, #79, #80~~ — closed, superseded by [#81](https://github.com/lbnl-science-it/WorkJournalMaker/issues/81)
