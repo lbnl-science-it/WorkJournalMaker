@@ -1,22 +1,23 @@
-# Issue #60 — Fix Pre-existing Test Failures (CLOSED)
+# WorkJournalMaker — Outstanding Work
 
-**Plan:** `plan.md`
-**Branch:** `fix/issue-60-test-failures`
-**Result:** 6 tests recovered, Phase 2 cancelled, rewrite filed as #81
+## Open Bugs
 
-## Phase 1: Async Fixture Decorator Fixes (COMPLETE)
+- [ ] [#84](https://github.com/lbnl-science-it/WorkJournalMaker/issues/84) — `WebSummarizationService` calls non-existent `SummaryGenerator` methods
+- [ ] [#67](https://github.com/lbnl-science-it/WorkJournalMaker/issues/67) — Fix hardcoded provider output in `work_journal_summarizer.py`
+- [ ] [#32](https://github.com/lbnl-science-it/WorkJournalMaker/issues/32) — Save button hidden when editor window is at the bottom
+- [ ] [#30](https://github.com/lbnl-science-it/WorkJournalMaker/issues/30) — Changing default work week fails
+- [ ] [#28](https://github.com/lbnl-science-it/WorkJournalMaker/issues/28) — Missized Calendar
+- [ ] [#27](https://github.com/lbnl-science-it/WorkJournalMaker/issues/27) — Calendar preview of journal entry cuts off
+- [ ] [#26](https://github.com/lbnl-science-it/WorkJournalMaker/issues/26) — Broken Today Button
 
-- [x] **Step 1.1:** Fix work_week async test fixtures ([#73](https://github.com/lbnl-science-it/WorkJournalMaker/issues/73)) — 6 tests recovered
-- [x] **Step 1.2:** Calendar tests — no async fixture issues found ([#74](https://github.com/lbnl-science-it/WorkJournalMaker/issues/74))
-- [x] **Step 1.3:** Web tests — no async fixture issues found ([#75](https://github.com/lbnl-science-it/WorkJournalMaker/issues/75))
-- [x] **Step 1.4:** Decision gate — 11% recovery, below 50% threshold
+## Test Health
 
-## Decision Gate Result: DO NOT PROCEED
+- [ ] [#81](https://github.com/lbnl-science-it/WorkJournalMaker/issues/81) — Write proper test coverage for work week, calendar, and web integration services (rewrite, not patch — per #60 post-mortem)
 
-- Recovery rate: 11% (6 of 55 broken tests)
-- Root cause: tests were never validated against production code
-- Action: Phase 2 closed, rewrite issue filed
+## Desktop Packaging (PyInstaller + CI/CD)
 
-## Phase 2: CANCELLED
+Steps 1–11 complete. Remaining:
 
-- [x] ~~#76, #77, #78, #79, #80~~ — closed, superseded by [#81](https://github.com/lbnl-science-it/WorkJournalMaker/issues/81)
+- [ ] [#72](https://github.com/lbnl-science-it/WorkJournalMaker/issues/72) — Step 12: Build Automation Testing (CI/CD simulation)
+- [ ] Step 13: Release Management and Distribution
+- [ ] Step 14: End-to-End Integration Testing
