@@ -7,6 +7,7 @@ maintains backward compatibility with existing installations and data.
 
 import asyncio
 import pytest
+import pytest_asyncio
 import tempfile
 import shutil
 import os
@@ -26,7 +27,7 @@ from logger import JournalSummarizerLogger
 class TestWorkWeekBackwardCompatibility:
     """Test class for work week backward compatibility validation."""
     
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def legacy_setup(self):
         """Set up a legacy-style directory structure for testing."""
         temp_dir = tempfile.mkdtemp()
@@ -63,7 +64,7 @@ class TestWorkWeekBackwardCompatibility:
         # Cleanup
         shutil.rmtree(temp_dir)
     
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def database_with_legacy_data(self):
         """Set up database with legacy journal entry data."""
         db_manager = DatabaseManager(":memory:")
