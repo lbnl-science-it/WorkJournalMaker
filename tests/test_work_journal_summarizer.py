@@ -54,7 +54,7 @@ class TestBannerProviderOutput:
     @patch("work_journal_summarizer.ConfigManager")
     @patch("work_journal_summarizer.create_logger_with_config")
     @patch("work_journal_summarizer.UnifiedLLMClient")
-    @patch("work_journal_summarizer.FileDiscovery")
+    @patch("summarization_pipeline.FileDiscovery")
     def test_banner_does_not_contain_hardcoded_aws_region(
         self, mock_fd_cls, mock_llm_cls, mock_logger_fn, mock_cm_cls, mock_parse
     ):
@@ -108,7 +108,7 @@ class TestBannerProviderOutput:
     @patch("work_journal_summarizer.ConfigManager")
     @patch("work_journal_summarizer.create_logger_with_config")
     @patch("work_journal_summarizer.UnifiedLLMClient")
-    @patch("work_journal_summarizer.FileDiscovery")
+    @patch("summarization_pipeline.FileDiscovery")
     def test_banner_prints_provider_info_keys(
         self, mock_fd_cls, mock_llm_cls, mock_logger_fn, mock_cm_cls, mock_parse
     ):
@@ -185,7 +185,7 @@ class TestRunFileDiscovery:
             processing_time=0.01,
         )
 
-        with patch("work_journal_summarizer.FileDiscovery") as mock_fd_cls:
+        with patch("summarization_pipeline.FileDiscovery") as mock_fd_cls:
             mock_fd = MagicMock()
             mock_fd.discover_files.return_value = expected_result
             mock_fd_cls.return_value = mock_fd
@@ -208,7 +208,7 @@ class TestRunFileDiscovery:
         logger = MagicMock()
         logger.should_continue_processing.return_value = True
 
-        with patch("work_journal_summarizer.FileDiscovery") as mock_fd_cls:
+        with patch("summarization_pipeline.FileDiscovery") as mock_fd_cls:
             mock_fd_cls.side_effect = OSError("No such directory")
 
             captured = StringIO()
@@ -229,7 +229,7 @@ class TestRunFileDiscovery:
         logger = MagicMock()
         logger.should_continue_processing.return_value = False
 
-        with patch("work_journal_summarizer.FileDiscovery") as mock_fd_cls:
+        with patch("summarization_pipeline.FileDiscovery") as mock_fd_cls:
             mock_fd_cls.side_effect = OSError("No such directory")
 
             captured = StringIO()
@@ -255,7 +255,7 @@ class TestRunFileDiscovery:
             processing_time=0.05,
         )
 
-        with patch("work_journal_summarizer.FileDiscovery") as mock_fd_cls:
+        with patch("summarization_pipeline.FileDiscovery") as mock_fd_cls:
             mock_fd = MagicMock()
             mock_fd.discover_files.return_value = expected_result
             mock_fd_cls.return_value = mock_fd
@@ -295,7 +295,7 @@ class TestRunContentProcessing:
             total_size_bytes=500, total_words=100, processing_time=0.01,
         )
 
-        with patch("work_journal_summarizer.ContentProcessor") as mock_cp_cls:
+        with patch("summarization_pipeline.ContentProcessor") as mock_cp_cls:
             mock_cp = MagicMock()
             mock_cp.process_files.return_value = ([mock_processed], mock_stats)
             mock_cp_cls.return_value = mock_cp
@@ -329,7 +329,7 @@ class TestRunContentProcessing:
             total_size_bytes=500, total_words=100, processing_time=0.05,
         )
 
-        with patch("work_journal_summarizer.ContentProcessor") as mock_cp_cls:
+        with patch("summarization_pipeline.ContentProcessor") as mock_cp_cls:
             mock_cp = MagicMock()
             mock_cp.process_files.return_value = ([mock_processed], mock_stats)
             mock_cp_cls.return_value = mock_cp
@@ -369,7 +369,7 @@ class TestRunLLMAnalysis:
         mock_stats.average_response_time = 0.5
         mock_stats.rate_limit_hits = 0
 
-        with patch("work_journal_summarizer.UnifiedLLMClient") as mock_llm_cls:
+        with patch("summarization_pipeline.UnifiedLLMClient") as mock_llm_cls:
             mock_llm = MagicMock()
             mock_llm.analyze_content.return_value = mock_result
             mock_llm.get_stats.return_value = mock_stats
@@ -409,7 +409,7 @@ class TestRunLLMAnalysis:
         mock_stats.average_response_time = 0.5
         mock_stats.rate_limit_hits = 0
 
-        with patch("work_journal_summarizer.UnifiedLLMClient") as mock_llm_cls:
+        with patch("summarization_pipeline.UnifiedLLMClient") as mock_llm_cls:
             mock_llm = MagicMock()
             mock_llm.analyze_content.return_value = mock_result
             mock_llm.get_stats.return_value = mock_stats
@@ -457,7 +457,7 @@ class TestRunSummaryGeneration:
         mock_stats.total_generation_time = 1.0
         mock_stats.average_summary_length = 500
 
-        with patch("work_journal_summarizer.SummaryGenerator") as mock_sg_cls:
+        with patch("summarization_pipeline.SummaryGenerator") as mock_sg_cls:
             mock_sg = MagicMock()
             mock_sg.generate_summaries.return_value = ([mock_summary], mock_stats)
             mock_sg_cls.return_value = mock_sg
@@ -500,7 +500,7 @@ class TestRunSummaryGeneration:
         mock_stats.total_generation_time = 1.0
         mock_stats.average_summary_length = 500
 
-        with patch("work_journal_summarizer.SummaryGenerator") as mock_sg_cls:
+        with patch("summarization_pipeline.SummaryGenerator") as mock_sg_cls:
             mock_sg = MagicMock()
             mock_sg.generate_summaries.return_value = ([mock_summary], mock_stats)
             mock_sg_cls.return_value = mock_sg

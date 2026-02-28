@@ -10,7 +10,6 @@ full compatibility with existing CLI components.
 
 import asyncio
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from typing import Dict, Any, Optional, List, AsyncGenerator
 import uuid
 from dataclasses import dataclass, field
@@ -19,10 +18,7 @@ from enum import Enum
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory
 from unified_llm_client import UnifiedLLMClient
-from summary_generator import SummaryGenerator
-from file_discovery import FileDiscovery
-from content_processor import ContentProcessor
-from output_manager import OutputManager
+import summarization_pipeline
 from web.services.base_service import BaseService
 from web.database import DatabaseManager
 
@@ -84,19 +80,15 @@ class WebSummarizationService(BaseService):
                  db_manager: DatabaseManager):
         """Initialize WebSummarizationService with core dependencies."""
         super().__init__(config, logger, db_manager)
-        
-        # Initialize existing components
+
+        # Keep llm_client for WebSocket endpoint configuration checks
         self.llm_client = UnifiedLLMClient(config)
-        self.file_discovery = FileDiscovery(config.processing.base_path)
-        self.content_processor = ContentProcessor()
-        self.summary_generator = SummaryGenerator(self.llm_client)
-        self.output_manager = OutputManager()
-        
+
         # Task management
         self.active_tasks: Dict[str, SummaryTask] = {}
         self.task_progress: Dict[str, ProgressUpdate] = {}
         self._task_lock = asyncio.Lock()
-        
+
         # WebSocket connection manager (will be set by the API)
         self.connection_manager = None
     
@@ -244,102 +236,61 @@ class WebSummarizationService(BaseService):
             return 0
     
     async def _execute_summarization(self, task_id: str) -> None:
-        """Execute the summarization process for a task."""
+        """Execute the 4-phase summarization pipeline for a task."""
         try:
             task = self.active_tasks[task_id]
-            
-            # Check if task was cancelled
             if task.status == SummaryTaskStatus.CANCELLED:
                 return
-            
-            # Update progress: Starting
+
             await self._update_progress(task_id, 0.0, "Initializing summarization")
-            
-            # Discover files using existing FileDiscovery
+            loop = asyncio.get_running_loop()
+
+            # Phase 1: File Discovery
             await self._update_progress(task_id, 10.0, "Discovering journal files")
-            discovery_result = self.file_discovery.discover_files(task.start_date, task.end_date)
-            
+            discovery_result = await loop.run_in_executor(
+                None, summarization_pipeline.discover_files,
+                self.config.processing.base_path, task.start_date, task.end_date
+            )
             if not discovery_result.found_files:
                 raise ValueError("No journal files found in the specified date range")
-            
-            # Check for cancellation
             if task.status == SummaryTaskStatus.CANCELLED:
                 return
-            
-            # Process content using existing ContentProcessor
+
+            # Phase 2: Content Processing
             await self._update_progress(task_id, 30.0, "Processing journal content")
-            processed_content = await self._process_content_async(discovery_result.found_files)
-            
-            # Check for cancellation
-            if task.status == SummaryTaskStatus.CANCELLED:
-                return
-            
-            # Generate summary using existing SummaryGenerator
-            await self._update_progress(task_id, 60.0, "Generating summary with LLM")
-            summary_result = await self._generate_summary_async(
-                processed_content, task.summary_type, task.start_date, task.end_date
+            processed_content, processing_stats = await loop.run_in_executor(
+                None, summarization_pipeline.process_content,
+                discovery_result.found_files, self.config.processing.max_file_size_mb
             )
-            
-            # Check for cancellation
             if task.status == SummaryTaskStatus.CANCELLED:
                 return
-            
-            # Save output using existing OutputManager
-            await self._update_progress(task_id, 90.0, "Saving summary output")
-            output_path = await self._save_output_async(summary_result, task)
-            
-            # Complete task
+
+            # Phase 3: LLM Analysis
+            await self._update_progress(task_id, 50.0, "Analyzing content with LLM")
+            analysis_results, api_stats, llm_client = await loop.run_in_executor(
+                None, summarization_pipeline.analyze_content,
+                processed_content, self.config
+            )
+            if task.status == SummaryTaskStatus.CANCELLED:
+                return
+
+            # Phase 4: Summary Generation
+            await self._update_progress(task_id, 80.0, "Generating summary")
+            summaries, summary_stats = await loop.run_in_executor(
+                None, summarization_pipeline.generate_summaries,
+                analysis_results, llm_client, task.summary_type.value,
+                task.start_date, task.end_date
+            )
+
+            # Combine summary texts for storage
+            combined_result = "\n\n".join(s.summary_text for s in summaries)
+
             await self._update_progress(task_id, 100.0, "Summarization completed")
-            await self._complete_task(task_id, summary_result, output_path)
-            
+            await self._complete_task(task_id, combined_result, None)
+
         except Exception as e:
             self.logger.logger.error(f"Summarization task {task_id} failed: {str(e)}")
             await self._update_task_status(task_id, SummaryTaskStatus.FAILED, error_message=str(e))
-    
-    async def _process_content_async(self, file_paths: List[Path]) -> str:
-        """Process content asynchronously using existing ContentProcessor."""
-        def process_sync():
-            processed_content, stats = self.content_processor.process_files(file_paths)
-            # Combine all content into a single string
-            combined_content = "\n\n".join([content.content for content in processed_content])
-            return combined_content
-        
-        # Run in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, process_sync)
-    
-    async def _generate_summary_async(self, content: str, summary_type: SummaryType, 
-                                    start_date: date, end_date: date) -> str:
-        """Generate summary asynchronously using existing SummaryGenerator."""
-        def generate_sync():
-            if summary_type == SummaryType.WEEKLY:
-                return self.summary_generator.generate_weekly_summary(content, start_date, end_date)
-            elif summary_type == SummaryType.MONTHLY:
-                return self.summary_generator.generate_monthly_summary(content, start_date, end_date)
-            else:
-                return self.summary_generator.generate_custom_summary(content, start_date, end_date)
-        
-        # Run in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, generate_sync)
-    
-    async def _save_output_async(self, summary: str, task: SummaryTask) -> str:
-        """Save output asynchronously using existing OutputManager."""
-        def save_sync():
-            # Create a simple output file for the summary
-            import tempfile
-            import os
-            
-            # Create a temporary file for the summary
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-                f.write(f"# {task.summary_type.value.title()} Summary\n\n")
-                f.write(f"Date Range: {task.start_date} to {task.end_date}\n\n")
-                f.write(summary)
-                return f.name
-        
-        # Run in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, save_sync)
     
     async def _update_progress(self, task_id: str, progress: float, current_step: str) -> None:
         """Update task progress."""

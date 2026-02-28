@@ -58,12 +58,7 @@ def mock_db_manager():
 @pytest.fixture
 def summarization_service(mock_config, mock_logger, mock_db_manager):
     """Create WebSummarizationService instance for testing."""
-    with patch('web.services.web_summarizer.UnifiedLLMClient'), \
-         patch('web.services.web_summarizer.FileDiscovery'), \
-         patch('web.services.web_summarizer.ContentProcessor'), \
-         patch('web.services.web_summarizer.SummaryGenerator'), \
-         patch('web.services.web_summarizer.OutputManager'):
-        
+    with patch('web.services.web_summarizer.UnifiedLLMClient'):
         service = WebSummarizationService(mock_config, mock_logger, mock_db_manager)
         return service
 
@@ -242,156 +237,131 @@ class TestWebSummarizationService:
     
     @pytest.mark.asyncio
     async def test_execute_summarization_success(self, summarization_service):
-        """Test successful summarization execution."""
-        # Create task
+        """Test successful summarization via the 4-phase pipeline."""
         task_id = await summarization_service.create_summary_task(
             SummaryType.WEEKLY, date(2024, 1, 1), date(2024, 1, 7)
         )
-        
-        # Mock all the dependencies
-        mock_discovery_result = Mock()
-        mock_discovery_result.found_files = [Path("/tmp/test1.md"), Path("/tmp/test2.md")]
-        
-        with patch.object(summarization_service.file_discovery, 'discover_files', return_value=mock_discovery_result), \
-             patch.object(summarization_service, '_process_content_async', new_callable=AsyncMock, return_value="processed content"), \
-             patch.object(summarization_service, '_generate_summary_async', new_callable=AsyncMock, return_value="generated summary"), \
-             patch.object(summarization_service, '_save_output_async', new_callable=AsyncMock, return_value="/tmp/output.txt"):
-            
+
+        mock_discovery = Mock()
+        mock_discovery.found_files = [Path("/tmp/test1.md"), Path("/tmp/test2.md")]
+
+        mock_processed = [Mock(content="day 1"), Mock(content="day 2")]
+        mock_proc_stats = Mock()
+
+        mock_analysis = [Mock(), Mock()]
+        mock_api_stats = Mock()
+        mock_llm_client = Mock()
+
+        mock_period = Mock()
+        mock_period.summary_text = "Weekly summary of work."
+        mock_sum_stats = Mock()
+
+        with patch('web.services.web_summarizer.summarization_pipeline') as mock_pipeline:
+            mock_pipeline.discover_files.return_value = mock_discovery
+            mock_pipeline.process_content.return_value = (mock_processed, mock_proc_stats)
+            mock_pipeline.analyze_content.return_value = (mock_analysis, mock_api_stats, mock_llm_client)
+            mock_pipeline.generate_summaries.return_value = ([mock_period], mock_sum_stats)
+
             await summarization_service._execute_summarization(task_id)
-            
-            # Verify task completion
-            task = await summarization_service.get_task_status(task_id)
-            assert task.status == SummaryTaskStatus.COMPLETED
-            assert task.result == "generated summary"
-            assert task.output_file_path == "/tmp/output.txt"
-            assert task.progress == 100.0
-    
+
+        task = await summarization_service.get_task_status(task_id)
+        assert task.status == SummaryTaskStatus.COMPLETED
+        assert task.result == "Weekly summary of work."
+        assert task.progress == 100.0
+
     @pytest.mark.asyncio
     async def test_execute_summarization_no_files_found(self, summarization_service):
-        """Test summarization execution when no files are found."""
-        # Create task
+        """Test summarization when no journal files are found."""
         task_id = await summarization_service.create_summary_task(
             SummaryType.WEEKLY, date(2024, 1, 1), date(2024, 1, 7)
         )
-        
-        # Mock discovery to return no files
-        mock_discovery_result = Mock()
-        mock_discovery_result.found_files = []
-        
-        with patch.object(summarization_service.file_discovery, 'discover_files', return_value=mock_discovery_result):
+
+        mock_discovery = Mock()
+        mock_discovery.found_files = []
+
+        with patch('web.services.web_summarizer.summarization_pipeline') as mock_pipeline:
+            mock_pipeline.discover_files.return_value = mock_discovery
+
             await summarization_service._execute_summarization(task_id)
-            
-            # Verify task failed
-            task = await summarization_service.get_task_status(task_id)
-            assert task.status == SummaryTaskStatus.FAILED
-            assert "No journal files found" in task.error_message
-    
+
+        task = await summarization_service.get_task_status(task_id)
+        assert task.status == SummaryTaskStatus.FAILED
+        assert "No journal files found" in task.error_message
+
     @pytest.mark.asyncio
     async def test_execute_summarization_with_cancellation(self, summarization_service):
-        """Test summarization execution with task cancellation."""
-        # Create task
+        """Test summarization respects task cancellation."""
         task_id = await summarization_service.create_summary_task(
             SummaryType.WEEKLY, date(2024, 1, 1), date(2024, 1, 7)
         )
-        
-        # Cancel task before execution
+
         async with summarization_service._task_lock:
             summarization_service.active_tasks[task_id].status = SummaryTaskStatus.CANCELLED
-        
-        # Mock discovery
-        mock_discovery_result = Mock()
-        mock_discovery_result.found_files = [Path("/tmp/test1.md")]
-        
-        with patch.object(summarization_service.file_discovery, 'discover_files', return_value=mock_discovery_result):
+
+        mock_discovery = Mock()
+        mock_discovery.found_files = [Path("/tmp/test1.md")]
+
+        with patch('web.services.web_summarizer.summarization_pipeline') as mock_pipeline:
+            mock_pipeline.discover_files.return_value = mock_discovery
+
             await summarization_service._execute_summarization(task_id)
-            
-            # Verify task remains cancelled and execution stopped early
-            task = await summarization_service.get_task_status(task_id)
-            assert task.status == SummaryTaskStatus.CANCELLED
-    
+
+        task = await summarization_service.get_task_status(task_id)
+        assert task.status == SummaryTaskStatus.CANCELLED
+
+    @pytest.mark.asyncio
+    async def test_execute_summarization_calls_all_four_phases(self, summarization_service):
+        """Test that _execute_summarization calls all 4 pipeline phases in order."""
+        task_id = await summarization_service.create_summary_task(
+            SummaryType.WEEKLY, date(2024, 1, 1), date(2024, 1, 7)
+        )
+
+        mock_discovery = Mock()
+        mock_discovery.found_files = [Path("/tmp/test1.md")]
+
+        mock_processed = [Mock(content="content")]
+        mock_proc_stats = Mock()
+
+        mock_analysis = [Mock()]
+        mock_api_stats = Mock()
+        mock_llm_client = Mock()
+
+        mock_period = Mock()
+        mock_period.summary_text = "Summary."
+        mock_sum_stats = Mock()
+
+        with patch('web.services.web_summarizer.summarization_pipeline') as mock_pipeline:
+            mock_pipeline.discover_files.return_value = mock_discovery
+            mock_pipeline.process_content.return_value = (mock_processed, mock_proc_stats)
+            mock_pipeline.analyze_content.return_value = (mock_analysis, mock_api_stats, mock_llm_client)
+            mock_pipeline.generate_summaries.return_value = ([mock_period], mock_sum_stats)
+
+            await summarization_service._execute_summarization(task_id)
+
+        # Verify all 4 pipeline phases were called
+        mock_pipeline.discover_files.assert_called_once()
+        mock_pipeline.process_content.assert_called_once()
+        mock_pipeline.analyze_content.assert_called_once()
+        mock_pipeline.generate_summaries.assert_called_once()
+
     @pytest.mark.asyncio
     async def test_update_progress(self, summarization_service):
         """Test progress update functionality."""
         task_id = await summarization_service.create_summary_task(
             SummaryType.WEEKLY, date(2024, 1, 1), date(2024, 1, 7)
         )
-        
+
         await summarization_service._update_progress(task_id, 75.0, "Generating summary")
-        
+
         # Check task progress
         task = await summarization_service.get_task_status(task_id)
         assert task.progress == 75.0
         assert task.current_step == "Generating summary"
-        
+
         # Check progress update
         progress = await summarization_service.get_task_progress(task_id)
         assert progress.progress == 75.0
         assert progress.current_step == "Generating summary"
-    
-    @pytest.mark.asyncio
-    async def test_async_content_processing(self, summarization_service):
-        """Test async content processing wrapper."""
-        test_files = [Path("/tmp/test1.md"), Path("/tmp/test2.md")]
-        expected_content = "processed content"
-        
-        # Mock the return value as a tuple (processed_content_list, stats)
-        mock_processed_content = [Mock(content="processed content")]
-        mock_stats = Mock()
-        
-        with patch.object(summarization_service.content_processor, 'process_files', return_value=(mock_processed_content, mock_stats)):
-            result = await summarization_service._process_content_async(test_files)
-            assert result == expected_content
-            summarization_service.content_processor.process_files.assert_called_once_with(test_files)
-    
-    @pytest.mark.asyncio
-    async def test_async_summary_generation(self, summarization_service):
-        """Test async summary generation wrapper."""
-        content = "test content"
-        expected_summary = "generated summary"
-        
-        # Test weekly summary
-        with patch.object(summarization_service.summary_generator, 'generate_weekly_summary', return_value=expected_summary):
-            result = await summarization_service._generate_summary_async(
-                content, SummaryType.WEEKLY, date(2024, 1, 1), date(2024, 1, 7)
-            )
-            assert result == expected_summary
-        
-        # Test monthly summary
-        with patch.object(summarization_service.summary_generator, 'generate_monthly_summary', return_value=expected_summary):
-            result = await summarization_service._generate_summary_async(
-                content, SummaryType.MONTHLY, date(2024, 1, 1), date(2024, 1, 31)
-            )
-            assert result == expected_summary
-        
-        # Test custom summary
-        with patch.object(summarization_service.summary_generator, 'generate_custom_summary', return_value=expected_summary):
-            result = await summarization_service._generate_summary_async(
-                content, SummaryType.CUSTOM, date(2024, 1, 1), date(2024, 1, 15)
-            )
-            assert result == expected_summary
-    
-    @pytest.mark.asyncio
-    async def test_async_output_saving(self, summarization_service):
-        """Test async output saving wrapper."""
-        summary = "test summary"
-        
-        # Create test task
-        task_id = await summarization_service.create_summary_task(
-            SummaryType.WEEKLY, date(2024, 1, 1), date(2024, 1, 7)
-        )
-        task = await summarization_service.get_task_status(task_id)
-        
-        # Test that the method returns a file path (the actual implementation creates a temp file)
-        result = await summarization_service._save_output_async(summary, task)
-        
-        # Verify it returns a string path
-        assert isinstance(result, str)
-        assert result.endswith('.txt')
-        
-        # Clean up the temp file if it exists
-        import os
-        if os.path.exists(result):
-            os.unlink(result)
 
 
 if __name__ == "__main__":
