@@ -129,29 +129,14 @@ Commit: "Verify Phase 1 async fixture fixes (#60, step 1.4)" (if any additional 
 
 ---
 
-## Decision Gate: Evaluate Phase 2
+## Decision Gate: Result
 
-**After Phase 1 completes, answer these questions:**
+**Recovery rate: 11%** (6 of 55 broken tests). Below the 50% threshold.
 
-1. How many of the 55 broken tests now pass?
-2. Of those that still fail, are the failures shallow (assertion tweaks) or deep (fundamentally wrong test design)?
-3. Is the signal-to-noise improvement from Phase 1 alone sufficient?
+Findings:
+- Only 2 of 7 files had async fixture decorator issues (the original spec was wrong)
+- Remaining failures: stale API signatures, removed model columns, fixture scoping bugs
+- Tests were never validated against production code
 
-**If >80% pass:** Proceed with Phase 2 — the tests have value, just wiring issues.
-**If 50-80% pass:** Selectively fix the passing-adjacent tests, delete the rest.
-**If <50% pass:** Close the Phase 2 issues. The tests need rewriting, not patching. File a separate issue for writing proper tests from scratch.
-
----
-
-## Phase 2: Test-Code Contract Mismatch Fixes (GATED — pending Phase 1 results)
-
-Issues created but not yet approved for implementation:
-- [#76](https://github.com/lbnl-science-it/WorkJournalMaker/issues/76) — WorkWeekConfig validation test contracts (11 failures)
-- [#77](https://github.com/lbnl-science-it/WorkJournalMaker/issues/77) — Work week settings service test contract (1 failure)
-- [#78](https://github.com/lbnl-science-it/WorkJournalMaker/issues/78) — Build config test contracts (2 failures)
-- [#79](https://github.com/lbnl-science-it/WorkJournalMaker/issues/79) — Settings persistence test setup (6 failures)
-- [#80](https://github.com/lbnl-science-it/WorkJournalMaker/issues/80) — Full scope verification
-
-See full prompts and details for these steps in the
-[spec](implementation_plans/fix_issue_60_spec.md) and the GitHub issues above.
-These will be revisited after the decision gate.
+**Decision: Do not proceed with Phase 2.** Issues #76-80 closed.
+Filed [#81](https://github.com/lbnl-science-it/WorkJournalMaker/issues/81) to write proper test coverage from scratch.
