@@ -39,6 +39,8 @@ from logger import (
 from config_manager import ConfigManager, AppConfig
 # Import database components for CLI integration
 from web.database import DatabaseManager
+# Import shared pipeline
+import summarization_pipeline
 
 
 def fallback_notification(message: str) -> None:
@@ -432,9 +434,10 @@ def _run_content_processing(
     Returns a tuple of (processed_content_list, processing_stats).
     """
     print("📝 Phase 3: Processing file content...")
-    content_processor = ContentProcessor(max_file_size_mb=config.processing.max_file_size_mb)
 
-    processed_content, processing_stats = content_processor.process_files(found_files)
+    processed_content, processing_stats = summarization_pipeline.process_content(
+        found_files, config.processing.max_file_size_mb
+    )
 
     # Display processing statistics
     print("📊 Content Processing Results:")
@@ -487,28 +490,12 @@ def _run_llm_analysis(
     """
     print("🤖 Phase 4: Analyzing content with LLM API...")
 
-    # Initialize Unified LLM client with configuration
-    llm_client = UnifiedLLMClient(config, on_fallback=fallback_notification)
-
-    # Process content through LLM for entity extraction
-    analysis_results = []
     total_files = len(processed_content)
-
     print(f"📊 Analyzing {total_files} files for entity extraction...")
 
-    for i, content in enumerate(processed_content, 1):
-        print(f"  Processing file {i}/{total_files}: {content.file_path.name}")
-
-        # Analyze content with LLM
-        analysis_result = llm_client.analyze_content(content.content, content.file_path)
-        analysis_results.append(analysis_result)
-
-        # Show progress for every 10 files or last file
-        if i % 10 == 0 or i == total_files:
-            print(f"    Progress: {i}/{total_files} files analyzed")
-
-    # Display LLM analysis statistics
-    api_stats = llm_client.get_stats()
+    analysis_results, api_stats, llm_client = summarization_pipeline.analyze_content(
+        processed_content, config, on_fallback=fallback_notification
+    )
     print()
     print("📊 LLM API Analysis Results:")
     print("-" * 30)
@@ -596,9 +583,8 @@ def _run_summary_generation(
     """
     print("📝 Phase 5: Generating intelligent summaries...")
 
-    summary_generator = SummaryGenerator(llm_client)
-    summaries, summary_stats = summary_generator.generate_summaries(
-        analysis_results, args.summary_type, args.start_date, args.end_date
+    summaries, summary_stats = summarization_pipeline.generate_summaries(
+        analysis_results, llm_client, args.summary_type, args.start_date, args.end_date
     )
 
     # Display summary generation statistics
@@ -783,8 +769,9 @@ def _run_file_discovery(
     print("🔍 Phase 2: Discovering journal files...")
 
     try:
-        file_discovery = FileDiscovery(base_path=config.processing.base_path)
-        discovery_result = file_discovery.discover_files(args.start_date, args.end_date)
+        discovery_result = summarization_pipeline.discover_files(
+            config.processing.base_path, args.start_date, args.end_date
+        )
 
         logger.update_progress("File Discovery", 0.8, 0, discovery_result.total_expected)
 
