@@ -9,7 +9,7 @@ while maintaining the file system as the primary data store.
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text, Float, Index, update
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text, Float, Index, update, UniqueConstraint
 from datetime import datetime
 from .utils.timezone_utils import now_utc, now_local
 import aiosqlite
@@ -25,31 +25,48 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    """User account for multi-user support."""
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True)  # UUID or "local"
+    email = Column(String, unique=True, nullable=True)
+    display_name = Column(String, nullable=True)
+    storage_path = Column(String, nullable=True)  # per-user file root
+    created_at = Column(DateTime, default=now_utc)
+    last_sync_at = Column(DateTime, nullable=True)
+
+
 class JournalEntryIndex(Base):
     """Database index for journal entries (file system remains primary store)."""
     __tablename__ = "journal_entries"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    date = Column(Date, unique=True, nullable=False, index=True)
+    user_id = Column(String, default="local", nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
     file_path = Column(String, nullable=False)
     week_ending_date = Column(Date, nullable=False, index=True)
     word_count = Column(Integer, default=0)
     character_count = Column(Integer, default=0)
     line_count = Column(Integer, default=0)
     has_content = Column(Boolean, default=False, index=True)
-    
+
     # File system metadata
     file_size_bytes = Column(Integer, default=0)
     file_modified_at = Column(DateTime)
-    
+
     # Web-specific metadata
     last_accessed_at = Column(DateTime)
     access_count = Column(Integer, default=0)
-    
+
     # Timestamps (timezone-aware)
     created_at = Column(DateTime, default=now_utc, index=True)
     modified_at = Column(DateTime, default=now_utc, onupdate=now_utc)
     synced_at = Column(DateTime, default=now_utc)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'date', name='uq_user_date'),
+    )
 
 
 class WebSettings(Base):
