@@ -2,7 +2,7 @@
 
 ## Open Bugs
 
-- [ ] [#84](https://github.com/lbnl-science-it/WorkJournalMaker/issues/84) — `WebSummarizationService` calls non-existent `SummaryGenerator` methods
+- [x] [#84](https://github.com/lbnl-science-it/WorkJournalMaker/issues/84) — `WebSummarizationService` calls non-existent `SummaryGenerator` methods
 - [ ] [#67](https://github.com/lbnl-science-it/WorkJournalMaker/issues/67) — Fix hardcoded provider output in `work_journal_summarizer.py`
 - [ ] [#32](https://github.com/lbnl-science-it/WorkJournalMaker/issues/32) — Save button hidden when editor window is at the bottom
 - [ ] [#30](https://github.com/lbnl-science-it/WorkJournalMaker/issues/30) — Changing default work week fails
