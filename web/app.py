@@ -24,7 +24,7 @@ from typing import Dict, Any, Optional
 from config_manager import ConfigManager, AppConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, db_manager
-from web.api import health, entries, sync, calendar, summarization, settings
+from web.api import health, entries, sync, calendar, summarization, settings, remote_sync
 from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware, AuthMiddleware
 from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
@@ -56,6 +56,7 @@ class WorkJournalWebApp:
         self.sync_service: Optional['DatabaseSyncService'] = None
         self.scheduler: Optional[SyncScheduler] = None
         self.auth_service: Optional['AuthService'] = None
+        self.remote_sync_service: Optional['RemoteSyncService'] = None
         
     async def startup(self):
         """Application startup sequence."""
@@ -117,7 +118,17 @@ class WorkJournalWebApp:
             self.scheduler = SyncScheduler(self.config, self.logger, self.db_manager)
             await self.scheduler.start()
             self.logger.logger.info("Sync scheduler started successfully")
-            
+
+            # Initialize remote sync service if in server mode
+            if self.config.server.mode == "server":
+                from web.services.remote_sync_service import RemoteSyncService
+                self.remote_sync_service = RemoteSyncService(
+                    storage_root=self.config.server.storage_root
+                )
+                self.logger.logger.info("RemoteSyncService initialized for server mode")
+            else:
+                self.remote_sync_service = None
+
             # Log startup completion
             self.logger.logger.info("Web application startup completed successfully")
             
@@ -168,6 +179,7 @@ async def lifespan(app: FastAPI):
     app.state.summarization_service = web_app.summarization_service
     app.state.scheduler = web_app.scheduler
     app.state.auth_service = web_app.auth_service
+    app.state.remote_sync_service = web_app.remote_sync_service
 
     yield
     
@@ -212,6 +224,7 @@ app.include_router(sync.router)
 app.include_router(calendar.router)
 app.include_router(summarization.router)
 app.include_router(settings.router)
+app.include_router(remote_sync.router)
 
 # Static files and templates
 static_dir = Path(__file__).parent / "static"
