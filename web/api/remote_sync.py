@@ -11,7 +11,9 @@ from fastapi import APIRouter, Request, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+
+from web.services.remote_sync_service import FileManifest, ManifestEntry
 
 router = APIRouter(prefix="/api/remote-sync", tags=["sync"])
 
@@ -51,7 +53,6 @@ async def compare_manifest(manifest: ManifestRequest, request: Request):
     sync_service = request.app.state.remote_sync_service
     user_id = getattr(request.state, 'user_id', 'local')
 
-    from web.services.remote_sync_service import FileManifest, ManifestEntry
     client_manifest = FileManifest(
         entries=[
             ManifestEntry(
@@ -94,7 +95,10 @@ async def upload_file(
     user_id = getattr(request.state, 'user_id', 'local')
 
     content = await file.read()
-    sync_service.save_file(user_id, relative_path, content)
+    try:
+        sync_service.save_file(user_id, relative_path, content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return {"status": "ok", "path": relative_path}
 
 
@@ -113,7 +117,10 @@ async def download_file(relative_path: str, request: Request):
     sync_service = request.app.state.remote_sync_service
     user_id = getattr(request.state, 'user_id', 'local')
 
-    file_path = sync_service.get_file_path(user_id, relative_path)
+    try:
+        file_path = sync_service.get_file_path(user_id, relative_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -132,4 +139,4 @@ async def sync_complete(request: Request):
         Dict with sync completion status
     """
     user_id = getattr(request.state, 'user_id', 'local')
-    return {"status": "ok", "synced_at": datetime.utcnow().isoformat()}
+    return {"status": "ok", "synced_at": datetime.now(timezone.utc).isoformat()}

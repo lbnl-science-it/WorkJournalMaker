@@ -136,3 +136,30 @@ class TestManifestComparison:
         # Client is newer → upload to server
         assert len(diff.to_upload) == 1
         assert len(diff.conflicts) == 1
+
+
+class TestPathTraversal:
+    def test_save_file_rejects_path_escape(self, tmp_path):
+        """save_file rejects relative paths that escape user storage."""
+        from web.services.remote_sync_service import RemoteSyncService
+
+        service = RemoteSyncService(storage_root=str(tmp_path))
+        with pytest.raises(ValueError, match="Path escapes user storage"):
+            service.save_file("local", "../../etc/passwd", b"malicious")
+
+    def test_get_file_path_rejects_path_escape(self, tmp_path):
+        """get_file_path rejects relative paths that escape user storage."""
+        from web.services.remote_sync_service import RemoteSyncService
+
+        service = RemoteSyncService(storage_root=str(tmp_path))
+        with pytest.raises(ValueError, match="Path escapes user storage"):
+            service.get_file_path("local", "../../../etc/shadow")
+
+    def test_save_file_allows_valid_subpath(self, tmp_path):
+        """save_file accepts valid relative paths within storage."""
+        from web.services.remote_sync_service import RemoteSyncService
+
+        service = RemoteSyncService(storage_root=str(tmp_path))
+        result = service.save_file("local", "worklogs/worklog_2024-01-15.txt", b"content")
+        assert result.exists()
+        assert result.read_bytes() == b"content"

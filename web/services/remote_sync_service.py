@@ -9,7 +9,7 @@ and determining sync actions between client and server.
 
 import hashlib
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
@@ -43,6 +43,18 @@ class RemoteSyncService:
     def __init__(self, storage_root: str):
         self.storage_root = Path(storage_root)
 
+    def _resolve_user_path(self, user_id: str, relative_path: str) -> Path:
+        """Resolve and validate a relative path within user storage."""
+        user_root = self._user_root(user_id)
+        file_path = (user_root / relative_path).resolve()
+        if not file_path.is_relative_to(user_root.resolve()):
+            raise ValueError(f"Path escapes user storage: {relative_path}")
+        return file_path
+
+    def _user_root(self, user_id: str) -> Path:
+        """Get the storage root for a given user."""
+        return self.storage_root / user_id if user_id != "local" else self.storage_root
+
     def generate_manifest(self, user_id: str) -> FileManifest:
         """
         Generate file manifest for a user's journal files.
@@ -53,7 +65,7 @@ class RemoteSyncService:
         Returns:
             FileManifest: Manifest containing all journal files with hashes
         """
-        user_root = self.storage_root / user_id if user_id != "local" else self.storage_root
+        user_root = self._user_root(user_id)
         entries = []
 
         for root, _dirs, files in os.walk(user_root):
@@ -65,7 +77,7 @@ class RemoteSyncService:
 
                 content = file_path.read_bytes()
                 sha256 = hashlib.sha256(content).hexdigest()
-                modified_at = datetime.fromtimestamp(file_path.stat().st_mtime)
+                modified_at = datetime.fromtimestamp(file_path.stat().st_mtime, tz=timezone.utc)
 
                 entries.append(ManifestEntry(
                     relative_path=str(relative),
@@ -129,8 +141,7 @@ class RemoteSyncService:
         Returns:
             Path: Absolute path to saved file
         """
-        user_root = self.storage_root / user_id if user_id != "local" else self.storage_root
-        file_path = user_root / relative_path
+        file_path = self._resolve_user_path(user_id, relative_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_bytes(content)
         return file_path
@@ -146,5 +157,4 @@ class RemoteSyncService:
         Returns:
             Path: Absolute path to the file
         """
-        user_root = self.storage_root / user_id if user_id != "local" else self.storage_root
-        return user_root / relative_path
+        return self._resolve_user_path(user_id, relative_path)
