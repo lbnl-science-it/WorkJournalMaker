@@ -124,7 +124,7 @@ class EntryManager(BaseService):
             self.file_discovery = FileDiscovery(current_base_path)
             self._current_base_path = current_base_path
             self.logger.logger.info(f"FileDiscovery initialized with base path: {current_base_path}")
-    async def get_entry_content(self, entry_date: date) -> Optional[str]:
+    async def get_entry_content(self, entry_date: date, user_id: str = "local") -> Optional[str]:
         """
         Get content for a specific journal entry date.
         
@@ -171,7 +171,7 @@ class EntryManager(BaseService):
             self._log_operation_error("get_entry_content", e, date=entry_date)
             return None
     
-    async def save_entry_content(self, entry_date: date, content: str) -> bool:
+    async def save_entry_content(self, entry_date: date, content: str, user_id: str = "local") -> bool:
         """
         Save content for a specific journal entry date.
         
@@ -254,7 +254,7 @@ class EntryManager(BaseService):
                 'timestamp': now_utc().isoformat()
             }
     
-    async def get_recent_entries(self, limit: int = 10) -> RecentEntriesResponse:
+    async def get_recent_entries(self, limit: int = 10, user_id: str = "local") -> RecentEntriesResponse:
         """
         Get recent journal entries with metadata.
         
@@ -308,7 +308,7 @@ class EntryManager(BaseService):
             self._log_operation_error("get_recent_entries", e, limit=limit)
             return RecentEntriesResponse(entries=[], total_count=0, has_more=False, pagination={})
     
-    async def list_entries(self, request: EntryListRequest) -> RecentEntriesResponse:
+    async def list_entries(self, request: EntryListRequest, user_id: str = "local") -> RecentEntriesResponse:
         """
         List entries with filtering and pagination.
         
@@ -408,7 +408,7 @@ class EntryManager(BaseService):
                                     end_date=request.end_date)
             return RecentEntriesResponse(entries=[], total_count=0, has_more=False, pagination={})
     
-    async def get_entry_by_date(self, entry_date: date, include_content: bool = False) -> Optional[JournalEntryResponse]:
+    async def get_entry_by_date(self, entry_date: date, include_content: bool = False, user_id: str = "local") -> Optional[JournalEntryResponse]:
         """
         Get a specific entry by date with optional content.
         
@@ -454,7 +454,7 @@ class EntryManager(BaseService):
             self._log_operation_error("get_entry_by_date", e, date=entry_date)
             return None
     
-    async def delete_entry(self, entry_date: date) -> bool:
+    async def delete_entry(self, entry_date: date, user_id: str = "local") -> bool:
         """
         Delete an entry (both file and database record).
         

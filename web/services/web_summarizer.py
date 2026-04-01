@@ -139,7 +139,7 @@ class WebSummarizationService(BaseService):
             self.logger.log_error_with_category(ErrorCategory.PROCESSING_ERROR, f"Failed to create summary task: {str(e)}")
             raise
     
-    async def start_summarization(self, task_id: str) -> bool:
+    async def start_summarization(self, task_id: str, user_id: str = "local") -> bool:
         """
         Start executing a summarization task.
         
