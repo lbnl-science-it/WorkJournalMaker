@@ -9,15 +9,13 @@ standalone executables of the WorkJournalMaker web application.
 """
 
 from .local_builder import LocalBuilder, BuildResult, BuildError, build_project
-from .build_config import BuildConfig, PyInstallerSpecGenerator, create_build_config, generate_spec_file
+from .build_config import BuildConfig, create_build_config
 
 __all__ = [
     'LocalBuilder',
-    'BuildResult', 
+    'BuildResult',
     'BuildError',
     'build_project',
     'BuildConfig',
-    'PyInstallerSpecGenerator',
-    'create_build_config',
-    'generate_spec_file'
+    'create_build_config'
 ]

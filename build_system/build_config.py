@@ -1,26 +1,23 @@
-# ABOUTME: PyInstaller build configuration and .spec file generation for WorkJournalMaker
-# ABOUTME: Provides cross-platform build configuration with asset discovery and spec generation
+# ABOUTME: PyInstaller build configuration for WorkJournalMaker
+# ABOUTME: Provides asset discovery, hidden import lists, and build configuration
 
 """
-PyInstaller build configuration and .spec file generation.
+PyInstaller build configuration.
 
-This module provides comprehensive build configuration management for PyInstaller-based
+This module provides build configuration management for PyInstaller-based
 builds of the WorkJournalMaker desktop application. It handles asset discovery,
-dependency analysis, and .spec file generation for cross-platform builds.
+dependency analysis, and build configuration.
 
 Key Features:
 - Automatic asset discovery (static files, templates)
 - Hidden import detection for complex dependencies
 - Cross-platform build configuration
-- Dynamic .spec file generation
 - Build validation and verification
 
 Usage:
     config = BuildConfig(project_root="/path/to/project")
     assets = config.get_static_assets()
-    
-    generator = PyInstallerSpecGenerator(config)
-    spec_content = generator.generate_complete_spec()
+    hidden_imports = config.get_hidden_imports()
 """
 
 import os
@@ -257,243 +254,14 @@ class BuildConfig:
         ]
 
 
-class PyInstallerSpecGenerator:
-    """Generator for PyInstaller .spec files."""
-    
-    def __init__(self, config: BuildConfig):
-        """Initialize the spec generator.
-        
-        Args:
-            config: Build configuration
-        """
-        self.config = config
-    
-    def validate_config(self) -> bool:
-        """Validate that the configuration is suitable for spec generation.
-        
-        Returns:
-            True if configuration is valid
-            
-        Raises:
-            BuildConfigError: If configuration is invalid
-        """
-        # Check that entry point exists
-        entry_path = self.config.project_root / self.config.entry_point
-        if not entry_path.exists():
-            raise BuildConfigError(f"Entry point not found: {entry_path}")
-        
-        # Check that we have required assets
-        assets = self.config.get_static_assets()
-        for source_path, _ in assets:
-            if not Path(source_path).exists():
-                logger.warning(f"Asset path not found: {source_path}")
-        
-        return True
-    
-    def generate_analysis_section(self) -> str:
-        """Generate the Analysis section of the .spec file.
-        
-        Returns:
-            Analysis section as string
-        """
-        hidden_imports = self.config.get_hidden_imports()
-        excluded_modules = self.config.get_excluded_modules()
-        static_assets = self.config.get_static_assets()
-        
-        # Format hidden imports
-        hidden_imports_str = ",\n    ".join(f"'{imp}'" for imp in hidden_imports)
-        
-        # Format excluded modules
-        excluded_str = ",\n    ".join(f"'{mod}'" for mod in excluded_modules)
-        
-        # Format data files
-        datas = []
-        for source_path, dest_path in static_assets:
-            datas.append(f"('{source_path}', '{dest_path}')")
-        datas_str = ",\n    ".join(datas)
-        
-        return f"""a = Analysis(
-    ['{self.config.entry_point}'],
-    pathex=['{self.config.project_root}'],
-    binaries=[],
-    datas=[
-        {datas_str}
-    ],
-    hiddenimports=[
-        {hidden_imports_str}
-    ],
-    hookspath=[],
-    hooksconfig={{}},
-    runtime_hooks=[],
-    excludes=[
-        {excluded_str}
-    ],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=None,
-    noarchive=False,
-)"""
-    
-    def generate_pyz_section(self) -> str:
-        """Generate the PYZ section of the .spec file.
-        
-        Returns:
-            PYZ section as string
-        """
-        return "pyz = PYZ(a.pure, a.zipped_data, cipher=None)"
-    
-    def generate_exe_section(self) -> str:
-        """Generate the EXE section of the .spec file.
-        
-        Returns:
-            EXE section as string
-        """
-        icon_line = ""
-        if self.config.icon_file:
-            icon_line = f"    icon='{self.config.icon_file}',"
-        
-        if self.config.one_file:
-            # One-file mode
-            return f"""exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='{self.config.app_name}',
-    debug={str(self.config.debug)},
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console={str(self.config.console)},
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,{icon_line}
-)"""
-        else:
-            # One-directory mode
-            return f"""exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
-    name='{self.config.app_name}',
-    debug={str(self.config.debug)},
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console={str(self.config.console)},
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,{icon_line}
-)"""
-    
-    def generate_collect_section(self) -> str:
-        """Generate the COLLECT section of the .spec file.
-        
-        Returns:
-            COLLECT section as string (empty for one-file mode)
-        """
-        if self.config.one_file:
-            return ""
-        
-        return f"""
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='{self.config.app_name}',
-)"""
-    
-    def generate_complete_spec(self) -> str:
-        """Generate the complete .spec file content.
-        
-        Returns:
-            Complete .spec file content
-        """
-        analysis_section = self.generate_analysis_section()
-        pyz_section = self.generate_pyz_section()
-        exe_section = self.generate_exe_section()
-        collect_section = self.generate_collect_section()
-        
-        spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
-# PyInstaller spec file for {self.config.app_name}
-# Generated automatically by build_config.py
-
-
-{analysis_section}
-
-{pyz_section}
-
-{exe_section}"""
-        
-        if collect_section:
-            spec_content += collect_section
-        
-        return spec_content
-    
-    def write_spec_file(self, output_path: Optional[str] = None) -> str:
-        """Write the .spec file to disk.
-        
-        Args:
-            output_path: Output file path. If None, uses default location.
-            
-        Returns:
-            Path to written .spec file
-        """
-        if output_path is None:
-            output_path = self.config.project_root / f"{self.config.app_name}.spec"
-        else:
-            output_path = Path(output_path)
-        
-        spec_content = self.generate_complete_spec()
-        
-        try:
-            output_path.write_text(spec_content, encoding='utf-8')
-            logger.info(f"Spec file written to: {output_path}")
-            return str(output_path)
-        except Exception as e:
-            raise BuildConfigError(f"Failed to write spec file: {e}")
-
-
 def create_build_config(project_root: str, **kwargs) -> BuildConfig:
     """Convenience function to create a build configuration.
-    
+
     Args:
         project_root: Path to project root directory
         **kwargs: Additional configuration options
-        
+
     Returns:
         Configured BuildConfig instance
     """
     return BuildConfig(project_root=project_root, **kwargs)
-
-
-def generate_spec_file(project_root: str, 
-                      output_path: Optional[str] = None,
-                      **config_kwargs) -> str:
-    """Convenience function to generate a .spec file.
-    
-    Args:
-        project_root: Path to project root directory
-        output_path: Output file path for .spec file
-        **config_kwargs: Additional configuration options
-        
-    Returns:
-        Path to generated .spec file
-    """
-    config = create_build_config(project_root, **config_kwargs)
-    generator = PyInstallerSpecGenerator(config)
-    generator.validate_config()
-    return generator.write_spec_file(output_path)
