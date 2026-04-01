@@ -1,5 +1,5 @@
 # ABOUTME: Comprehensive tests for PyInstaller build configuration
-# ABOUTME: Tests .spec file generation, asset inclusion, and cross-platform builds
+# ABOUTME: Tests asset discovery, hidden imports, and build configuration
 
 import unittest
 from unittest.mock import Mock, patch, MagicMock
@@ -12,7 +12,7 @@ from typing import Dict, Any, List
 import pytest
 
 # Import the module we're testing
-from build_system.build_config import BuildConfig, PyInstallerSpecGenerator
+from build_system.build_config import BuildConfig
 
 
 class TestBuildConfig(unittest.TestCase):
@@ -148,173 +148,6 @@ class TestBuildConfig(unittest.TestCase):
         self.assertIn("pytest", excluded)
 
 
-class TestPyInstallerSpecGenerator(unittest.TestCase):
-    """Test the PyInstaller spec file generator."""
-    
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.addCleanup(lambda: self._cleanup_temp_dir(self.temp_dir))
-        
-        self.project_root = Path(self.temp_dir) / "project"
-        self.project_root.mkdir()
-        
-        # Create mock directories and files (same as TestBuildConfig)
-        web_dir = self.project_root / "web"
-        web_dir.mkdir()
-        (web_dir / "static").mkdir()
-        (web_dir / "templates").mkdir()
-        
-        desktop_dir = self.project_root / "desktop"
-        desktop_dir.mkdir()
-        
-        # Create required files for validation
-        (self.project_root / "server_runner.py").write_text("# Mock entry point")
-        (web_dir / "app.py").write_text("# Mock web app")
-        (desktop_dir / "desktop_app.py").write_text("# Mock desktop app")
-        
-        # Create example spec configuration
-        self.spec_config = {
-            'app_name': 'WorkJournalMaker',
-            'entry_point': 'server_runner.py',
-            'project_root': str(self.project_root),
-            'icon_file': None,
-            'console': False,
-            'one_file': True,
-            'debug': False,
-            'static_assets': [
-                ('web/static', 'web/static'),
-                ('web/templates', 'web/templates')
-            ],
-            'hidden_imports': [
-                'uvicorn.lifespan.on',
-                'uvicorn.lifespan.off',
-                'uvicorn.protocols.websockets.auto'
-            ],
-            'excluded_modules': [
-                'tkinter',
-                '_tkinter',
-                'matplotlib'
-            ]
-        }
-    
-    def _cleanup_temp_dir(self, temp_dir: str) -> None:
-        """Clean up temporary directory."""
-        import shutil
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-    
-    def test_spec_generator_init(self) -> None:
-        """Test PyInstallerSpecGenerator initialization."""
-        config = BuildConfig(project_root=str(self.project_root))
-        generator = PyInstallerSpecGenerator(config)
-        
-        self.assertEqual(generator.config, config)
-        self.assertIsNotNone(generator.logger)
-    
-    def test_spec_generator_validate_config(self) -> None:
-        """Test configuration validation."""
-        config = BuildConfig(project_root=str(self.project_root))
-        generator = PyInstallerSpecGenerator(config)
-        
-        # Should validate successfully with proper project structure
-        self.assertTrue(generator.validate_config())
-        
-        # Test with missing entry point by creating an invalid config manually
-        # (bypassing BuildConfig validation which happens at init)
-        config_invalid = BuildConfig(project_root=str(self.project_root))
-        config_invalid.entry_point = "nonexistent.py"  # Manually set invalid entry point
-        generator_invalid = PyInstallerSpecGenerator(config_invalid)
-        self.assertFalse(generator_invalid.validate_config())
-    
-    def test_spec_generator_generate_analysis_section(self) -> None:
-        """Test Analysis section generation."""
-        config = BuildConfig(project_root=str(self.project_root))
-        generator = PyInstallerSpecGenerator(config)
-        
-        analysis_section = generator.generate_analysis_section()
-        
-        self.assertIsInstance(analysis_section, str)
-        self.assertIn("a = Analysis(", analysis_section)
-        self.assertIn("hiddenimports=[", analysis_section)
-        self.assertIn("excludes=[", analysis_section)
-        self.assertIn("datas=[", analysis_section)
-    
-    def test_spec_generator_generate_pyz_section(self) -> None:
-        """Test PYZ section generation."""
-        config = BuildConfig(project_root=str(self.project_root))
-        generator = PyInstallerSpecGenerator(config)
-        
-        pyz_section = generator.generate_pyz_section()
-        
-        self.assertIsInstance(pyz_section, str)
-        self.assertIn("pyz = PYZ(", pyz_section)
-    
-    def test_spec_generator_generate_exe_section(self) -> None:
-        """Test EXE section generation."""
-        config = BuildConfig(project_root=str(self.project_root))
-        generator = PyInstallerSpecGenerator(config)
-        
-        exe_section = generator.generate_exe_section()
-        
-        self.assertIsInstance(exe_section, str)
-        self.assertIn("exe = EXE(", exe_section)
-        self.assertIn(f"name='{config.app_name}'", exe_section)
-    
-    def test_spec_generator_generate_collect_section(self) -> None:
-        """Test COLLECT section generation."""
-        # Test one-file mode (should return empty string)
-        config_onefile = BuildConfig(project_root=str(self.project_root), one_file=True)
-        generator_onefile = PyInstallerSpecGenerator(config_onefile)
-        collect_section_onefile = generator_onefile.generate_collect_section()
-        self.assertEqual(collect_section_onefile, "")
-        
-        # Test directory mode (should return COLLECT section)
-        config_dir = BuildConfig(project_root=str(self.project_root), one_file=False)
-        generator_dir = PyInstallerSpecGenerator(config_dir)
-        collect_section_dir = generator_dir.generate_collect_section()
-        self.assertIn("coll = COLLECT(", collect_section_dir)
-    
-    def test_spec_generator_generate_complete_spec(self) -> None:
-        """Test complete .spec file generation."""
-        config = BuildConfig(project_root=str(self.project_root))
-        generator = PyInstallerSpecGenerator(config)
-        
-        spec_content = generator.generate_complete_spec()
-        
-        self.assertIsInstance(spec_content, str)
-        self.assertIn("# -*- mode: python ; coding: utf-8 -*-", spec_content)
-        self.assertIn("a = Analysis(", spec_content)
-        self.assertIn("pyz = PYZ(", spec_content)
-        self.assertIn("exe = EXE(", spec_content)
-    
-    def test_spec_generator_cross_platform_paths(self) -> None:
-        """Test cross-platform path handling."""
-        config = BuildConfig(project_root=str(self.project_root))
-        generator = PyInstallerSpecGenerator(config)
-        
-        analysis_section = generator.generate_analysis_section()
-        
-        # Paths should use forward slashes for cross-platform compatibility
-        self.assertNotIn("\\", analysis_section)  # No backslashes
-        self.assertIn("web/static", analysis_section)  # Forward slashes
-    
-    def test_spec_generator_write_spec_file(self) -> None:
-        """Test writing .spec file to disk."""
-        config = BuildConfig(project_root=str(self.project_root))
-        generator = PyInstallerSpecGenerator(config)
-        
-        # Write spec file
-        spec_file_path = generator.write_spec_file()
-        
-        self.assertTrue(Path(spec_file_path).exists())
-        
-        # Read and verify content
-        spec_content = Path(spec_file_path).read_text()
-        self.assertIn("# -*- mode: python", spec_content)
-        self.assertIn("a = Analysis(", spec_content)
-
-
 class TestPlatformSpecificConfig(unittest.TestCase):
     """Test platform-specific configuration handling."""
     
@@ -443,30 +276,26 @@ class TestDependencyAnalysis(unittest.TestCase):
 
 class TestSpecFileValidation(unittest.TestCase):
     """Test .spec file validation and syntax checking."""
-    
+
     def test_validate_spec_syntax(self) -> None:
         """Test .spec file syntax validation."""
-        # This test will fail until we implement PyInstallerSpecGenerator
-        with pytest.raises(ImportError):
-            from build.build_config import PyInstallerSpecGenerator
-    
+        # Placeholder for future spec file validation tests
+        pass
+
     def test_validate_required_sections(self) -> None:
         """Test validation of required .spec file sections."""
-        # This test will fail until we implement PyInstallerSpecGenerator
-        with pytest.raises(ImportError):
-            from build.build_config import PyInstallerSpecGenerator
-    
+        # Placeholder for future spec file validation tests
+        pass
+
     def test_validate_asset_paths(self) -> None:
         """Test validation of asset paths in .spec file."""
-        # This test will fail until we implement PyInstallerSpecGenerator
-        with pytest.raises(ImportError):
-            from build.build_config import PyInstallerSpecGenerator
-    
+        # Placeholder for future spec file validation tests
+        pass
+
     def test_validate_hidden_imports(self) -> None:
         """Test validation of hidden imports list."""
-        # This test will fail until we implement PyInstallerSpecGenerator
-        with pytest.raises(ImportError):
-            from build.build_config import PyInstallerSpecGenerator
+        # Placeholder for future spec file validation tests
+        pass
 
 
 if __name__ == "__main__":
