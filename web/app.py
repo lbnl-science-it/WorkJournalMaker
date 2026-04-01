@@ -167,8 +167,7 @@ async def lifespan(app: FastAPI):
     app.state.sync_service = web_app.sync_service
     app.state.summarization_service = web_app.summarization_service
     app.state.scheduler = web_app.scheduler
-    if hasattr(web_app, 'auth_service'):
-        app.state.auth_service = web_app.auth_service
+    app.state.auth_service = web_app.auth_service
 
     yield
     
