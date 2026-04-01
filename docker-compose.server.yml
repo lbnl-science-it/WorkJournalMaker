@@ -1,0 +1,16 @@
+# ABOUTME: Docker Compose override for server mode deployment
+# ABOUTME: Enables auth, configures multi-user storage
+
+services:
+  app:
+    environment:
+      - WJS_SERVER_MODE=server
+      - WJS_AUTH_ENABLED=true
+      - WJS_AUTH_PROVIDER=google
+      - WJS_STORAGE_ROOT=/data/users/
+    volumes:
+      - journal-data:/data
+      - ./config.yaml:/app/config.yaml:ro
+
+volumes:
+  journal-data:

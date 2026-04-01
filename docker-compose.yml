@@ -1,0 +1,12 @@
+# ABOUTME: Base Docker Compose for local development
+# ABOUTME: Runs the app in local mode with SQLite
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      - WJS_SERVER_MODE=local
