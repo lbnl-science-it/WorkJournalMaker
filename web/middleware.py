@@ -47,7 +47,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     """Middleware for global error handling."""
-    
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         try:
             response = await call_next(request)
@@ -57,10 +57,10 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             from fastapi import HTTPException
             if isinstance(e, HTTPException):
                 raise
-            
+
             # Get logger from app state
             logger: JournalSummarizerLogger = getattr(request.app.state, 'logger', None)
-            
+
             if logger:
                 logger.log_error_with_category(
                     ErrorCategory.PROCESSING_ERROR,
@@ -68,7 +68,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                     exception=e
                 )
                 logger.logger.debug(f"Exception traceback: {traceback.format_exc()}")
-            
+
             # Return JSON error response
             return JSONResponse(
                 status_code=500,
@@ -78,3 +78,38 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                     "request_id": getattr(request.state, 'request_id', None)
                 }
             )
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """Authentication middleware - only active in server mode."""
+
+    async def dispatch(self, request, call_next):
+        auth_service = getattr(request.app.state, 'auth_service', None)
+
+        if auth_service is None or not auth_service.enabled:
+            request.state.user_id = "local"
+            return await call_next(request)
+
+        # Skip auth for health endpoints
+        if request.url.path.startswith("/api/health"):
+            request.state.user_id = "local"
+            return await call_next(request)
+
+        # Check API key header
+        api_key = request.headers.get("X-API-Key")
+        if api_key:
+            result = auth_service.authenticate_api_key(api_key)
+            if result.authenticated:
+                request.state.user_id = result.user_id
+                return await call_next(request)
+
+        # Check Bearer token
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            result = auth_service.authenticate_bearer_token(token)
+            if result.authenticated:
+                request.state.user_id = result.user_id
+                return await call_next(request)
+
+        return JSONResponse(status_code=401, content={"detail": "Authentication required"})

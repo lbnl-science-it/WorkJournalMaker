@@ -25,7 +25,7 @@ from config_manager import ConfigManager, AppConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, db_manager
 from web.api import health, entries, sync, calendar, summarization, settings
-from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
+from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware, AuthMiddleware
 from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
 from web.services.web_summarizer import WebSummarizationService
@@ -55,6 +55,7 @@ class WorkJournalWebApp:
         self.summarization_service: Optional[WebSummarizationService] = None
         self.sync_service: Optional['DatabaseSyncService'] = None
         self.scheduler: Optional[SyncScheduler] = None
+        self.auth_service: Optional['AuthService'] = None
         
     async def startup(self):
         """Application startup sequence."""
@@ -66,7 +67,18 @@ class WorkJournalWebApp:
             # Initialize logging
             self.logger = create_logger_with_config(self.config.logging)
             self.logger.logger.info("Starting Work Journal Web Application...")
-            
+
+            # Initialize auth service if enabled
+            if self.config.auth.enabled:
+                from web.services.auth_service import AuthService
+                self.auth_service = AuthService(
+                    enabled=True,
+                    provider=self.config.auth.provider,
+                    google_client_id=self.config.auth.google_client_id,
+                    allowed_domains=self.config.auth.allowed_domains,
+                )
+                self.logger.logger.info("Authentication service initialized")
+
             # Initialize database
             await self.db_manager.initialize()
             self.logger.logger.info("Database initialized successfully")
@@ -155,7 +167,9 @@ async def lifespan(app: FastAPI):
     app.state.sync_service = web_app.sync_service
     app.state.summarization_service = web_app.summarization_service
     app.state.scheduler = web_app.scheduler
-    
+    if hasattr(web_app, 'auth_service'):
+        app.state.auth_service = web_app.auth_service
+
     yield
     
     # Shutdown
@@ -188,6 +202,7 @@ app.add_middleware(
 )
 
 # Custom middleware
+app.add_middleware(AuthMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ErrorHandlingMiddleware)
 
