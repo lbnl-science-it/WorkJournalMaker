@@ -114,6 +114,32 @@ class ProcessingConfig:
 
 
 @dataclass
+class ServerConfig:
+    """Server mode configuration."""
+    mode: str = "local"  # "local" or "server"
+    storage_root: Optional[str] = None  # per-user file root in server mode
+
+
+@dataclass
+class AuthConfig:
+    """Authentication configuration for server mode."""
+    enabled: bool = False
+    provider: str = "google"  # "google" or "api_key"
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    allowed_domains: list = field(default_factory=list)
+
+
+@dataclass
+class SyncConfig:
+    """Sync client configuration for local mode."""
+    enabled: bool = False
+    remote_url: str = ""
+    auth_token: str = ""
+    auto_sync_interval: int = 0  # seconds, 0 = manual only
+
+
+@dataclass
 class AppConfig:
     """Complete application configuration."""
     bedrock: BedrockConfig = field(default_factory=BedrockConfig)
@@ -122,6 +148,9 @@ class AppConfig:
     llm: LLMConfig = field(default_factory=LLMConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     logging: LogConfig = field(default_factory=LogConfig)
+    server: ServerConfig = field(default_factory=ServerConfig)
+    auth: AuthConfig = field(default_factory=AuthConfig)
+    sync: SyncConfig = field(default_factory=SyncConfig)
 
 
 class ConfigManager:
@@ -256,6 +285,16 @@ class ConfigManager:
             'WJS_MAX_FILE_SIZE_MB': ['processing', 'max_file_size_mb'],
             'WJS_LOG_LEVEL': ['logging', 'level'],
             'WJS_LOG_DIR': ['logging', 'log_dir'],
+            'WJS_SERVER_MODE': ['server', 'mode'],
+            'WJS_STORAGE_ROOT': ['server', 'storage_root'],
+            'WJS_AUTH_ENABLED': ['auth', 'enabled'],
+            'WJS_AUTH_PROVIDER': ['auth', 'provider'],
+            'WJS_AUTH_GOOGLE_CLIENT_ID': ['auth', 'google_client_id'],
+            'WJS_AUTH_GOOGLE_CLIENT_SECRET': ['auth', 'google_client_secret'],
+            'WJS_SYNC_ENABLED': ['sync', 'enabled'],
+            'WJS_SYNC_REMOTE_URL': ['sync', 'remote_url'],
+            'WJS_SYNC_AUTH_TOKEN': ['sync', 'auth_token'],
+            'WJS_SYNC_AUTO_SYNC_INTERVAL': ['sync', 'auto_sync_interval'],
         }
         
         for env_var, config_path in env_mappings.items():
@@ -270,8 +309,10 @@ class ConfigManager:
                 
                 # Convert value to appropriate type
                 final_key = config_path[-1]
-                if final_key == 'max_file_size_mb':
+                if final_key in ['max_file_size_mb', 'auto_sync_interval']:
                     current[final_key] = int(value)
+                elif final_key in ['enabled']:
+                    current[final_key] = value.lower() in ['true', '1', 'yes']
                 elif final_key == 'level':
                     current[final_key] = value.upper()
                 else:
@@ -339,14 +380,14 @@ class ConfigManager:
         
         # Extract logging configuration
         logging_dict = config_dict.get('logging', {})
-        
+
         # Convert string log level to LogLevel enum
         log_level_str = logging_dict.get('level', 'INFO')
         try:
             log_level = LogLevel(log_level_str.upper())
         except ValueError:
             log_level = LogLevel.INFO
-        
+
         logging_config = LogConfig(
             level=log_level,
             console_output=logging_dict.get('console_output', LogConfig.console_output),
@@ -357,14 +398,43 @@ class ConfigManager:
             max_file_size_mb=logging_dict.get('max_file_size_mb', LogConfig.max_file_size_mb),
             backup_count=logging_dict.get('backup_count', LogConfig.backup_count)
         )
-        
+
+        # Extract server configuration
+        server_dict = config_dict.get('server', {})
+        server_config = ServerConfig(
+            mode=server_dict.get('mode', ServerConfig.mode),
+            storage_root=server_dict.get('storage_root', ServerConfig.storage_root)
+        )
+
+        # Extract auth configuration
+        auth_dict = config_dict.get('auth', {})
+        auth_config = AuthConfig(
+            enabled=auth_dict.get('enabled', AuthConfig.enabled),
+            provider=auth_dict.get('provider', AuthConfig.provider),
+            google_client_id=auth_dict.get('google_client_id', AuthConfig.google_client_id),
+            google_client_secret=auth_dict.get('google_client_secret', AuthConfig.google_client_secret),
+            allowed_domains=auth_dict.get('allowed_domains', [])
+        )
+
+        # Extract sync configuration
+        sync_dict = config_dict.get('sync', {})
+        sync_config = SyncConfig(
+            enabled=sync_dict.get('enabled', SyncConfig.enabled),
+            remote_url=sync_dict.get('remote_url', SyncConfig.remote_url),
+            auth_token=sync_dict.get('auth_token', SyncConfig.auth_token),
+            auto_sync_interval=sync_dict.get('auto_sync_interval', SyncConfig.auto_sync_interval)
+        )
+
         return AppConfig(
             bedrock=bedrock_config,
             google_genai=google_genai_config,
             cborg=cborg_config,
             llm=llm_config,
             processing=processing_config,
-            logging=logging_config
+            logging=logging_config,
+            server=server_config,
+            auth=auth_config,
+            sync=sync_config
         )
     
     def _validate_config(self, config: AppConfig) -> None:
