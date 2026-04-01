@@ -294,7 +294,7 @@ class SettingsService(BaseService):
             )
         }
     
-    async def get_all_settings(self) -> Dict[str, WebSettingResponse]:
+    async def get_all_settings(self, user_id: str = "local") -> Dict[str, WebSettingResponse]:
         """Get all web settings with their current values."""
         try:
             settings = {}
@@ -350,7 +350,7 @@ class SettingsService(BaseService):
             self.logger.logger.error(f"Failed to get all settings: {str(e)}", ErrorCategory.DATABASE_ERROR)
             raise
     
-    async def get_setting(self, key: str) -> Optional[WebSettingResponse]:
+    async def get_setting(self, key: str, user_id: str = "local") -> Optional[WebSettingResponse]:
         """Get a specific setting by key."""
         try:
             async with self.db_manager.get_session() as session:
@@ -394,7 +394,7 @@ class SettingsService(BaseService):
             self.logger.logger.error(f"Failed to get setting {key}: {str(e)}")
             return None
     
-    async def update_setting(self, key: str, value: str) -> Optional[WebSettingResponse]:
+    async def update_setting(self, key: str, value: str, user_id: str = "local") -> Optional[WebSettingResponse]:
         """Update a setting value."""
         try:
             # Validate setting exists and value is valid

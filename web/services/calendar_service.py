@@ -56,7 +56,7 @@ class CalendarService(BaseService):
         self.first_day_of_week = 0  # 0 = Sunday, 1 = Monday
         self.calendar_instance = calendar.Calendar(self.first_day_of_week)
     
-    async def get_calendar_month(self, year: int, month: int) -> CalendarMonth:
+    async def get_calendar_month(self, year: int, month: int, user_id: str = "local") -> CalendarMonth:
         """Generate calendar data for a specific month."""
         try:
             self._log_operation_start("get_calendar_month", year=year, month=month)
@@ -119,7 +119,7 @@ class CalendarService(BaseService):
         
         return (prev_year, prev_month), (next_year, next_month)
     
-    async def has_entry_for_date(self, entry_date: date) -> bool:
+    async def has_entry_for_date(self, entry_date: date, user_id: str = "local") -> bool:
         """Check if an entry exists for a specific date."""
         try:
             async with self.db_manager.get_session() as session:
@@ -136,7 +136,7 @@ class CalendarService(BaseService):
             )
             return False
     
-    async def get_entries_for_date_range(self, start_date: date, end_date: date) -> List[CalendarEntry]:
+    async def get_entries_for_date_range(self, start_date: date, end_date: date, user_id: str = "local") -> List[CalendarEntry]:
         """Get all entries within a date range."""
         try:
             async with self.db_manager.get_session() as session:
