@@ -343,16 +343,29 @@ class DatabaseManager:
             expire_on_commit=False
         )
         
-        # Create tables
+        # Create tables and migrate existing schema
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            
+            await conn.run_sync(self._migrate_schema)
+
         # Initialize default settings
         await self._initialize_default_settings()
         
         # Initialize default work week settings
         await self._initialize_default_work_week_settings()
     
+    def _migrate_schema(self, connection):
+        """Add missing columns to existing tables for schema evolution."""
+        from sqlalchemy import inspect as sa_inspect, text
+        inspector = sa_inspect(connection)
+
+        if "journal_entries" in inspector.get_table_names():
+            columns = [c["name"] for c in inspector.get_columns("journal_entries")]
+            if "user_id" not in columns:
+                connection.execute(text(
+                    "ALTER TABLE journal_entries ADD COLUMN user_id VARCHAR NOT NULL DEFAULT 'local'"
+                ))
+
     async def _initialize_default_settings(self):
         """Initialize default web settings."""
         default_settings = [
