@@ -1,77 +1,128 @@
-name: WorkJournal Desktop Release
-'on':
+# ABOUTME: CI/CD workflow for building macOS and Windows installers
+# ABOUTME: Triggered by version tags, creates GitHub Release with installer artifacts
+
+name: Build and Release Desktop Installers
+
+on:
   push:
-    branches:
-    - main
-    - master
     tags:
-    - v*
-  pull_request:
-    branches:
-    - main
-    - master
-  release:
-    types:
-    - published
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a GitHub Release'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-        - os: ubuntu-latest
-          python: '3.8'
-          arch: x64
-          executable_name: workjournal-linux
-          asset_name: workjournal-linux-x64
-        - os: windows-latest
-          python: '3.8'
-          arch: x64
-          executable_name: workjournal-windows.exe
-          asset_name: workjournal-windows-x64.exe
-        - os: macos-latest
-          python: '3.8'
-          arch: x64
-          executable_name: workjournal-macos
-          asset_name: workjournal-macos-x64
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python }}
-    - name: Install dependencies
-      run: python -m pip install --upgrade pip && pip install -r requirements.txt
-        && pip install pyinstaller pytest pytest-cov
-    - name: Run tests
-      run: python -m pytest tests/ -v --cov=. --cov-report=xml
-    - name: Build executable with PyInstaller
-      run: pyinstaller --onefile --windowed --name=${{ matrix.executable_name }} --distpath=dist
-        server_runner.py
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.executable_name }}
-        path: dist/${{ matrix.executable_name }}
-  release:
-    needs:
-    - build
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'release'
     steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-    - name: Create release assets
-      run: mkdir -p release-assets && find artifacts -name '*' -type f -exec cp {}
-        release-assets/ \; && ls -la release-assets/
-    - name: Upload release assets
-      uses: softprops/action-gh-release@v1
-      with:
-        files: release-assets/*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short -x
+
+  build-macos:
+    name: Build macOS Installer
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+          brew install create-dmg
+
+      - name: Build with PyInstaller
+        run: pyinstaller WorkJournalMaker.spec --clean
+
+      - name: Verify .app bundle
+        run: |
+          test -d dist/WorkJournalMaker.app
+          test -f dist/WorkJournalMaker.app/Contents/MacOS/WorkJournalMaker
+
+      - name: Create DMG
+        run: ./installer/macos/create-dmg.sh
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: WorkJournalMaker-macOS
+          path: dist/WorkJournalMaker.dmg
+
+  build-windows:
+    name: Build Windows Installer
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller WorkJournalMaker.spec --clean
+
+      - name: Verify executable
+        run: |
+          Test-Path dist\WorkJournalMaker\WorkJournalMaker.exe
+        shell: pwsh
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build installer
+        run: iscc installer\windows\installer.iss
+
+      - name: Upload Setup.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: WorkJournalMaker-Windows
+          path: dist/WorkJournalMaker-Setup.exe
+
+  release:
+    name: Create GitHub Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_release == 'true'
+    steps:
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: WorkJournalMaker-macOS
+          path: release/
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: WorkJournalMaker-Windows
+          path: release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/WorkJournalMaker.dmg
+            release/WorkJournalMaker-Setup.exe
+          generate_release_notes: true
+          draft: false
+          prerelease: false
