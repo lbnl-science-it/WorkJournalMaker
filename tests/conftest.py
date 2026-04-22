@@ -18,6 +18,10 @@ def isolated_app_client(tmp_path):
     Patches app.state.entry_manager after the app lifespan startup so that
     FileDiscovery writes to tmp_path instead of ~/Desktop/worklogs/.
     The settings cache is pinned to prevent re-initialization from DB or config.
+
+    WARNING: This fixture mutates a module-level singleton (app.state.entry_manager)
+    and restores it on teardown. It is not compatible with pytest-xdist parallel
+    execution, which runs tests in separate workers sharing the same process state.
     """
     with TestClient(app) as client:
         em = app.state.entry_manager
