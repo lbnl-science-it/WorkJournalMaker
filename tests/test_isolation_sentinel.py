@@ -68,6 +68,39 @@ class TestIsolationSentinel:
                     # New file appeared in real worklogs - isolation is broken
                     assert False, f"New file created in real worklogs: {f}"
 
+    def test_delete_entry_without_prior_read_or_write(self, isolated_app_client, tmp_path):
+        """delete_entry must initialize file_discovery even without a prior GET/POST.
+
+        Exercises the P1 bug: delete_entry skips _ensure_file_discovery_initialized(),
+        so calling it when file_discovery is None causes _construct_file_path_async
+        to raise AttributeError. We test at the service level because the API
+        endpoint's get_entry_by_date pre-check masks the bug.
+        """
+        import asyncio
+        from web.app import app as web_app
+
+        em = web_app.state.entry_manager
+
+        # Simulate the uninitialized state that exists before any GET/POST
+        saved_fd = em.file_discovery
+        saved_bp = em._current_base_path
+        em.file_discovery = None
+        em._current_base_path = None
+
+        try:
+            today = date.today()
+            # Call delete_entry directly — with proper initialization, deleting
+            # a non-existent entry succeeds (True). Without initialization, the
+            # catch-all silently swallows the AttributeError and returns False.
+            result = asyncio.get_event_loop().run_until_complete(em.delete_entry(today))
+            assert result is True, (
+                "delete_entry returned False — likely failed due to uninitialized "
+                "file_discovery (AttributeError swallowed by catch-all)"
+            )
+        finally:
+            em.file_discovery = saved_fd
+            em._current_base_path = saved_bp
+
     def test_put_entry_writes_to_tmp_path(self, isolated_app_client, tmp_path):
         """PUT /api/entries/{date} must write to tmp_path, not real worklogs."""
         today = date.today().isoformat()

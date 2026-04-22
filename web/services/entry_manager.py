@@ -476,8 +476,10 @@ class EntryManager(BaseService):
             True if deletion was successful, False otherwise
         """
         self._log_operation_start("delete_entry", date=entry_date)
-        
+
         try:
+            await self._ensure_file_discovery_initialized()
+
             # Get file path
             file_path = await self._construct_file_path_async(entry_date)
             
