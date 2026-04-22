@@ -48,30 +48,65 @@ class TestAtomicWrite:
             "content": "Content written atomically"
         }
 
-        rename_calls = []
-        _real_rename = os.rename
+        replace_calls = []
+        _real_replace = os.replace
 
-        def tracking_rename(src, dst):
-            rename_calls.append((str(src), str(dst)))
-            return _real_rename(src, dst)
+        def tracking_replace(src, dst):
+            replace_calls.append((str(src), str(dst)))
+            return _real_replace(src, dst)
 
-        with patch('web.services.entry_manager.os.rename', side_effect=tracking_rename):
+        with patch('web.services.entry_manager.os.replace', side_effect=tracking_replace):
             response = isolated_app_client.post(f"/api/entries/{today}", json=entry_data)
             assert response.status_code == 200
 
-        # At least one rename call should have a .tmp source
-        tmp_renames = [c for c in rename_calls if c[0].endswith('.tmp')]
-        assert len(tmp_renames) > 0, (
-            f"os.rename was not called with a .tmp source file. "
+        # At least one replace call should have a .tmp source
+        tmp_replaces = [c for c in replace_calls if c[0].endswith('.tmp')]
+        assert len(tmp_replaces) > 0, (
+            f"os.replace was not called with a .tmp source file. "
             f"save_entry_content is writing directly instead of using atomic write-then-rename. "
-            f"All rename calls: {rename_calls}"
+            f"All replace calls: {replace_calls}"
         )
 
         # The .tmp source should have been renamed to the final .txt path
-        src, dst = tmp_renames[0]
+        src, dst = tmp_replaces[0]
         assert dst.endswith('.txt'), f"Rename destination is not .txt: {dst}"
 
         # Verify the content was written correctly
         txt_files = list(tmp_path.rglob("*.txt"))
         assert len(txt_files) > 0
         assert txt_files[0].read_text() == "Content written atomically"
+
+    def test_concurrent_writes_use_unique_tmp_files(self, isolated_app_client, tmp_path):
+        """Two rapid sequential writes to the same date must not corrupt each other.
+
+        Each write gets its own unique temp file via tempfile.mkstemp, so even
+        if two requests overlap, they cannot overwrite each other's temp data.
+        The final content must be from one of the two writes, not a mix.
+        """
+        today = date.today().isoformat()
+        content_a = "Concurrent write A content"
+        content_b = "Concurrent write B content"
+
+        response_a = isolated_app_client.post(
+            f"/api/entries/{today}",
+            json={"date": today, "content": content_a}
+        )
+        response_b = isolated_app_client.post(
+            f"/api/entries/{today}",
+            json={"date": today, "content": content_b}
+        )
+
+        assert response_a.status_code == 200
+        assert response_b.status_code == 200
+
+        # No .tmp files should remain
+        tmp_files = list(tmp_path.rglob("*.tmp"))
+        assert len(tmp_files) == 0, f"Leftover .tmp files: {tmp_files}"
+
+        # Final content must be one of the two writes, not corrupted
+        txt_files = list(tmp_path.rglob("*.txt"))
+        assert len(txt_files) > 0
+        final_content = txt_files[0].read_text()
+        assert final_content in (content_a, content_b), (
+            f"Final content is neither write A nor write B (possible corruption): {final_content!r}"
+        )
