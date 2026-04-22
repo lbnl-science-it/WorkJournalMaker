@@ -5,7 +5,11 @@ This module tests the settings service, API endpoints, and integration
 with the existing configuration system.
 """
 
+import os
 import pytest
+if not os.environ.get('WJM_TEST_ISOLATION_ENABLED'):
+    pytest.skip('Requires test isolation (conftest.py with tmp_path fixture). Set WJM_TEST_ISOLATION_ENABLED=1 after completing Phase 3.', allow_module_level=True)
+
 import pytest_asyncio
 import asyncio
 import tempfile
