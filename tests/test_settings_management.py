@@ -5,11 +5,7 @@ This module tests the settings service, API endpoints, and integration
 with the existing configuration system.
 """
 
-import os
 import pytest
-if not os.environ.get('WJM_TEST_ISOLATION_ENABLED'):
-    pytest.skip('Requires test isolation (conftest.py with tmp_path fixture). Set WJM_TEST_ISOLATION_ENABLED=1 after completing Phase 3.', allow_module_level=True)
-
 import pytest_asyncio
 import asyncio
 import tempfile
@@ -245,11 +241,11 @@ class TestSettingsService:
 
 class TestSettingsAPI:
     """Test the Settings API endpoints."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent mutations to real DB."""
+        yield isolated_app_client
     
     def test_get_all_settings_endpoint(self, client):
         """Test GET /api/settings/ endpoint."""
@@ -398,11 +394,11 @@ class TestSettingsAPI:
 
 class TestSettingsIntegration:
     """Test integration between settings and other components."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent mutations to real DB."""
+        yield isolated_app_client
     
     def test_filesystem_path_integration(self, client):
         """Test that filesystem path changes are properly validated."""

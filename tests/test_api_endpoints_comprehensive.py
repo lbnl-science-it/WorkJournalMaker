@@ -5,11 +5,7 @@ This module provides comprehensive testing for all API endpoints including
 validation, error handling, performance, and security aspects.
 """
 
-import os
 import pytest
-if not os.environ.get('WJM_TEST_ISOLATION_ENABLED'):
-    pytest.skip('Requires test isolation (conftest.py with tmp_path fixture). Set WJM_TEST_ISOLATION_ENABLED=1 after completing Phase 3.', allow_module_level=True)
-
 from fastapi.testclient import TestClient
 from datetime import date, timedelta
 import json
@@ -22,12 +18,11 @@ from web.app import app
 
 class TestAPIEndpoints:
     """Comprehensive API endpoint testing."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
     
     def test_health_endpoint_comprehensive(self, client):
         """Comprehensive test of health endpoint."""
@@ -411,11 +406,10 @@ class TestAPIPerformance:
     """Performance testing for API endpoints."""
     
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
-    
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
+
     def test_response_times(self, client):
         """Test API response times."""
         endpoints = [

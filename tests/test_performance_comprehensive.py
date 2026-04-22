@@ -5,14 +5,11 @@ This module provides comprehensive performance testing including load testing,
 memory usage monitoring, and concurrent access validation.
 """
 
-import os
 import pytest
-if not os.environ.get('WJM_TEST_ISOLATION_ENABLED'):
-    pytest.skip('Requires test isolation (conftest.py with tmp_path fixture). Set WJM_TEST_ISOLATION_ENABLED=1 after completing Phase 3.', allow_module_level=True)
-
 import asyncio
 import time
 import psutil
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from fastapi.testclient import TestClient
 import sys
@@ -25,12 +22,11 @@ from web.app import app
 
 class TestPerformance:
     """Performance and load testing."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
     
     def test_response_times_comprehensive(self, client):
         """Test API response times comprehensively."""
@@ -300,11 +296,10 @@ class TestConcurrentAccess:
     """Test concurrent access scenarios."""
     
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
-    
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
+
     def test_concurrent_read_access(self, client):
         """Test concurrent read access to the same resource."""
         test_date = date.today().isoformat()
