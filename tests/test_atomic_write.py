@@ -11,9 +11,7 @@ Verifies that:
 
 import pytest
 import os
-import asyncio
 from datetime import date
-from pathlib import Path
 
 
 class TestAtomicWrite:

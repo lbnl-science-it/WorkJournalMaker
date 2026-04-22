@@ -35,6 +35,11 @@ class TestIsolationSentinel:
         content = written_files[0].read_text()
         assert "Sentinel test content" in content
 
+    @pytest.mark.skipif(
+        not (Path("~/Desktop/worklogs").expanduser() / f"worklogs_{date.today().year}"
+             / f"worklogs_{date.today().year}-{date.today().month:02d}").exists(),
+        reason="Real worklogs month directory does not exist — test cannot verify isolation"
+    )
     def test_post_entry_does_not_touch_real_worklogs(self, isolated_app_client, tmp_path):
         """POST /api/entries/{date} must NOT modify ~/Desktop/worklogs/."""
         real_base = Path("~/Desktop/worklogs").expanduser()
