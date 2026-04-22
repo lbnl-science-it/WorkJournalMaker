@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 import aiofiles
 import os
+import tempfile
 from contextlib import asynccontextmanager
 
 from file_discovery import FileDiscovery, FileDiscoveryResult
@@ -195,17 +196,18 @@ class EntryManager(BaseService):
             # Ensure directory exists
             file_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Write atomically: write to .tmp then rename.
-            # os.rename is atomic on POSIX same-filesystem, so readers always
+            # Write atomically: write to a unique temp file then replace.
+            # os.replace is atomic on both POSIX and Windows, so readers always
             # see either the complete old file or the complete new file.
-            tmp_path = file_path.with_suffix('.tmp')
+            fd, tmp_name = tempfile.mkstemp(dir=file_path.parent, suffix='.tmp')
+            tmp_file = Path(tmp_name)
             try:
-                async with aiofiles.open(tmp_path, 'w', encoding='utf-8') as file:
+                os.close(fd)
+                async with aiofiles.open(tmp_file, 'w', encoding='utf-8') as file:
                     await file.write(content)
-                os.rename(tmp_path, file_path)
+                await asyncio.to_thread(os.replace, tmp_file, file_path)
             except Exception:
-                if tmp_path.exists():
-                    tmp_path.unlink()
+                tmp_file.unlink(missing_ok=True)
                 raise
             
             # Update database index
