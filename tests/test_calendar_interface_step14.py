@@ -8,7 +8,11 @@ This test suite validates the calendar interface functionality including:
 - Integration with CalendarService API
 """
 
+import os
 import pytest
+if not os.environ.get('WJM_TEST_ISOLATION_ENABLED'):
+    pytest.skip('Requires test isolation (conftest.py with tmp_path fixture). Set WJM_TEST_ISOLATION_ENABLED=1 after completing Phase 3.', allow_module_level=True)
+
 import asyncio
 import tempfile
 import shutil

@@ -6,7 +6,11 @@ and CLI functionality work together seamlessly without data corruption or
 compatibility issues.
 """
 
+import os
 import pytest
+if not os.environ.get('WJM_TEST_ISOLATION_ENABLED'):
+    pytest.skip('Requires test isolation (conftest.py with tmp_path fixture). Set WJM_TEST_ISOLATION_ENABLED=1 after completing Phase 3.', allow_module_level=True)
+
 import asyncio
 import tempfile
 import shutil
@@ -14,7 +18,6 @@ from pathlib import Path
 from datetime import date, datetime, timedelta
 from fastapi.testclient import TestClient
 import sys
-import os
 
 from web.app import app
 from web.database import DatabaseManager
