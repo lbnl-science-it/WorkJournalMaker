@@ -195,9 +195,18 @@ class EntryManager(BaseService):
             # Ensure directory exists
             file_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Write file content asynchronously
-            async with aiofiles.open(file_path, 'w', encoding='utf-8') as file:
-                await file.write(content)
+            # Write atomically: write to .tmp then rename.
+            # os.rename is atomic on POSIX same-filesystem, so readers always
+            # see either the complete old file or the complete new file.
+            tmp_path = file_path.with_suffix('.tmp')
+            try:
+                async with aiofiles.open(tmp_path, 'w', encoding='utf-8') as file:
+                    await file.write(content)
+                os.rename(tmp_path, file_path)
+            except Exception:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+                raise
             
             # Update database index
             await self._sync_entry_to_database(entry_date, file_path, content)
