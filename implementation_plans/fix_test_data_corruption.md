@@ -19,7 +19,7 @@ Each phase will get its own detailed sub-plan at execution time. Phases 1-2 are 
 ---
 
 ### Phase 1: Immediate Safety — Block Dangerous Tests
-- [ ] Complete
+- [x] Complete
 
 **Goal**: Prevent data corruption on the next `pytest` run.
 
@@ -37,7 +37,7 @@ Each phase will get its own detailed sub-plan at execution time. Phases 1-2 are 
 ---
 
 ### Phase 2: Data Recovery Investigation
-- [ ] Complete
+- [ ] Complete (manual step for user)
 
 **Goal**: Recover corrupted April 2026 files if possible.
 
@@ -52,7 +52,7 @@ Each phase will get its own detailed sub-plan at execution time. Phases 1-2 are 
 ---
 
 ### Phase 3: Test Isolation Infrastructure — `conftest.py`
-- [ ] Complete
+- [x] Complete
 
 **Goal**: Create a shared fixture that redirects all API writes to `tmp_path`.
 
@@ -75,7 +75,7 @@ Each phase will get its own detailed sub-plan at execution time. Phases 1-2 are 
 ---
 
 ### Phase 4: Fix All 5 Dangerous Test Files
-- [ ] Complete
+- [x] Complete
 
 **Goal**: Replace broken fixtures with `isolated_app_client`, remove Phase 1 skip guards, set `WJM_TEST_ISOLATION_ENABLED=1`.
 
@@ -96,7 +96,7 @@ Each phase will get its own detailed sub-plan at execution time. Phases 1-2 are 
 ---
 
 ### Phase 5: Defense in Depth — Atomic Writes
-- [ ] Complete
+- [x] Complete
 
 **Goal**: Even if isolation fails in the future, prevent silent data destruction.
 
