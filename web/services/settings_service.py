@@ -479,19 +479,26 @@ class SettingsService(BaseService):
         """Validate and optionally create filesystem paths."""
         try:
             path = Path(path_value).expanduser()  # Handle ~ expansion
-            
+
             # Check if path is absolute or make it relative to current working directory
             if not path.is_absolute():
                 path = Path.cwd() / path
-            
-            # For now, just validate the path format - don't auto-create during validation
-            # This avoids circular dependency issues during setting updates
+
             self.logger.logger.info(f"Validating path: {path}")
-            
-            # Basic path validation - ensure it's a valid path format
+
             if not str(path).strip():
                 raise ValueError("Path cannot be empty")
-                
+
+            # Reject paths whose parent directory does not exist.
+            # This prevents saving unreachable paths like /invalid/...
+            # while still allowing leaf directories that can be created later.
+            if not path.exists() and not path.parent.exists():
+                raise ValueError(
+                    f"Parent directory does not exist: {path.parent}"
+                )
+
+        except ValueError:
+            raise
         except Exception as e:
             self.logger.logger.error(f"Failed to validate path {path_value}: {str(e)}")
             raise ValueError(f"Invalid path: {path_value}")
