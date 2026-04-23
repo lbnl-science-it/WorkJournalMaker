@@ -241,11 +241,11 @@ class TestSettingsService:
 
 class TestSettingsAPI:
     """Test the Settings API endpoints."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent mutations to real DB."""
+        yield isolated_app_client
     
     def test_get_all_settings_endpoint(self, client):
         """Test GET /api/settings/ endpoint."""
@@ -394,11 +394,11 @@ class TestSettingsAPI:
 
 class TestSettingsIntegration:
     """Test integration between settings and other components."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent mutations to real DB."""
+        yield isolated_app_client
     
     def test_filesystem_path_integration(self, client):
         """Test that filesystem path changes are properly validated."""

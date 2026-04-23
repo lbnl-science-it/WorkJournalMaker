@@ -22,12 +22,11 @@ from web.app import app
 
 class TestPerformance:
     """Performance and load testing."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
     
     def test_response_times_comprehensive(self, client):
         """Test API response times comprehensively."""
@@ -297,11 +296,10 @@ class TestConcurrentAccess:
     """Test concurrent access scenarios."""
     
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
-    
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
+
     def test_concurrent_read_access(self, client):
         """Test concurrent read access to the same resource."""
         test_date = date.today().isoformat()
