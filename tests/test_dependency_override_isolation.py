@@ -92,3 +92,29 @@ class TestDbManagerOverrideInHealthEndpoints:
             app.dependency_overrides.clear()
             loop.run_until_complete(temp_db.engine.dispose())
             loop.close()
+
+
+class TestDbManagerOverrideInEntriesEndpoints:
+    """Verify entries stats endpoint uses the overridden db_manager."""
+
+    def test_database_stats_uses_overridden_db_manager(self, tmp_path):
+        """GET /api/entries/stats/database should use dependency-injected db_manager."""
+        temp_db_path = str(tmp_path / "entries_stats_test.db")
+        temp_db = DatabaseManager(temp_db_path)
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(temp_db.initialize())
+
+        app.dependency_overrides[get_db_manager] = lambda: temp_db
+
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/entries/stats/database")
+                assert response.status_code == 200
+                data = response.json()
+                # Temp DB has zero entries — real DB has 460+, so == 0 is discriminating
+                assert data["total_entries"] == 0
+                assert data["entries_with_content"] == 0
+        finally:
+            app.dependency_overrides.clear()
+            loop.run_until_complete(temp_db.engine.dispose())
+            loop.close()

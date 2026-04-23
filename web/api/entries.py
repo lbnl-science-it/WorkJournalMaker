@@ -15,6 +15,8 @@ from pathlib import Path
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory
+from web.database import DatabaseManager
+from web.dependencies import get_db_manager
 from web.services.entry_manager import EntryManager
 from web.models.journal import (
     JournalEntryCreate, JournalEntryUpDate, JournalEntryResponse,
@@ -269,17 +271,14 @@ async def update_entry_content(
 
 @router.get("/stats/database", response_model=DatabaseStats)
 async def get_database_stats(
-    request: Request,
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    db_manager: DatabaseManager = Depends(get_db_manager)
 ):
     """
     Get database statistics.
-    
+
     Returns statistics about the journal entry database index.
     """
     try:
-        db_manager = request.app.state.db_manager
-        
         async with db_manager.get_session() as session:
             # Get total entry count
             from sqlalchemy import select, func
