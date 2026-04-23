@@ -9,47 +9,12 @@ This test suite validates the calendar interface functionality including:
 """
 
 import pytest
-import asyncio
-import tempfile
-import shutil
 from pathlib import Path
-from datetime import date, datetime, timedelta
-from fastapi.testclient import TestClient
-from web.app import app
-from web.database import DatabaseManager
-from config_manager import ConfigManager
-from file_discovery import FileDiscovery
+from datetime import date, timedelta
 
 
 class TestCalendarInterface:
     """Test calendar interface functionality."""
-    
-    @pytest.fixture
-    def temp_workspace(self):
-        """Create temporary workspace for testing."""
-        temp_dir = tempfile.mkdtemp()
-        yield Path(temp_dir)
-        shutil.rmtree(temp_dir)
-    
-    @pytest.fixture
-    def test_config(self, temp_workspace):
-        """Create test configuration."""
-        config_path = temp_workspace / "config.yaml"
-        config_content = f"""
-processing:
-  base_path: "{temp_workspace / 'worklogs'}"
-  output_path: "{temp_workspace / 'output'}"
-  max_file_size_mb: 10
-
-llm:
-  provider: "mock"
-
-logging:
-  level: "INFO"
-  file_enabled: false
-"""
-        config_path.write_text(config_content)
-        return config_path
     
     @pytest.fixture
     def test_client(self, isolated_app_client):
@@ -57,29 +22,16 @@ logging:
         yield isolated_app_client
     
     @pytest.fixture
-    def sample_entries(self, temp_workspace):
-        """Create sample journal entries for testing."""
-        base_path = temp_workspace / "worklogs"
-        
-        # Create entries for the current month
+    def sample_entries(self, test_client):
+        """Create sample journal entries via the API so they are indexed in the DB."""
         entries = []
         today = date.today()
-        
+
         # Create entries for the past 15 days
         for i in range(15):
             entry_date = today - timedelta(days=i)
-            
-            # Use FileDiscovery to create proper structure
-            file_discovery = FileDiscovery(str(base_path))
-            week_ending_date = file_discovery._find_week_ending_for_date(entry_date)
-            file_path = file_discovery._construct_file_path(entry_date, week_ending_date)
-            
-            # Create directory structure
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Write sample content
-            content = f"""
-{entry_date.strftime('%A, %B %d, %Y')}
+
+            content = f"""{entry_date.strftime('%A, %B %d, %Y')}
 
 Sample journal entry for {entry_date}.
 This is test content for calendar interface testing.
@@ -92,15 +44,22 @@ Tasks completed:
 
 Notes:
 This is a sample entry for calendar testing purposes.
-Entry created on {entry_date}.
-"""
-            file_path.write_text(content.strip())
+Entry created on {entry_date}."""
+
+            entry_data = {
+                "date": entry_date.isoformat(),
+                "content": content,
+            }
+            response = test_client.post(f"/api/entries/{entry_date}", json=entry_data)
+            assert response.status_code == 200, (
+                f"Failed to create entry for {entry_date}: {response.text}"
+            )
+
             entries.append({
                 'date': entry_date,
-                'path': file_path,
-                'content': content.strip()
+                'content': content,
             })
-        
+
         return entries
     
     def test_calendar_page_loads(self, test_client):
