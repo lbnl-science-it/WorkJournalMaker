@@ -15,17 +15,17 @@ from datetime import datetime
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger
 from web.database import DatabaseManager
+from web.dependencies import get_db_manager
 from web.models.responses import HealthResponse
 
 router = APIRouter(prefix="/api/health", tags=["health"])
 
 
 @router.get("/", response_model=HealthResponse)
-async def health_check(request: Request):
+async def health_check(request: Request, db_manager: DatabaseManager = Depends(get_db_manager)):
     """Comprehensive health check endpoint."""
     config: AppConfig = request.app.state.config
     logger: JournalSummarizerLogger = request.app.state.logger
-    db_manager: DatabaseManager = request.app.state.db_manager
     
     logger.logger.debug("Health check requested")
     
@@ -85,9 +85,8 @@ async def config_status(request: Request):
 
 
 @router.get("/metrics")
-async def system_metrics(request: Request):
+async def system_metrics(request: Request, db_manager: DatabaseManager = Depends(get_db_manager)):
     """System metrics endpoint."""
-    db_manager: DatabaseManager = request.app.state.db_manager
     
     # Get database stats
     db_stats = await db_manager.health_check()
