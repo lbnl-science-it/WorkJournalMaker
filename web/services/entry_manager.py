@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 import aiofiles
 import os
+import tempfile
 from contextlib import asynccontextmanager
 
 from file_discovery import FileDiscovery, FileDiscoveryResult
@@ -195,9 +196,19 @@ class EntryManager(BaseService):
             # Ensure directory exists
             file_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Write file content asynchronously
-            async with aiofiles.open(file_path, 'w', encoding='utf-8') as file:
-                await file.write(content)
+            # Write atomically: write to a unique temp file then replace.
+            # os.replace is atomic on both POSIX and Windows, so readers always
+            # see either the complete old file or the complete new file.
+            fd, tmp_name = tempfile.mkstemp(dir=file_path.parent, suffix='.tmp')
+            tmp_file = Path(tmp_name)
+            try:
+                os.close(fd)
+                async with aiofiles.open(tmp_file, 'w', encoding='utf-8') as file:
+                    await file.write(content)
+                await asyncio.to_thread(os.replace, tmp_file, file_path)
+            except Exception:
+                tmp_file.unlink(missing_ok=True)
+                raise
             
             # Update database index
             await self._sync_entry_to_database(entry_date, file_path, content)
@@ -465,8 +476,10 @@ class EntryManager(BaseService):
             True if deletion was successful, False otherwise
         """
         self._log_operation_start("delete_entry", date=entry_date)
-        
+
         try:
+            await self._ensure_file_discovery_initialized()
+
             # Get file path
             file_path = await self._construct_file_path_async(entry_date)
             

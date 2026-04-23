@@ -18,12 +18,11 @@ from web.app import app
 
 class TestAPIEndpoints:
     """Comprehensive API endpoint testing."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
     
     def test_health_endpoint_comprehensive(self, client):
         """Comprehensive test of health endpoint."""
@@ -407,11 +406,10 @@ class TestAPIPerformance:
     """Performance testing for API endpoints."""
     
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
-    
+    def client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
+
     def test_response_times(self, client):
         """Test API response times."""
         endpoints = [

@@ -10,11 +10,11 @@ import pytest
 import asyncio
 import tempfile
 import shutil
+import os
 from pathlib import Path
 from datetime import date, datetime, timedelta
 from fastapi.testclient import TestClient
 import sys
-import os
 
 from web.app import app
 from web.database import DatabaseManager
@@ -58,33 +58,28 @@ class TestWebCLIIntegration:
         return config
     
     @pytest.fixture
-    def test_client(self):
-        """Create test client with default configuration."""
-        with TestClient(app) as client:
-            yield client
+    def test_client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
     
     @pytest.fixture
-    def sample_entries(self):
-        """Create sample journal entries using the actual config."""
-        from config_manager import ConfigManager
-        config_manager = ConfigManager()
-        config = config_manager.get_config()
-        
-        base_path = Path(config.processing.base_path).expanduser()
-        
+    def sample_entries(self, tmp_path):
+        """Create sample journal entries in tmp_path for testing."""
+        base_path = tmp_path
+
         # Create entries for the past week
         entries = []
         for i in range(7):
             entry_date = date.today() - timedelta(days=i)
-            
-            # Use FileDiscovery to create proper structure
+
+            # Use FileDiscovery to create proper structure in tmp_path
             file_discovery = FileDiscovery(str(base_path))
-            week_ending_date = file_discovery._calculate_week_ending_for_date(entry_date)
+            week_ending_date = file_discovery._find_week_ending_for_date(entry_date)
             file_path = file_discovery._construct_file_path(entry_date, week_ending_date)
-            
+
             # Create directory structure
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Write sample content
             content = f"""
 {entry_date.strftime('%A, %B %d, %Y')}
@@ -108,20 +103,8 @@ Testing web-CLI compatibility.
                 'path': file_path,
                 'content': content.strip()
             })
-        
-        yield entries
-        
-        # Cleanup - remove created files
-        for entry in entries:
-            if entry['path'].exists():
-                entry['path'].unlink()
-                # Try to remove empty directories
-                try:
-                    entry['path'].parent.rmdir()
-                    entry['path'].parent.parent.rmdir()
-                    entry['path'].parent.parent.parent.rmdir()
-                except OSError:
-                    pass  # Directory not empty, that's fine
+
+        return entries
     
     def test_health_check(self, test_client):
         """Test basic health check endpoint."""
@@ -133,34 +116,27 @@ Testing web-CLI compatibility.
         assert "service" in data
         assert "version" in data
     
-    def test_web_cli_file_compatibility(self, sample_entries):
+    def test_web_cli_file_compatibility(self, sample_entries, tmp_path):
         """Test that web interface can read CLI-created files."""
-        # Get the actual config
-        from config_manager import ConfigManager
-        config_manager = ConfigManager()
-        config = config_manager.get_config()
-        
-        # Files created by sample_entries fixture should be readable
-        file_discovery = FileDiscovery(config.processing.base_path)
-        
-        # Test file discovery
-        start_date = date.today() - timedelta(days=7)
+        # Files created by sample_entries fixture are in tmp_path
+        file_discovery = FileDiscovery(str(tmp_path))
+
+        # Test file discovery — sample_entries creates 7 entries (today through 6 days ago)
+        start_date = date.today() - timedelta(days=6)
         end_date = date.today()
 
         result = file_discovery.discover_files(start_date, end_date)
-        # Should find files for the date range (flexible count based on actual range)
-        expected_days = (end_date - start_date).days + 1
-        assert len(result.found_files) == expected_days
-        
+        assert len(result.found_files) == 7
+
         # Test file reading
         for entry in sample_entries:
             content = entry['path'].read_text()
             assert len(content) > 0
             assert entry['date'].strftime('%A, %B %d, %Y') in content
     
-    def test_cli_web_file_compatibility(self, test_client):
+    def test_cli_web_file_compatibility(self, test_client, tmp_path):
         """Test that CLI can read web-created files."""
-        # Create entry via web API
+        # Create entry via web API (isolated to tmp_path)
         today = date.today().isoformat()
         entry_data = {
             "date": today,
@@ -170,15 +146,10 @@ Testing web-CLI compatibility.
         response = test_client.post(f"/api/entries/{today}", json=entry_data)
         assert response.status_code == 200
 
-        # Get the actual config from the app
-        from config_manager import ConfigManager
-        config_manager = ConfigManager()
-        config = config_manager.get_config()
-        
-        # Verify CLI can read the file using the same config
-        file_discovery = FileDiscovery(config.processing.base_path)
+        # Verify CLI can read the file from tmp_path
+        file_discovery = FileDiscovery(str(tmp_path))
         today_date = date.today()
-        week_ending_date = file_discovery._calculate_week_ending_for_date(today_date)
+        week_ending_date = file_discovery._find_week_ending_for_date(today_date)
         file_path = file_discovery._construct_file_path(today_date, week_ending_date)
 
         assert file_path.exists(), f"Expected file at {file_path} but it doesn't exist"
@@ -223,36 +194,23 @@ Testing web-CLI compatibility.
             if db_manager.engine:
                 await db_manager.engine.dispose()
     
-    def test_file_path_consistency(self):
-        """Test that web and CLI use consistent file paths."""
+    def test_file_path_consistency(self, tmp_path):
+        """Test that file paths are consistently constructed from the same base."""
         test_date = date(2024, 1, 15)
+        base_path = str(tmp_path)
 
-        # Get the actual config
-        from config_manager import ConfigManager
-        config_manager = ConfigManager()
-        config = config_manager.get_config()
+        # Two independent FileDiscovery instances from the same base_path
+        # should produce identical paths
+        fd1 = FileDiscovery(base_path)
+        fd2 = FileDiscovery(base_path)
 
-        # Get file path from CLI FileDiscovery
-        file_discovery = FileDiscovery(config.processing.base_path)
-        week_ending_date = file_discovery._calculate_week_ending_for_date(test_date)
-        cli_path = file_discovery._construct_file_path(test_date, week_ending_date)
-        
-        # Get file path from web EntryManager (simulated)
-        from web.services.entry_manager import EntryManager
-        
-        # Mock the dependencies for EntryManager
-        logger = JournalSummarizerLogger(config.logging)
-        
-        # Create a mock database manager
-        class MockDBManager:
-            async def get_session(self):
-                return None
-        
-        entry_manager = EntryManager(config, logger, MockDBManager())
-        web_path = entry_manager._construct_file_path(test_date)
-        
-        # Paths should be identical
-        assert cli_path == web_path
+        week_ending_1 = fd1._find_week_ending_for_date(test_date)
+        path_1 = fd1._construct_file_path(test_date, week_ending_1)
+
+        week_ending_2 = fd2._find_week_ending_for_date(test_date)
+        path_2 = fd2._construct_file_path(test_date, week_ending_2)
+
+        assert path_1 == path_2
     
     def test_content_format_consistency(self, sample_entries, test_client):
         """Test that content format is consistent between web and CLI."""

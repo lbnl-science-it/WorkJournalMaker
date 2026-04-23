@@ -52,13 +52,9 @@ logging:
         return config_path
     
     @pytest.fixture
-    def test_client(self, test_config):
-        """Create test client with temporary configuration."""
-        import os
-        os.environ['CONFIG_PATH'] = str(test_config)
-        
-        with TestClient(app) as client:
-            yield client
+    def test_client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
     
     @pytest.fixture
     def sample_entries(self, temp_workspace):
@@ -75,7 +71,7 @@ logging:
             
             # Use FileDiscovery to create proper structure
             file_discovery = FileDiscovery(str(base_path))
-            week_ending_date = file_discovery._calculate_week_ending_for_date(entry_date)
+            week_ending_date = file_discovery._find_week_ending_for_date(entry_date)
             file_path = file_discovery._construct_file_path(entry_date, week_ending_date)
             
             # Create directory structure
@@ -348,11 +344,10 @@ class TestCalendarIntegration:
     """Test calendar integration with other components."""
     
     @pytest.fixture
-    def test_client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
-    
+    def test_client(self, isolated_app_client):
+        """Delegate to isolated_app_client to prevent writes to real worklogs."""
+        yield isolated_app_client
+
     def test_calendar_entry_creation_integration(self, test_client):
         """Test calendar integration with entry creation."""
         today = date.today().isoformat()
