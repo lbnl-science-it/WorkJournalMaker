@@ -118,3 +118,40 @@ class TestDbManagerOverrideInEntriesEndpoints:
             app.dependency_overrides.clear()
             loop.run_until_complete(temp_db.engine.dispose())
             loop.close()
+
+
+class TestIsolatedAppClientDbIsolation:
+    """Verify isolated_app_client provides DB isolation via dependency_overrides."""
+
+    def test_isolated_client_uses_temp_database(self, isolated_app_client, tmp_path):
+        """The isolated_app_client fixture should provide a clean temp database."""
+        from datetime import date
+        today = date.today().isoformat()
+        response = isolated_app_client.post(
+            f"/api/entries/{today}",
+            json={"date": today, "content": "DB isolation test"}
+        )
+        assert response.status_code == 200
+
+        # Query stats — should reflect only the entry we just created
+        stats_response = isolated_app_client.get("/api/entries/stats/database")
+        assert stats_response.status_code == 200
+        data = stats_response.json()
+        assert data["total_entries"] == 1
+
+    def test_isolated_client_db_does_not_leak_between_tests(self, isolated_app_client, tmp_path):
+        """Each test using isolated_app_client should get a fresh temp database."""
+        stats_response = isolated_app_client.get("/api/entries/stats/database")
+        assert stats_response.status_code == 200
+        data = stats_response.json()
+        assert data["total_entries"] == 0
+
+    def test_scheduler_is_isolated(self, isolated_app_client, tmp_path):
+        """The scheduler's sync service should use the temp database."""
+        from web.app import app
+        scheduler = getattr(app.state, 'scheduler', None)
+        if scheduler is not None:
+            temp_db_path = str(tmp_path / "test_journal_index.db")
+            assert str(scheduler.sync_service.db_manager.database_path) == temp_db_path, (
+                "scheduler.sync_service.db_manager should point to the temp DB"
+            )
