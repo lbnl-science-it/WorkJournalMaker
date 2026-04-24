@@ -2,13 +2,20 @@
 """
 Test script for Step 12: Dashboard Interface Implementation
 Validates all requirements from the blueprint.
+
+WARNING: This test hits a live server via the requests library.
+It must NEVER run as part of the normal pytest suite — it writes
+to real worklogs and has caused production data corruption.
 """
 
+import pytest
 import requests
 import time
 import json
 from pathlib import Path
 
+
+@pytest.mark.skip(reason="Live-server test: writes to real worklogs, must not run in pytest suite (see #113)")
 def test_dashboard_functionality():
     """Test all dashboard functionality requirements."""
     base_url = "http://localhost:8000"
