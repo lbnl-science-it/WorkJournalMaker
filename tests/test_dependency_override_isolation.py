@@ -43,6 +43,20 @@ class TestDbManagerOverrideInHealthEndpoints:
         loop = asyncio.new_event_loop()
         loop.run_until_complete(temp_db.initialize())
 
+        async def seed():
+            async with temp_db.get_session() as session:
+                await session.execute(
+                    insert(JournalEntryIndex).values(
+                        date=date(2026, 1, 1),
+                        week_ending_date=date(2026, 1, 3),
+                        file_path="/tmp/test.txt",
+                        has_content=True,
+                    )
+                )
+                await session.commit()
+
+        loop.run_until_complete(seed())
+
         app.dependency_overrides[get_db_manager] = lambda: temp_db
 
         try:
@@ -50,8 +64,10 @@ class TestDbManagerOverrideInHealthEndpoints:
                 response = client.get("/api/health/")
                 assert response.status_code == 200
                 data = response.json()
-                # The temp DB is valid, so health check should succeed
                 assert data["status"] in ("healthy", "degraded")
+                # Seeded 1 entry — if override failed, prod DB has 460+ entries
+                db_info = data["components"]["database"]
+                assert db_info["entry_count"] == 1
         finally:
             app.dependency_overrides.clear()
             loop.run_until_complete(temp_db.engine.dispose())
@@ -150,8 +166,10 @@ class TestIsolatedAppClientDbIsolation:
         """The scheduler's sync service should use the temp database."""
         from web.app import app
         scheduler = getattr(app.state, 'scheduler', None)
-        if scheduler is not None:
-            temp_db_path = str(tmp_path / "test_journal_index.db")
-            assert str(scheduler.sync_service.db_manager.database_path) == temp_db_path, (
-                "scheduler.sync_service.db_manager should point to the temp DB"
-            )
+        assert scheduler is not None, (
+            "scheduler must be initialized on app.state for isolation to be verified"
+        )
+        temp_db_path = str(tmp_path / "test_journal_index.db")
+        assert str(scheduler.sync_service.db_manager.database_path) == temp_db_path, (
+            "scheduler.sync_service.db_manager should point to the temp DB"
+        )
