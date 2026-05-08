@@ -126,5 +126,91 @@ class TestDatabaseManagerInitialization(unittest.TestCase):
         self.assertIsNone(db_manager.SessionLocal)
 
 
+class TestDatabaseMigration(unittest.TestCase):
+    """Test one-time migration from old source-tree database location."""
+
+    def setUp(self):
+        self.temp_dir = Path(tempfile.mkdtemp())
+        self.old_db_path = self.temp_dir / "old" / "journal_index.db"
+        self.new_db_path = self.temp_dir / "new" / "journal_index_dev.db"
+        self.old_db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.new_db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self):
+        if self.temp_dir.exists():
+            shutil.rmtree(self.temp_dir)
+
+    def _create_sqlite_db_with_marker(self, path: Path, marker: str):
+        """Create a minimal SQLite database with a marker table for identification."""
+        import sqlite3
+        conn = sqlite3.connect(str(path))
+        conn.execute("CREATE TABLE migration_marker (name TEXT)")
+        conn.execute("INSERT INTO migration_marker VALUES (?)", (marker,))
+        conn.commit()
+        conn.close()
+
+    def _read_marker(self, path: Path) -> str:
+        """Read the marker value from a migration_marker table."""
+        import sqlite3
+        conn = sqlite3.connect(str(path))
+        row = conn.execute("SELECT name FROM migration_marker").fetchone()
+        conn.close()
+        return row[0] if row else None
+
+    def test_migrate_copies_old_db_to_new_location(self):
+        """Migration copies old DB to new location when target doesn't exist."""
+        import asyncio
+
+        self._create_sqlite_db_with_marker(self.old_db_path, "old_data")
+        # Target must not exist before migration
+        self.assertFalse(self.new_db_path.exists())
+
+        db_manager = DatabaseManager(database_path=str(self.new_db_path))
+        asyncio.run(db_manager.initialize(old_db_path=str(self.old_db_path)))
+
+        self.assertTrue(self.new_db_path.exists())
+        marker = self._read_marker(self.new_db_path)
+        self.assertEqual(marker, "old_data")
+
+    def test_migrate_does_not_overwrite_existing_target(self):
+        """Migration leaves an existing target DB untouched."""
+        import asyncio
+
+        self._create_sqlite_db_with_marker(self.old_db_path, "old_data")
+        self._create_sqlite_db_with_marker(self.new_db_path, "existing_target")
+
+        db_manager = DatabaseManager(database_path=str(self.new_db_path))
+        asyncio.run(db_manager.initialize(old_db_path=str(self.old_db_path)))
+
+        marker = self._read_marker(self.new_db_path)
+        self.assertEqual(marker, "existing_target")
+
+    def test_migrate_handles_missing_old_db(self):
+        """initialize() succeeds even when no old DB is present."""
+        import asyncio
+
+        # old_db_path points to a file that doesn't exist
+        missing_old = str(self.temp_dir / "nonexistent" / "journal_index.db")
+
+        db_manager = DatabaseManager(database_path=str(self.new_db_path))
+        # Should not raise
+        asyncio.run(db_manager.initialize(old_db_path=missing_old))
+
+        self.assertTrue(self.new_db_path.exists())
+
+    def test_old_db_not_deleted_after_migration(self):
+        """Old DB is preserved after a successful migration."""
+        import asyncio
+
+        self._create_sqlite_db_with_marker(self.old_db_path, "old_data")
+
+        db_manager = DatabaseManager(database_path=str(self.new_db_path))
+        asyncio.run(db_manager.initialize(old_db_path=str(self.old_db_path)))
+
+        self.assertTrue(self.old_db_path.exists())
+        marker = self._read_marker(self.old_db_path)
+        self.assertEqual(marker, "old_data")
+
+
 if __name__ == '__main__':
     unittest.main()
