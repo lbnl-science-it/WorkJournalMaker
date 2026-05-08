@@ -67,8 +67,9 @@ class WorkJournalWebApp:
             self.logger = create_logger_with_config(self.config.logging)
             self.logger.logger.info("Starting Work Journal Web Application...")
             
-            # Initialize database
-            await self.db_manager.initialize()
+            # Initialize database (with migration from old source-tree location)
+            old_db_path = str(Path(__file__).parent / "journal_index.db")
+            await self.db_manager.initialize(old_db_path=old_db_path)
             self.logger.logger.info("Database initialized successfully")
 
             
