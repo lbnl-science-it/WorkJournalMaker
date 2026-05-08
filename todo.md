@@ -65,3 +65,8 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 - [ ] [#72](https://github.com/lbnl-science-it/WorkJournalMaker/issues/72) — Step 12: Build Automation Testing (CI/CD simulation)
 - [ ] Step 13: Release Management and Distribution
 - [ ] Step 14: End-to-End Integration Testing
+
+## Cluster R: Package Restructure
+
+- [ ] Move 15 root-level core modules into `workjournalmaker/` package (gated on Cluster S completion)
+- [ ] Design spec: `docs/superpowers/specs/2026-05-08-root-cleanup-design.md` (Phase 2 section)
