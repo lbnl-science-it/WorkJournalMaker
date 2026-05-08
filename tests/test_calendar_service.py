@@ -26,27 +26,24 @@ class TestCalendarService:
     """Test suite for CalendarService functionality."""
     
     @pytest_asyncio.fixture
-    async def setup_service(self):
+    async def setup_service(self, tmp_path):
         """Set up CalendarService with test dependencies."""
         # Create test configuration
         config = AppConfig()
         log_config = LogConfig(level=LogLevel.INFO, console_output=False, file_output=False)
         logger = JournalSummarizerLogger(log_config)
-        
+
         # Create test database
-        db_manager = DatabaseManager("tests/test_calendar_service.db")
+        db_manager = DatabaseManager(str(tmp_path / "test_calendar_service.db"))
         await db_manager.initialize()
-        
+
         # Create service
         service = CalendarService(config, logger, db_manager)
-        
+
         yield service, db_manager
-        
+
         # Cleanup
-        try:
-            Path("tests/test_calendar_service.db").unlink(missing_ok=True)
-        except:
-            pass
+        await db_manager.engine.dispose()
     
     @pytest.mark.asyncio
     async def test_calendar_month_generation(self, setup_service):
@@ -322,23 +319,20 @@ class TestCalendarServiceIntegration:
     """Integration tests for CalendarService with real components."""
     
     @pytest_asyncio.fixture
-    async def real_service(self):
+    async def real_service(self, tmp_path):
         """Set up CalendarService with real FileDiscovery integration."""
         config = AppConfig()
         log_config = LogConfig(level=LogLevel.ERROR, console_output=False, file_output=False)
         logger = JournalSummarizerLogger(log_config)
-        db_manager = DatabaseManager("tests/test_calendar_integration.db")
+        db_manager = DatabaseManager(str(tmp_path / "test_calendar_integration.db"))
         await db_manager.initialize()
-        
+
         service = CalendarService(config, logger, db_manager)
-        
+
         yield service, db_manager
-        
+
         # Cleanup
-        try:
-            Path("tests/test_calendar_integration.db").unlink(missing_ok=True)
-        except:
-            pass
+        await db_manager.engine.dispose()
     
     @pytest.mark.asyncio
     async def test_file_discovery_integration(self, real_service):

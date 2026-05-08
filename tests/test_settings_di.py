@@ -12,7 +12,7 @@ all other API modules.
 import ast
 import inspect
 import pytest
-from fastapi.testclient import TestClient
+
 
 from web.app import app
 from web.api import settings as settings_module
@@ -84,9 +84,8 @@ class TestSettingsServiceOnAppState:
     """Verify that app.state.settings_service is set during lifespan."""
 
     @pytest.fixture
-    def client(self):
-        with TestClient(app) as c:
-            yield c
+    def client(self, isolated_app_client):
+        yield isolated_app_client
 
     def test_settings_service_on_app_state(self, client):
         """app.state must have a settings_service attribute after startup."""
@@ -119,9 +118,8 @@ class TestSettingsEndpointsWithDI:
     """Verify settings API endpoints work with the new DI pattern."""
 
     @pytest.fixture
-    def client(self):
-        with TestClient(app) as c:
-            yield c
+    def client(self, isolated_app_client):
+        yield isolated_app_client
 
     def test_get_all_settings(self, client):
         """GET /api/settings/ should return 200."""

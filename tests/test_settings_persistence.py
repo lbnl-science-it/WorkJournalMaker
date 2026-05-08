@@ -371,7 +371,11 @@ class TestIntegrationTests(TestFixtures):
 
 class TestEndToEndTests(TestFixtures):
     """End-to-end tests simulating frontend interactions."""
-    
+
+    @pytest.fixture
+    def client(self, isolated_app_client):
+        return isolated_app_client
+
     def test_api_endpoint_bulk_update(self, client, sample_settings_data):
         """Test bulk update API endpoint."""
         response = client.post(
