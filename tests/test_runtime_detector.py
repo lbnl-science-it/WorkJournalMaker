@@ -33,21 +33,23 @@ class TestRuntimeDetector(unittest.TestCase):
         self.assertIsNone(result)
     
     def test_get_app_data_dir_development_mode(self):
-        """Test app data directory in development mode."""
+        """Test app data directory in development mode uses OS-standard path."""
         result = get_app_data_dir()
-        expected = Path.cwd()
+        self.assertNotEqual(result, Path.cwd())
+        expected = Path.home() / "Library" / "Application Support" / "WorkJournalMaker"
         self.assertEqual(result, expected)
-    
+
     def test_get_runtime_info_development_mode(self):
         """Test runtime info in development mode."""
         info = get_runtime_info()
-        
+
         self.assertFalse(info['is_frozen'])
         self.assertEqual(info['mode'], 'development')
-        self.assertEqual(info['platform'], 'Darwin')  # On macOS
+        self.assertEqual(info['platform'], 'Darwin')
         self.assertIsNone(info['executable_dir'])
         self.assertIsNone(info['meipass'])
-        self.assertEqual(info['app_data_dir'], str(Path.cwd()))
+        expected_data_dir = str(Path.home() / "Library" / "Application Support" / "WorkJournalMaker")
+        self.assertEqual(info['app_data_dir'], expected_data_dir)
 
 
 class TestRuntimeDetectorFrozenMode(unittest.TestCase):

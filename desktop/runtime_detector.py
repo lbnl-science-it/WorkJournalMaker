@@ -38,99 +38,89 @@ def get_executable_directory() -> Optional[Path]:
 def get_app_data_dir() -> Path:
     """
     Get platform-specific application data directory.
-    
-    Uses OS-standard locations for desktop apps, or current working
-    directory for development mode.
-    
+
+    Returns the same OS-standard location in both desktop and development mode.
+    The frozen/dev distinction is handled downstream via filename (e.g. _dev.db suffix).
+
     Returns:
         Path: Application data directory
     """
-    if is_frozen_executable():
-        # Desktop app mode - use OS standard locations
-        system = platform.system()
-        
-        if system == "Darwin":  # macOS
-            return Path.home() / "Library" / "Application Support" / "WorkJournalMaker"
-        elif system == "Windows":
-            # Use LOCALAPPDATA if available, fallback to AppData/Local
-            local_app_data = os.environ.get("LOCALAPPDATA")
-            if local_app_data:
-                return Path(local_app_data) / "WorkJournalMaker"
-            else:
-                return Path.home() / "AppData" / "Local" / "WorkJournalMaker"
-        else:  # Linux and other Unix-like systems
-            # Follow XDG Base Directory Specification
-            xdg_data_home = os.environ.get("XDG_DATA_HOME")
-            if xdg_data_home:
-                return Path(xdg_data_home) / "WorkJournalMaker"
-            else:
-                return Path.home() / ".local" / "share" / "WorkJournalMaker"
-    else:
-        # Development mode - use current working directory
-        return Path.cwd()
+    system = platform.system()
+
+    if system == "Darwin":  # macOS
+        return Path.home() / "Library" / "Application Support" / "WorkJournalMaker"
+    elif system == "Windows":
+        # Use LOCALAPPDATA if available, fallback to AppData/Local
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            return Path(local_app_data) / "WorkJournalMaker"
+        else:
+            return Path.home() / "AppData" / "Local" / "WorkJournalMaker"
+    else:  # Linux and other Unix-like systems
+        # Follow XDG Base Directory Specification
+        xdg_data_home = os.environ.get("XDG_DATA_HOME")
+        if xdg_data_home:
+            return Path(xdg_data_home) / "WorkJournalMaker"
+        else:
+            return Path.home() / ".local" / "share" / "WorkJournalMaker"
 
 
 def get_app_config_dir() -> Path:
     """
     Get platform-specific application configuration directory.
-    
+
     Separate from data directory for better organization.
-    
+    Returns the same OS-standard location in both desktop and development mode.
+
     Returns:
         Path: Application configuration directory
     """
-    if is_frozen_executable():
-        system = platform.system()
-        
-        if system == "Darwin":  # macOS
-            return Path.home() / "Library" / "Preferences" / "WorkJournalMaker"
-        elif system == "Windows":
-            # Use APPDATA if available, fallback to AppData/Roaming
-            app_data = os.environ.get("APPDATA")
-            if app_data:
-                return Path(app_data) / "WorkJournalMaker"
-            else:
-                return Path.home() / "AppData" / "Roaming" / "WorkJournalMaker"
-        else:  # Linux and other Unix-like systems
-            xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
-            if xdg_config_home:
-                return Path(xdg_config_home) / "WorkJournalMaker"
-            else:
-                return Path.home() / ".config" / "WorkJournalMaker"
-    else:
-        # Development mode - use current working directory
-        return Path.cwd()
+    system = platform.system()
+
+    if system == "Darwin":  # macOS
+        return Path.home() / "Library" / "Preferences" / "WorkJournalMaker"
+    elif system == "Windows":
+        # Use APPDATA if available, fallback to AppData/Roaming
+        app_data = os.environ.get("APPDATA")
+        if app_data:
+            return Path(app_data) / "WorkJournalMaker"
+        else:
+            return Path.home() / "AppData" / "Roaming" / "WorkJournalMaker"
+    else:  # Linux and other Unix-like systems
+        xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+        if xdg_config_home:
+            return Path(xdg_config_home) / "WorkJournalMaker"
+        else:
+            return Path.home() / ".config" / "WorkJournalMaker"
 
 
 def get_app_log_dir() -> Path:
     """
     Get platform-specific application log directory.
-    
+
+    Returns the same OS-standard location in both desktop and development mode.
+
     Returns:
         Path: Application log directory
     """
-    if is_frozen_executable():
-        system = platform.system()
-        
-        if system == "Darwin":  # macOS
-            return Path.home() / "Library" / "Logs" / "WorkJournalMaker"
-        elif system == "Windows":
-            # Use LOCALAPPDATA for logs on Windows
-            local_app_data = os.environ.get("LOCALAPPDATA")
-            if local_app_data:
-                return Path(local_app_data) / "WorkJournalMaker" / "Logs"
-            else:
-                return Path.home() / "AppData" / "Local" / "WorkJournalMaker" / "Logs"
-        else:  # Linux and other Unix-like systems
-            # Many Linux systems use /var/log for system logs, but for user apps:
-            xdg_data_home = os.environ.get("XDG_DATA_HOME")
-            if xdg_data_home:
-                return Path(xdg_data_home) / "WorkJournalMaker" / "logs"
-            else:
-                return Path.home() / ".local" / "share" / "WorkJournalMaker" / "logs"
-    else:
-        # Development mode - use logs directory in project
-        return Path.cwd() / "logs"
+    system = platform.system()
+
+    if system == "Darwin":  # macOS
+        return Path.home() / "Library" / "Logs" / "WorkJournalMaker"
+    elif system == "Windows":
+        # Use LOCALAPPDATA for logs on Windows
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            return Path(local_app_data) / "WorkJournalMaker" / "Logs"
+        else:
+            return Path.home() / "AppData" / "Local" / "WorkJournalMaker" / "Logs"
+    else:  # Linux and other Unix-like systems
+        # Many Linux systems use /var/log for system logs, but for user apps:
+        xdg_data_home = os.environ.get("XDG_DATA_HOME")
+        if xdg_data_home:
+            return Path(xdg_data_home) / "WorkJournalMaker" / "logs"
+        else:
+            return Path.home() / ".local" / "share" / "WorkJournalMaker" / "logs"
 
 
 def get_runtime_info() -> dict:
