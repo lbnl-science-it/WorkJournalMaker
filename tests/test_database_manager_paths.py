@@ -211,6 +211,41 @@ class TestDatabaseMigration(unittest.TestCase):
         marker = self._read_marker(self.old_db_path)
         self.assertEqual(marker, "old_data")
 
+    def test_copy_failure_cleans_up_temp_file_and_creates_fresh_db(self):
+        """When copy fails, temp file is removed and app creates a fresh DB."""
+        import asyncio
+
+        self._create_sqlite_db_with_marker(self.old_db_path, "old_data")
+
+        db_manager = DatabaseManager(database_path=str(self.new_db_path))
+        with patch('web.database.shutil.copy2', side_effect=OSError("disk full")):
+            asyncio.run(db_manager.initialize(old_db_path=str(self.old_db_path)))
+
+        # Fresh DB should exist (created by create_all), not the migrated one
+        self.assertTrue(self.new_db_path.exists())
+        # No leftover .tmp files in the target directory
+        tmp_files = list(self.new_db_path.parent.glob("*.tmp"))
+        self.assertEqual(tmp_files, [])
+
+    def test_corrupt_source_db_detected_and_removed(self):
+        """When source DB is corrupt, migrated copy is deleted and fresh DB created."""
+        import asyncio
+
+        # Write garbage that isn't valid SQLite
+        self.old_db_path.write_bytes(b"this is not a sqlite database at all")
+
+        db_manager = DatabaseManager(database_path=str(self.new_db_path))
+        asyncio.run(db_manager.initialize(old_db_path=str(self.old_db_path)))
+
+        # Fresh DB should exist (created by create_all)
+        self.assertTrue(self.new_db_path.exists())
+        # Verify the fresh DB is valid SQLite (not the garbage)
+        import sqlite3
+        conn = sqlite3.connect(str(self.new_db_path))
+        result = conn.execute("PRAGMA integrity_check").fetchone()
+        conn.close()
+        self.assertEqual(result[0], "ok")
+
 
 if __name__ == '__main__':
     unittest.main()
