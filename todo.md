@@ -9,7 +9,7 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 - [x] [#116](https://github.com/lbnl-science-it/WorkJournalMaker/issues/116) — Clean up stale DB files after migration verification (files already removed)
 - [x] [#113](https://github.com/lbnl-science-it/WorkJournalMaker/issues/113) — Rewrite live-server tests to use TestClient with isolation
 - [x] Fix remaining DANGEROUS files identified by re-audit
-- [ ] **GATE:** No test writes to production data or leaves side effects
+- [x] **GATE:** No test writes to production data or leaves side effects
 
 ## Cluster T2: Test Coverage Rewrite
 
