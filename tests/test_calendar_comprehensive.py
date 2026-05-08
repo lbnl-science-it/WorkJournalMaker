@@ -154,13 +154,12 @@ class TestCalendarEndpointValidation:
         
         return service
     
-    def test_endpoint_response_models(self, mock_calendar_service):
+    def test_endpoint_response_models(self, mock_calendar_service, isolated_app_client):
         """Test that endpoints return properly structured responses."""
-        from fastapi.testclient import TestClient
         from web.app import app
-        
-        client = TestClient(app)
-        
+
+        client = isolated_app_client
+
         with patch.object(app.state, 'calendar_service', mock_calendar_service):
             # Test today endpoint
             response = client.get("/api/calendar/today")
@@ -179,12 +178,9 @@ class TestCalendarEndpointValidation:
                 for field in required_fields:
                     assert field in data, f"Missing field {field} in calendar month response"
     
-    def test_endpoint_error_handling(self):
+    def test_endpoint_error_handling(self, isolated_app_client):
         """Test that endpoints handle errors appropriately."""
-        from fastapi.testclient import TestClient
-        from web.app import app
-        
-        client = TestClient(app)
+        client = isolated_app_client
         
         # Test invalid year
         response = client.get("/api/calendar/1800/1")
@@ -289,12 +285,9 @@ class TestCalendarImplementationCompleteness:
         assert any("/stats" in path for path in route_paths)
         assert any("/months/{year}" in path for path in route_paths)
     
-    def test_error_handling_completeness(self):
+    def test_error_handling_completeness(self, isolated_app_client):
         """Test that comprehensive error handling is implemented."""
-        from fastapi.testclient import TestClient
-        from web.app import app
-        
-        client = TestClient(app)
+        client = isolated_app_client
         
         # Test various error conditions
         error_test_cases = [
