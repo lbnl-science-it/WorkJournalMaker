@@ -168,11 +168,27 @@ class DatabaseManager:
 
         return str(resolved)
 
-    async def initialize(self):
-        """Initialize database with proper async setup."""
-        # Ensure directory exists
-        Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
-        
+    async def initialize(self, old_db_path: Optional[str] = None):
+        """Initialize database with proper async setup.
+
+        Args:
+            old_db_path: Path to old source-tree DB for one-time migration.
+                If provided and target doesn't exist, copies old DB first.
+        """
+        db_file = Path(self.database_path)
+        db_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # One-time migration from old source-tree location
+        if old_db_path and not db_file.exists():
+            old_file = Path(old_db_path)
+            if old_file.exists():
+                import shutil
+                import logging
+                shutil.copy2(str(old_file), str(db_file))
+                logging.getLogger(__name__).info(
+                    "Migrated database from %s to %s", old_file, db_file
+                )
+
         self.engine = create_async_engine(
             f"sqlite+aiosqlite:///{self.database_path}",
             echo=False,  # Set to True for SQL debugging
