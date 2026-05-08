@@ -14,7 +14,10 @@ from datetime import datetime
 from .utils.timezone_utils import now_utc, now_local
 import aiosqlite
 import json
+import logging
 import os
+import shutil
+import tempfile
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List, Union
@@ -182,9 +185,10 @@ class DatabaseManager:
         if old_db_path and not db_file.exists():
             old_file = Path(old_db_path)
             if old_file.exists():
-                import shutil
-                import logging
-                shutil.copy2(str(old_file), str(db_file))
+                tmp_fd, tmp_path = tempfile.mkstemp(dir=db_file.parent, suffix=".tmp")
+                os.close(tmp_fd)
+                shutil.copy2(str(old_file), tmp_path)
+                os.replace(tmp_path, str(db_file))
                 logging.getLogger(__name__).info(
                     "Migrated database from %s to %s", old_file, db_file
                 )
