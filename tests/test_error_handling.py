@@ -55,7 +55,7 @@ class TestDatabasePathConflictDetection:
             invalid_path = "/invalid/nonexistent/path/database.db"
             
             # Should use fallback mechanism
-            db_manager = DatabaseManager()
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
             fallback_path = db_manager._get_fallback_database_path(invalid_path)
             
             # Fallback path should be in user data directory
@@ -102,7 +102,7 @@ class TestDatabasePathConflictDetection:
             
             # Should detect conflict and provide detailed message
             with pytest.raises(ValueError) as exc_info:
-                db_manager = DatabaseManager()
+                db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
                 db_manager._raise_path_conflict_error(
                     requested_path=str(conflict_db),
                     existing_path=str(default_db),
@@ -118,27 +118,29 @@ class TestDatabasePathConflictDetection:
     def test_error_source_attribution_config_file_vs_cli_vs_env_var(self):
         """Test error source attribution for different configuration sources."""
         with tempfile.TemporaryDirectory() as temp_dir:
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
+
             # Test CLI source attribution
-            cli_error = DatabaseManager()._create_path_error(
+            cli_error = db_manager._create_path_error(
                 path="/invalid/cli/path.db",
                 source="CLI argument --database-path",
                 issue="Path does not exist"
             )
             assert "CLI argument --database-path" in str(cli_error)
             assert "/invalid/cli/path.db" in str(cli_error)
-            
+
             # Test config file source attribution
             config_file = Path(temp_dir) / "config.yaml"
-            config_error = DatabaseManager()._create_path_error(
+            config_error = db_manager._create_path_error(
                 path="/invalid/config/path.db",
                 source=f"Configuration file {config_file}",
                 issue="Permission denied"
             )
             assert str(config_file) in str(config_error)
             assert "/invalid/config/path.db" in str(config_error)
-            
+
             # Test environment variable source attribution
-            env_error = DatabaseManager()._create_path_error(
+            env_error = db_manager._create_path_error(
                 path="/invalid/env/path.db",
                 source="Environment variable WJS_DATABASE_PATH",
                 issue="Directory does not exist"
@@ -170,7 +172,7 @@ class TestGracefulFallbackMechanisms:
             invalid_path = "/completely/invalid/path/database.db"
             
             # Should provide guidance message
-            db_manager = DatabaseManager()
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
             guidance = db_manager._generate_fallback_guidance(
                 original_path=invalid_path,
                 fallback_path="/home/user/.local/share/WorkJournal/database.db",
@@ -186,8 +188,8 @@ class TestGracefulFallbackMechanisms:
         """Test multiple fallback attempts when first fallback fails."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create a DatabaseManager instance first
-            db_manager = DatabaseManager()
-            
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
+
             # Test that multiple fallbacks work by using an invalid path
             final_path = db_manager._resolve_with_multiple_fallbacks("/completely/invalid/path/db.db")
             
@@ -199,22 +201,23 @@ class TestGracefulFallbackMechanisms:
 
     def test_recovery_guidance_for_different_error_types(self):
         """Test specific recovery guidance for different error types."""
-        db_manager = DatabaseManager()
-        
-        # Permission error guidance
-        perm_guidance = db_manager._get_recovery_guidance("permission_denied", "/restricted/database.db")
-        assert "permission" in perm_guidance.lower()
-        assert "chmod" in perm_guidance or "access" in perm_guidance.lower()
-        
-        # Directory not found guidance
-        dir_guidance = db_manager._get_recovery_guidance("directory_not_found", "/missing/dir/database.db")
-        assert "directory" in dir_guidance.lower()
-        assert "create" in dir_guidance.lower() or "mkdir" in dir_guidance.lower()
-        
-        # Invalid path guidance
-        invalid_guidance = db_manager._get_recovery_guidance("invalid_path", "\\invalid\\windows\\path")
-        assert "path" in invalid_guidance.lower()
-        assert "format" in invalid_guidance.lower() or "valid" in invalid_guidance.lower()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
+
+            # Permission error guidance
+            perm_guidance = db_manager._get_recovery_guidance("permission_denied", "/restricted/database.db")
+            assert "permission" in perm_guidance.lower()
+            assert "chmod" in perm_guidance or "access" in perm_guidance.lower()
+
+            # Directory not found guidance
+            dir_guidance = db_manager._get_recovery_guidance("directory_not_found", "/missing/dir/database.db")
+            assert "directory" in dir_guidance.lower()
+            assert "create" in dir_guidance.lower() or "mkdir" in dir_guidance.lower()
+
+            # Invalid path guidance
+            invalid_guidance = db_manager._get_recovery_guidance("invalid_path", "\\invalid\\windows\\path")
+            assert "path" in invalid_guidance.lower()
+            assert "format" in invalid_guidance.lower() or "valid" in invalid_guidance.lower()
 
 
 class TestPermissionAndPathErrorHandling:
@@ -234,7 +237,7 @@ class TestPermissionAndPathErrorHandling:
                 db_path = db_dir / "database.db"
                 
                 # Should handle permission error gracefully
-                db_manager = DatabaseManager()
+                db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
                 result = db_manager._handle_permission_error(str(db_path), "Database file creation")
                 
                 assert result is not None  # Should provide fallback
@@ -245,27 +248,28 @@ class TestPermissionAndPathErrorHandling:
 
     def test_invalid_path_characters_handling(self):
         """Test handling of invalid path characters."""
-        db_manager = DatabaseManager()
-        
-        # Test various invalid path scenarios
-        invalid_paths = [
-            "/path/with\x00null/database.db",  # Null character
-            "/path/with\ttab/database.db",     # Tab character
-            "con.db" if os.name == 'nt' else "aux.db",  # Reserved names (cross-platform)
-        ]
-        
-        for invalid_path in invalid_paths:
-            try:
-                result = db_manager._validate_path_characters(invalid_path)
-                assert result is False, f"Should reject invalid path: {invalid_path}"
-            except ValueError as e:
-                assert "invalid" in str(e).lower() or "character" in str(e).lower()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
+
+            # Test various invalid path scenarios
+            invalid_paths = [
+                "/path/with\x00null/database.db",  # Null character
+                "/path/with\ttab/database.db",     # Tab character
+                "con.db" if os.name == 'nt' else "aux.db",  # Reserved names (cross-platform)
+            ]
+
+            for invalid_path in invalid_paths:
+                try:
+                    result = db_manager._validate_path_characters(invalid_path)
+                    assert result is False, f"Should reject invalid path: {invalid_path}"
+                except ValueError as e:
+                    assert "invalid" in str(e).lower() or "character" in str(e).lower()
 
     def test_readonly_filesystem_fallback(self):
         """Test fallback when filesystem is read-only."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create a DatabaseManager instance first
-            db_manager = DatabaseManager()
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
             
             # Test readonly filesystem handling
             fallback_path = db_manager._handle_readonly_filesystem("/mount/readonly/database.db")
@@ -278,8 +282,8 @@ class TestPermissionAndPathErrorHandling:
     def test_detailed_error_logging_with_recovery_actions(self):
         """Test detailed error logging with specific recovery actions."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            db_manager = DatabaseManager()
-            
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
+
             # Test detailed error with recovery action
             error_details = db_manager._create_detailed_error(
                 path="/failed/path/database.db",
@@ -356,7 +360,7 @@ processing:
         """Test error aggregation when multiple sources have issues."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create scenario with errors in multiple sources
-            db_manager = DatabaseManager()
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
             
             errors = [
                 ("CLI argument --database-path", "/invalid/cli/path.db", "Directory not found"),
@@ -380,59 +384,62 @@ class TestDatabaseManagerValidationMethods:
 
     def test_validate_database_path_method_exists(self):
         """Test that _validate_database_path method exists and works correctly."""
-        db_manager = DatabaseManager()
-        
-        # Method should exist
-        assert hasattr(db_manager, '_validate_database_path')
-        
-        # Should validate good paths
         with tempfile.TemporaryDirectory() as temp_dir:
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
+
+            # Method should exist
+            assert hasattr(db_manager, '_validate_database_path')
+
+            # Should validate good paths
             valid_path = Path(temp_dir) / "valid.db"
             result = db_manager._validate_database_path(str(valid_path), None)
             assert result is True or result is None  # Should not raise error
 
     def test_raise_path_conflict_error_method_exists(self):
         """Test that _raise_path_conflict_error method exists."""
-        db_manager = DatabaseManager()
-        
-        # Method should exist
-        assert hasattr(db_manager, '_raise_path_conflict_error')
-        
-        # Should raise appropriate error
-        with pytest.raises(ValueError):
-            db_manager._raise_path_conflict_error(
-                requested_path="/new/path.db",
-                existing_path="/old/path.db",
-                source="Test source"
-            )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
+
+            # Method should exist
+            assert hasattr(db_manager, '_raise_path_conflict_error')
+
+            # Should raise appropriate error
+            with pytest.raises(ValueError):
+                db_manager._raise_path_conflict_error(
+                    requested_path="/new/path.db",
+                    existing_path="/old/path.db",
+                    source="Test source"
+                )
 
     def test_get_fallback_database_path_method_exists(self):
         """Test that _get_fallback_database_path method exists."""
-        db_manager = DatabaseManager()
-        
-        # Method should exist
-        assert hasattr(db_manager, '_get_fallback_database_path')
-        
-        # Should return valid fallback path
-        fallback = db_manager._get_fallback_database_path("/failed/path.db")
-        assert fallback is not None
-        assert isinstance(fallback, str)
-        assert Path(fallback).name.endswith('.db')
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
+
+            # Method should exist
+            assert hasattr(db_manager, '_get_fallback_database_path')
+
+            # Should return valid fallback path
+            fallback = db_manager._get_fallback_database_path("/failed/path.db")
+            assert fallback is not None
+            assert isinstance(fallback, str)
+            assert Path(fallback).name.endswith('.db')
 
     def test_create_path_error_method_exists(self):
         """Test that _create_path_error method exists."""
-        db_manager = DatabaseManager()
-        
-        # Method should exist
-        assert hasattr(db_manager, '_create_path_error')
-        
-        # Should create informative error
-        error = db_manager._create_path_error(
-            path="/test/path.db",
-            source="Test source",
-            issue="Test issue"
-        )
-        assert "Test source" in str(error)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_manager = DatabaseManager(str(Path(temp_dir) / "test.db"))
+
+            # Method should exist
+            assert hasattr(db_manager, '_create_path_error')
+
+            # Should create informative error
+            error = db_manager._create_path_error(
+                path="/test/path.db",
+                source="Test source",
+                issue="Test issue"
+            )
+            assert "Test source" in str(error)
         assert "/test/path.db" in str(error)
         assert "Test issue" in str(error)
 
