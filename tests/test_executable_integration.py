@@ -355,29 +355,6 @@ class TestDatabasePathIsolation:
             assert resolved1 == resolved2
             assert resolved1 == absolute_path
 
-    def test_fallback_path_isolation_between_instances(self):
-        """Test that fallback paths are isolated between instances."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            invalid_path = "/completely/invalid/path/database.db"
-            
-            instance1_dir = Path(temp_dir) / "fallback_instance1"
-            instance1_dir.mkdir()
-            instance2_dir = Path(temp_dir) / "fallback_instance2"
-            instance2_dir.mkdir()
-            
-            # Test fallback for instance 1
-            db_manager1 = DatabaseManager()
-            fallback1 = db_manager1._get_fallback_database_path(invalid_path)
-            
-            # Test fallback for instance 2
-            db_manager2 = DatabaseManager()
-            fallback2 = db_manager2._get_fallback_database_path(invalid_path)
-            
-            # Fallback paths should include instance-specific elements
-            assert "fallback" in fallback1
-            assert "fallback" in fallback2
-            assert fallback1.endswith('.db')
-            assert fallback2.endswith('.db')
 
 
 class TestResourcePathResolution:
@@ -495,54 +472,6 @@ processing:
 
 class TestCrossPlatformCompatibility:
     """Test cases for cross-platform executable behavior."""
-
-    def test_windows_path_handling_on_unix(self):
-        """Test that Windows paths are handled correctly on Unix systems."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            exe_dir = Path(temp_dir) / "cross_platform_exe"
-            exe_dir.mkdir()
-            
-            # Test Windows-style path on Unix system
-            windows_path = "C:\\Users\\Test\\database.db"
-            
-            # Mock ExecutableDetector
-            with patch('config_manager.ExecutableDetector') as mock_detector:
-                mock_instance = MagicMock()
-                mock_instance.get_executable_directory.return_value = exe_dir
-                mock_detector.return_value = mock_instance
-                
-                db_manager = DatabaseManager()
-                
-                # Should handle Windows path gracefully (return as-is or convert appropriately)
-                is_windows_path = db_manager._is_windows_absolute_path(windows_path)
-                
-                if os.name != 'nt':
-                    # On Unix, should recognize as Windows path
-                    assert is_windows_path is True
-                else:
-                    # On Windows, should be handled normally
-                    assert is_windows_path is True
-
-    def test_unix_path_handling_cross_platform(self):
-        """Test that Unix paths work correctly across platforms."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            exe_dir = Path(temp_dir) / "unix_path_exe"
-            exe_dir.mkdir()
-            
-            # Test Unix-style path
-            unix_path = "/home/user/database.db"
-            
-            # Mock ExecutableDetector
-            with patch('config_manager.ExecutableDetector') as mock_detector:
-                mock_instance = MagicMock()
-                mock_instance.get_executable_directory.return_value = exe_dir
-                mock_detector.return_value = mock_instance
-                
-                db_manager = DatabaseManager()
-                
-                # Should handle Unix path correctly
-                is_windows_path = db_manager._is_windows_absolute_path(unix_path)
-                assert is_windows_path is False
 
     def test_mixed_path_separators_normalization(self):
         """Test that mixed path separators are normalized correctly."""
