@@ -1,14 +1,16 @@
-# ABOUTME: Sentinel test verifying that test isolation redirects file writes to tmp_path.
-# ABOUTME: Guards against test suites accidentally writing to real worklog files.
+# ABOUTME: Sentinel test verifying that test isolation redirects file and DB writes.
+# ABOUTME: Guards against test suites accidentally mutating real worklog files or database.
 
 """
 Sentinel Test for Test Isolation
 
 Verifies that the isolated_app_client fixture correctly redirects
-all file write operations to tmp_path instead of ~/Desktop/worklogs/.
+all file write operations to tmp_path instead of ~/Desktop/worklogs/,
+and all database writes to a temp database instead of web/journal_index.db.
 """
 
 import pytest
+import sqlite3
 from pathlib import Path
 from datetime import date
 
@@ -128,3 +130,42 @@ class TestIsolationSentinel:
         assert len(written_files) > 0
         content = written_files[0].read_text()
         assert "Updated sentinel content" in content
+
+
+class TestDatabaseIsolationSentinel:
+    """Verify that isolated_app_client writes settings to a temp DB, not the real one."""
+
+    def test_settings_write_does_not_mutate_real_db(self, isolated_app_client, tmp_path):
+        """PUT /api/settings/ui.theme must NOT modify web/journal_index.db."""
+        from web.database import db_manager as real_db_manager
+        real_db_path = real_db_manager.database_path
+
+        # Snapshot the real DB's ui.theme value before the test
+        conn = sqlite3.connect(real_db_path)
+        row = conn.execute(
+            "SELECT value FROM web_settings WHERE key = 'ui.theme'"
+        ).fetchone()
+        original_theme = row[0] if row else None
+        conn.close()
+
+        # Pick a theme value that differs from the current one
+        opposite_theme = "dark" if original_theme == "light" else "light"
+        response = isolated_app_client.put(
+            "/api/settings/ui.theme",
+            json={"value": opposite_theme}
+        )
+        assert response.status_code == 200
+
+        # Verify the real DB was NOT mutated
+        conn = sqlite3.connect(real_db_path)
+        row = conn.execute(
+            "SELECT value FROM web_settings WHERE key = 'ui.theme'"
+        ).fetchone()
+        current_theme = row[0] if row else None
+        conn.close()
+
+        assert current_theme == original_theme, (
+            f"Real database was mutated! ui.theme changed from "
+            f"'{original_theme}' to '{current_theme}'. "
+            "isolated_app_client must redirect DB writes to a temp database."
+        )
