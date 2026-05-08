@@ -69,12 +69,12 @@ and use `DatabaseManager()` with no args, writing to the app data directory:
 
 | File | Status vs April | Issue |
 |------|-----------------|-------|
-| `test_database_manager_paths.py` | UNCHANGED | `DatabaseManager()` no-arg (lines 27, 47, 75-76) — constructor only, no `initialize()`, but may create directories in app data dir |
+| `test_database_manager_paths.py` | ACCEPTABLE | `DatabaseManager()` no-arg (lines 27, 47, 75-76) — intentionally tests default path resolution. Side effect is `mkdir` on XDG app data dir only (idempotent, no DB file created) |
 | `test_executable_integration.py` | UNCHANGED | `DatabaseManager()` no-arg at lines 369, 374, 513, 543 |
-| `test_calendar_comprehensive.py` | UNCHANGED | Bare `TestClient(app)` at lines 162, 187, 297 — reads production DB via GET endpoints |
-| `test_calendar_api_endpoints.py` | UNCHANGED | `TestClient(app)` without DB override — reads production DB |
-| `test_calendar_api_performance.py` | UNCHANGED | Bare `TestClient(app)` at 3 locations — reads production DB |
-| `test_summarization_interface_step16.py` | UNCHANGED | Bare `TestClient(app)` — reads production DB |
+| `test_calendar_comprehensive.py` | FIXED | Inline `TestClient(app)` replaced with `isolated_app_client` |
+| `test_calendar_api_endpoints.py` | FIXED | `client` fixtures now delegate to `isolated_app_client` |
+| `test_calendar_api_performance.py` | FIXED | All 3 `client` fixtures now delegate to `isolated_app_client` |
+| `test_summarization_interface_step16.py` | FIXED | `client` fixture now delegates to `isolated_app_client` |
 | `test_file_discovery_v2_foundation.py` | UNCHANGED | Reads real `~/Desktop/worklogs/worklogs_2024` |
 | `test_file_discovery_v2_integration.py` | UNCHANGED | Reads real `~/Desktop/worklogs/` via live `discover_files()` |
 | `test_integration_logging.py` | UNCHANGED | May probe for real AWS credentials |
