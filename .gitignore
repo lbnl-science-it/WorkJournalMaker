@@ -154,3 +154,4 @@ CLAUDE.local.md
 .claude/
 :memory:
 dist/
+.playwright-mcp/
