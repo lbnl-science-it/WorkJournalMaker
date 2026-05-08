@@ -150,19 +150,30 @@ Entry created on {entry_date}.
         assert "has_entry" in data
         assert "day_name" in data
     
-    def test_calendar_api_date_range(self, test_client, sample_entries):
-        """Test calendar date range API."""
+    def test_calendar_api_date_range(self, test_client):
+        """Test calendar date range API returns entries created via the API."""
         today = date.today()
-        start_date = today - timedelta(days=7)
-        end_date = today
-        
-        response = test_client.get(f"/api/calendar/range/{start_date}/{end_date}")
+        start_date = today - timedelta(days=3)
+
+        # Create entries via the API so they get indexed in the isolated temp DB
+        created_dates = []
+        for i in range(4):
+            entry_date = (start_date + timedelta(days=i)).isoformat()
+            resp = test_client.post(
+                f"/api/entries/{entry_date}",
+                json={"date": entry_date, "content": f"Range test entry {i}"},
+            )
+            assert resp.status_code == 200
+            created_dates.append(entry_date)
+
+        response = test_client.get(
+            f"/api/calendar/range/{start_date}/{today}"
+        )
         assert response.status_code == 200
-        
+
         data = response.json()
         assert isinstance(data, list)
-        # Should have entries from sample data
-        assert len(data) > 0
+        assert len(data) >= len(created_dates)
     
     def test_calendar_api_entry_exists(self, test_client, sample_entries):
         """Test entry existence check API."""
