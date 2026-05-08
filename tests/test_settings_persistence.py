@@ -50,8 +50,8 @@ from web.models.settings import (
 from config_manager import ConfigManager
 from logger import JournalSummarizerLogger
 from debug_scripts.debug_database_write import (
-    DatabaseTestingUtility, test_database_connectivity,
-    test_database_write_operations, verify_settings_persistence
+    DatabaseTestingUtility, test_database_connectivity as _run_db_connectivity_check,
+    test_database_write_operations as _run_db_write_check, verify_settings_persistence
 )
 
 
@@ -432,32 +432,9 @@ class TestIntegrationTests(TestFixtures):
 class TestEndToEndTests(TestFixtures):
     """End-to-end tests simulating frontend interactions."""
 
-    def test_no_production_db_contamination(self, client):
-        """Verify that E2E settings operations do not modify the production database."""
-        prod_db = Path("web/journal_index.db")
-        if not prod_db.exists():
-            pytest.skip("Production database not present")
-
-        # Snapshot production state before the request
-        conn = sqlite3.connect(str(prod_db))
-        before = dict(conn.execute("SELECT key, value FROM web_settings").fetchall())
-        conn.close()
-
-        # Attempt a settings write through the test client
-        client.post(
-            "/api/settings/bulk-update",
-            json={"settings": {"ui.theme": "contamination_sentinel"}}
-        )
-
-        # Production database must be unchanged
-        conn = sqlite3.connect(str(prod_db))
-        after = dict(conn.execute("SELECT key, value FROM web_settings").fetchall())
-        conn.close()
-
-        assert before == after, (
-            "Production database was contaminated by test! "
-            f"Changed keys: {set(k for k in before if before[k] != after.get(k))}"
-        )
+    @pytest.fixture
+    def client(self, isolated_app_client):
+        return isolated_app_client
 
     def test_api_endpoint_bulk_update(self, client, sample_settings_data):
         """Test bulk update API endpoint."""

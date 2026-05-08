@@ -15,17 +15,17 @@ from web.models.journal import CalendarEntry, CalendarMonth, EntryStatus
 
 
 @pytest.mark.asyncio
-async def test_calendar_service_basic_functionality():
+async def test_calendar_service_basic_functionality(tmp_path):
     """Test basic CalendarService functionality."""
     # Setup
     config = AppConfig()
     log_config = LogConfig(level=LogLevel.ERROR, console_output=False, file_output=False)
     logger = JournalSummarizerLogger(log_config)
-    db_manager = DatabaseManager("tests/test_calendar_simple.db")
+    db_manager = DatabaseManager(str(tmp_path / "test_calendar_simple.db"))
     await db_manager.initialize()
-    
+
     service = CalendarService(config, logger, db_manager)
-    
+
     try:
         # Test 1: Get current month calendar
         today = date.today()
@@ -69,22 +69,19 @@ async def test_calendar_service_basic_functionality():
         
     finally:
         # Cleanup
-        try:
-            Path("tests/test_calendar_simple.db").unlink(missing_ok=True)
-        except:
-            pass
+        await db_manager.engine.dispose()
 
 
 @pytest.mark.asyncio
-async def test_calendar_service_with_entries():
+async def test_calendar_service_with_entries(tmp_path):
     """Test CalendarService with actual database entries."""
     # Setup
     config = AppConfig()
     log_config = LogConfig(level=LogLevel.ERROR, console_output=False, file_output=False)
     logger = JournalSummarizerLogger(log_config)
-    db_manager = DatabaseManager("tests/test_calendar_entries.db")
+    db_manager = DatabaseManager(str(tmp_path / "test_calendar_entries.db"))
     await db_manager.initialize()
-    
+
     service = CalendarService(config, logger, db_manager)
     
     try:
@@ -136,22 +133,19 @@ async def test_calendar_service_with_entries():
         
     finally:
         # Cleanup
-        try:
-            Path("tests/test_calendar_entries.db").unlink(missing_ok=True)
-        except:
-            pass
+        await db_manager.engine.dispose()
 
 
 @pytest.mark.asyncio
-async def test_calendar_service_validation():
+async def test_calendar_service_validation(tmp_path):
     """Test CalendarService input validation."""
     # Setup
     config = AppConfig()
     log_config = LogConfig(level=LogLevel.ERROR, console_output=False, file_output=False)
     logger = JournalSummarizerLogger(log_config)
-    db_manager = DatabaseManager("tests/test_calendar_validation.db")
+    db_manager = DatabaseManager(str(tmp_path / "test_calendar_validation.db"))
     await db_manager.initialize()
-    
+
     service = CalendarService(config, logger, db_manager)
     
     try:
@@ -173,10 +167,7 @@ async def test_calendar_service_validation():
         
     finally:
         # Cleanup
-        try:
-            Path("tests/test_calendar_validation.db").unlink(missing_ok=True)
-        except:
-            pass
+        await db_manager.engine.dispose()
 
 
 if __name__ == "__main__":

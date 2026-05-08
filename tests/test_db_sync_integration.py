@@ -9,6 +9,7 @@ import os
 from datetime import date, datetime
 from pathlib import Path
 from unittest.mock import Mock
+import pytest
 
 # Add current directory to path
 import sys
@@ -20,6 +21,7 @@ from config_manager import AppConfig
 from logger import JournalSummarizerLogger
 
 
+@pytest.mark.asyncio
 async def test_database_sync_integration():
     """Test that database synchronization works with work week service integration."""
     

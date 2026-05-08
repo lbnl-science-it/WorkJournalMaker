@@ -34,7 +34,9 @@ class TestCalendarServiceIntegration:
     @pytest.fixture
     def mock_logger(self):
         """Create mock logger."""
-        return MagicMock(spec=JournalSummarizerLogger)
+        mock = MagicMock(spec=JournalSummarizerLogger)
+        mock.logger = MagicMock()
+        return mock
     
     @pytest.fixture
     def mock_db_manager(self):
@@ -113,11 +115,11 @@ class TestCalendarServiceIntegration:
         # Mock database session and query
         mock_session = AsyncMock()
         mock_db_manager.get_session.return_value.__aenter__.return_value = mock_session
-        
+
         mock_entry = MagicMock(spec=JournalEntryIndex)
         mock_entry.has_content = True
-        
-        mock_result = AsyncMock()
+
+        mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_entry
         mock_session.execute.return_value = mock_result
         
@@ -167,8 +169,8 @@ class TestCalendarServiceIntegration:
         # Mock database session and query
         mock_session = AsyncMock()
         mock_db_manager.get_session.return_value.__aenter__.return_value = mock_session
-        
-        mock_result = AsyncMock()
+
+        mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = sample_db_entries
         mock_session.execute.return_value = mock_result
         
@@ -208,14 +210,14 @@ class TestCalendarServiceIntegration:
         test_date = date(2024, 1, 15)  # Monday
         expected_week_ending = date(2024, 1, 19)  # Friday
         
-        calendar_service.file_discovery._calculate_week_ending_for_date.return_value = expected_week_ending
+        calendar_service.file_discovery._find_week_ending_for_date.return_value = expected_week_ending
         
         # Test the method
         result = calendar_service.get_week_ending_date(test_date)
         
         # Verify result
         assert result == expected_week_ending
-        calendar_service.file_discovery._calculate_week_ending_for_date.assert_called_once_with(test_date)
+        calendar_service.file_discovery._find_week_ending_for_date.assert_called_once_with(test_date)
     
     @pytest.mark.asyncio
     async def test_get_today_info_success(self, calendar_service, mock_db_manager):
@@ -232,13 +234,13 @@ class TestCalendarServiceIntegration:
         mock_entry.file_path = "/test/path/today.md"
         mock_entry.modified_at = datetime.now()
         
-        mock_result = AsyncMock()
+        mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_entry
         mock_session.execute.return_value = mock_result
-        
+
         # Mock week ending calculation
         week_ending = today + timedelta(days=4)
-        calendar_service.file_discovery._calculate_week_ending_for_date.return_value = week_ending
+        calendar_service.file_discovery._find_week_ending_for_date.return_value = week_ending
         
         # Test the method
         result = await calendar_service.get_today_info()
@@ -266,7 +268,7 @@ class TestCalendarServiceIntegration:
         
         # Mock week ending calculation
         week_ending = today + timedelta(days=4)
-        calendar_service.file_discovery._calculate_week_ending_for_date.return_value = week_ending
+        calendar_service.file_discovery._find_week_ending_for_date.return_value = week_ending
         
         # Test the method
         result = await calendar_service.get_today_info()
@@ -354,15 +356,20 @@ class TestCalendarServiceIntegration:
 
 class TestCalendarServiceEdgeCases:
     """Test edge cases for CalendarService."""
-    
+
     @pytest.fixture
-    def calendar_service(self):
+    def mock_db_manager(self):
+        """Create mock database manager."""
+        return AsyncMock(spec=DatabaseManager)
+
+    @pytest.fixture
+    def calendar_service(self, mock_db_manager):
         """Create minimal CalendarService for edge case testing."""
         mock_config = MagicMock()
         mock_config.processing.base_path = Path("/test")
         mock_logger = MagicMock()
-        mock_db_manager = AsyncMock()
-        
+        mock_logger.logger = MagicMock()
+
         with patch('web.services.calendar_service.FileDiscovery'):
             return CalendarService(mock_config, mock_logger, mock_db_manager)
     
