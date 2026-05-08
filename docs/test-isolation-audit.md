@@ -16,11 +16,11 @@ The April 23 audit found 18 DANGEROUS and 13 RISKY files. Since then:
 - **2 RISKY files deleted** (test_path_resolution, test_week_ending_fix)
 - **5 DANGEROUS files fixed** (test_settings_di, test_settings_management,
   test_calendar_service, test_calendar_service_simple, test_logger)
-- **1 DANGEROUS file partially fixed** (test_settings_persistence — some classes now
-  use `isolated_app_client`, but `TestSettingsIntegration` uses manual swap pattern)
+- **1 DANGEROUS file fixed** (test_settings_persistence — `TestFixtures.client` now
+  uses `isolated_app_client`; all subclasses inherit isolation)
 - **1 DANGEROUS file deleted** (test_entry_manager, test_prompt_mismatch)
 
-**Current state:** 3 DANGEROUS files, 7 debug/validate scripts (DANGEROUS),
+**Current state:** 2 DANGEROUS test files, 7 debug/validate scripts (DANGEROUS),
 9 RISKY files remain.
 
 ## How Production Data Gets Corrupted (updated)
@@ -45,7 +45,6 @@ a test run.
 | File | Status vs April | Issue |
 |------|-----------------|-------|
 | `test_dashboard_implementation.py` | UNCHANGED | Live HTTP to `localhost:8000` via `requests.post()` — writes real entries. No skip decorator, only function-level guard |
-| `test_settings_persistence.py` | PARTIALLY FIXED | `TestSettingsIntegration` (line 166) manually swaps `app.state.settings_service` to temp DB, but `TestClient(app)` lifespan still touches production DB path. `TestEndToEndTests` (line 436) now uses `isolated_app_client` — SAFE |
 | `test_ui_functionality.py` | NEW FINDING → RISKY | Playwright tests hit `localhost:8000` — requires live server. Double-guarded: `@pytest.mark.skipif` for Playwright + per-test `pytest.skip` on connection failure. Only runs if both Playwright is installed AND server is live |
 
 ### Debug/Validate Scripts (pytest-collectable)
@@ -93,6 +92,7 @@ The following files were DANGEROUS in April and are now SAFE:
 | `test_calendar_service_simple.py` | Now uses `tmp_path` for all DB paths |
 | `test_logger.py` | Now uses `temp_log_dir` / `tmp_path` for log output |
 | `test_work_week_api.py` | Uses `tempfile` + `dependency_overrides` for isolation |
+| `test_settings_persistence.py` | `TestFixtures.client` now uses `isolated_app_client`; all subclasses inherit isolation |
 
 ---
 
@@ -120,9 +120,9 @@ The following files were DANGEROUS in April and are now SAFE:
    in-repo file. Lower severity (no commit risk) but still a side effect. Affects 3 test
    files + 5 debug scripts.
 
-2. **`TestClient(app)` without `dependency_overrides`** — 5 files create a test client
-   that routes through the real app with its production database. Some only read (RISKY),
-   one writes (DANGEROUS).
+2. **`TestClient(app)` without `dependency_overrides`** — Historically 5 files created
+   a test client routing through the real app. Most are now fixed via `isolated_app_client`.
+   1 debug script (`debug_settings_error.py`) still uses bare `TestClient(app)`.
 
 3. **Live server dependencies** — 2 files (`test_dashboard_implementation.py`,
    `test_ui_functionality.py`) require a running server and hit it with real requests.
@@ -142,12 +142,7 @@ The following files were DANGEROUS in April and are now SAFE:
    or add proper `@pytest.mark.skip`/marker.
 
 ### Next (complete T1 gate)
-3. **Fix remaining bare `TestClient(app)` files** — Add `dependency_overrides` or convert
-   to `isolated_app_client` for: test_calendar_comprehensive, test_calendar_api_endpoints,
-   test_calendar_api_performance, test_summarization_interface_step16.
-4. **Fix test_settings_persistence.py `TestSettingsIntegration`** — Convert manual swap
-   to `isolated_app_client` or proper `dependency_overrides`.
-5. **Fix test_database_manager_paths.py** — Provide explicit temp paths instead of no-arg.
+3. **Fix test_database_manager_paths.py** — Provide explicit temp paths instead of no-arg.
 
 ### Low priority (read-only, acceptable risk)
 6. **test_file_discovery_v2_foundation.py** and **test_file_discovery_v2_integration.py** —

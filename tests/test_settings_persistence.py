@@ -165,7 +165,7 @@ class TestFixtures:
     @pytest.fixture
     def client(self, isolated_app_client):
         """FastAPI test client with all writes isolated to temp paths."""
-        yield isolated_app_client
+        return isolated_app_client
 
 
 class TestUnitTests(TestFixtures):
