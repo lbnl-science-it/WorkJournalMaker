@@ -216,16 +216,19 @@ class TestWorkWeekSettingsIntegration:
     
     @pytest.mark.asyncio
     async def test_update_work_week_configuration_invalid_custom(self, settings_service):
-        """Test updating work week configuration with invalid custom days."""
+        """Test updating work week configuration with invalid custom days.
+
+        Same-day configs are auto-corrected to Monday-Friday rather than
+        rejected, so the result is success with a warning.
+        """
         result = await settings_service.update_work_week_configuration(
             preset='custom',
             start_day=3,  # Same as end day
             end_day=3
         )
-        
-        assert result['success'] is False
-        assert len(result['errors']) > 0
-        assert any("cannot be the same" in error for error in result['errors'])
+
+        assert result['success'] is True
+        assert any("Auto-corrected" in msg for msg in result['errors'])
     
     @pytest.mark.asyncio
     async def test_work_week_settings_validation(self, settings_service):
