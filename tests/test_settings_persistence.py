@@ -50,8 +50,8 @@ from web.models.settings import (
 from config_manager import ConfigManager
 from logger import JournalSummarizerLogger
 from debug_scripts.debug_database_write import (
-    DatabaseTestingUtility, test_database_connectivity,
-    test_database_write_operations, verify_settings_persistence
+    DatabaseTestingUtility, test_database_connectivity as _run_db_connectivity_check,
+    test_database_write_operations as _run_db_write_check, verify_settings_persistence
 )
 
 
@@ -411,13 +411,16 @@ class TestEndToEndTests(TestFixtures):
             "/api/settings/bulk-update",
             json={"settings": invalid_settings_data}
         )
-        
-        # Should handle errors gracefully
-        assert response.status_code in [400, 422]  # Bad request or validation error
-        
-        if response.status_code == 400:
+
+        # Endpoint returns 200 with error details (issue #110)
+        assert response.status_code in [200, 400, 422]
+
+        if response.status_code == 200:
             data = response.json()
-            # Should contain error information
+            assert "error_count" in data
+            assert data["error_count"] > 0
+        elif response.status_code in [400, 422]:
+            data = response.json()
             assert "detail" in data or "error" in data
     
     def test_frontend_workflow_simulation(self, client):
