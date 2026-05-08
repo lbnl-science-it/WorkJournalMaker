@@ -163,34 +163,9 @@ class TestFixtures:
         }
     
     @pytest.fixture
-    def client(self, tmp_path):
-        """FastAPI test client with settings writes isolated to a temp database.
-
-        Uses a context-managed TestClient so the app lifespan runs, then swaps
-        the settings service's database to a temporary copy so writes never
-        touch the production journal_index.db.
-        """
-        import asyncio
-
-        # Create and initialise a temp database with schema + defaults
-        temp_db_path = str(tmp_path / "test_settings.db")
-        temp_db = DatabaseManager(temp_db_path)
-        asyncio.run(temp_db.initialize())
-
-        with TestClient(app) as test_client:
-            # Swap the settings service to use the temp database
-            orig_service = app.state.settings_service
-            app.state.settings_service = SettingsService(
-                app.state.config, app.state.logger, temp_db
-            )
-
-            yield test_client
-
-            # Restore original
-            app.state.settings_service = orig_service
-
-        # Dispose temp engine
-        asyncio.run(temp_db.engine.dispose())
+    def client(self, isolated_app_client):
+        """FastAPI test client with all writes isolated to temp paths."""
+        return isolated_app_client
 
 
 class TestUnitTests(TestFixtures):

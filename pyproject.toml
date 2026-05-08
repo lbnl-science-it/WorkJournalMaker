@@ -49,4 +49,4 @@ include = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-collect_ignore_glob = ["tests/debug_*"]
+collect_ignore_glob = ["tests/debug_*", "tests/validate_*"]

@@ -28,10 +28,9 @@ class TestSummarizationInterface:
     """Test the summarization interface implementation."""
     
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        with TestClient(app) as client:
-            yield client
+    def client(self, isolated_app_client):
+        """Create test client with DB isolation."""
+        yield isolated_app_client
     
     def test_summarization_page_loads(self, client):
         """Test that the summarization page loads correctly."""

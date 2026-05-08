@@ -19,11 +19,11 @@ from web.models.journal import CalendarMonth, CalendarEntry, EntryStatus
 
 class TestCalendarAPIPerformance:
     """Performance tests for Calendar API endpoints."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
+    def client(self, isolated_app_client):
+        """Create test client with DB isolation."""
+        return isolated_app_client
     
     @pytest.fixture
     def mock_calendar_service(self):
@@ -222,11 +222,11 @@ class TestCalendarAPIPerformance:
 
 class TestCalendarAPILoadTesting:
     """Load testing for Calendar API endpoints."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
+    def client(self, isolated_app_client):
+        """Create test client with DB isolation."""
+        return isolated_app_client
     
     @pytest.fixture
     def mock_calendar_service_fast(self):
@@ -355,11 +355,11 @@ class TestCalendarAPILoadTesting:
 
 class TestCalendarAPIStressTests:
     """Stress tests for Calendar API endpoints."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
+    def client(self, isolated_app_client):
+        """Create test client with DB isolation."""
+        return isolated_app_client
     
     @pytest.fixture
     def mock_calendar_service_with_delays(self):

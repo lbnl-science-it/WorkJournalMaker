@@ -23,11 +23,11 @@ from web.models.journal import CalendarMonth, CalendarEntry, TodayResponse, Entr
 
 class TestCalendarAPIEndpoints:
     """Test suite for Calendar API endpoints."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
+    def client(self, isolated_app_client):
+        """Create test client with DB isolation."""
+        return isolated_app_client
     
     @pytest.fixture
     def mock_calendar_service(self):
@@ -428,11 +428,11 @@ class TestCalendarAPIEndpoints:
 
 class TestCalendarAPIIntegration:
     """Integration tests for Calendar API endpoints."""
-    
+
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
+    def client(self, isolated_app_client):
+        """Create test client with DB isolation."""
+        return isolated_app_client
     
     def test_api_endpoint_accessibility(self, client):
         """Test that all calendar API endpoints are accessible."""
