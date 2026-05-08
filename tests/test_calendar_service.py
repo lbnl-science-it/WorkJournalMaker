@@ -70,8 +70,8 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_calendar_month_validation(self, setup_service):
         """Test calendar month validation with invalid inputs."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         # Test invalid month
         with pytest.raises(ValueError, match="Invalid month"):
             await service.get_calendar_month(2024, 13)
@@ -89,8 +89,8 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_adjacent_months_navigation(self, setup_service):
         """Test month navigation calculations."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         # Test regular month
         (prev_year, prev_month), (next_year, next_month) = await service.get_adjacent_months(2024, 6)
         assert (prev_year, prev_month) == (2024, 5)
@@ -109,10 +109,10 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_entry_existence_checking(self, setup_service):
         """Test entry existence checking functionality."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         test_date = date(2024, 6, 15)
-        
+
         # Test with no entry
         has_entry = await service.has_entry_for_date(test_date)
         assert has_entry is False
@@ -136,8 +136,8 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_date_range_queries(self, setup_service):
         """Test date range entry retrieval."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         # Add test entries
         test_dates = [
             date(2024, 6, 10),
@@ -178,8 +178,8 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_today_info_generation(self, setup_service):
         """Test today's information generation."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         today_info = await service.get_today_info()
         
         assert isinstance(today_info, dict)
@@ -212,8 +212,8 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_week_ending_calculation(self, setup_service):
         """Test week ending date calculation integration."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         test_date = date(2024, 6, 15)
         week_ending = service.get_week_ending_date(test_date)
         
@@ -224,8 +224,8 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_calendar_day_dataclass(self, setup_service):
         """Test CalendarDay dataclass functionality."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         test_date = date(2024, 6, 15)
         calendar_day = CalendarDay(
             date=test_date,
@@ -248,8 +248,8 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_calendar_grid_generation(self, setup_service):
         """Test internal calendar grid generation."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         # Add some test entries
         test_entries = {
             date(2024, 6, 10): {"has_content": True, "word_count": 100, "status": EntryStatus.COMPLETE},
@@ -275,8 +275,8 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_error_handling(self, setup_service):
         """Test error handling in various scenarios."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         # Test database error handling
         with patch.object(db_manager, 'get_session', side_effect=Exception("Database error")):
             has_entry = await service.has_entry_for_date(date.today())
@@ -288,8 +288,8 @@ class TestCalendarService:
     @pytest.mark.asyncio
     async def test_month_entries_retrieval(self, setup_service):
         """Test internal month entries retrieval."""
-        service, db_manager = await setup_service
-        
+        service, db_manager = setup_service
+
         # Add test entries for June 2024
         test_dates = [date(2024, 6, i) for i in [5, 10, 15, 20, 25]]
         
@@ -337,11 +337,11 @@ class TestCalendarServiceIntegration:
     @pytest.mark.asyncio
     async def test_file_discovery_integration(self, real_service):
         """Test integration with real FileDiscovery component."""
-        service, db_manager = await real_service
+        service, db_manager = real_service
         
         # Test that FileDiscovery is properly initialized
         assert service.file_discovery is not None
-        assert hasattr(service.file_discovery, '_calculate_week_ending_for_date')
+        assert hasattr(service.file_discovery, '_find_week_ending_for_date')
         
         # Test week ending calculation
         test_date = date(2024, 6, 15)
@@ -351,7 +351,7 @@ class TestCalendarServiceIntegration:
     @pytest.mark.asyncio
     async def test_calendar_configuration(self, real_service):
         """Test calendar configuration and setup."""
-        service, db_manager = await real_service
+        service, db_manager = real_service
         
         # Test calendar instance configuration
         assert service.first_day_of_week == 0  # Sunday
