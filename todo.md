@@ -5,8 +5,8 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 ## Cluster T1: Re-Audit & Fix Test Isolation
 
 - [x] Re-run isolation audit against current codebase (post-DB-relocation)
-- [ ] [#118](https://github.com/lbnl-science-it/WorkJournalMaker/issues/118) — Fix test_calendar_api_date_range: reads real production DB
-- [ ] [#116](https://github.com/lbnl-science-it/WorkJournalMaker/issues/116) — Clean up stale DB files after migration verification
+- [x] [#118](https://github.com/lbnl-science-it/WorkJournalMaker/issues/118) — Fix test_calendar_api_date_range: reads real production DB
+- [x] [#116](https://github.com/lbnl-science-it/WorkJournalMaker/issues/116) — Clean up stale DB files after migration verification (files already removed)
 - [x] [#113](https://github.com/lbnl-science-it/WorkJournalMaker/issues/113) — Rewrite live-server tests to use TestClient with isolation
 - [x] Fix remaining DANGEROUS files identified by re-audit
 - [ ] **GATE:** No test writes to production data or leaves side effects
