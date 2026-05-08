@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import shutil
+import sqlite3
 import tempfile
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -185,13 +186,39 @@ class DatabaseManager:
         if old_db_path and not db_file.exists():
             old_file = Path(old_db_path)
             if old_file.exists():
-                tmp_fd, tmp_path = tempfile.mkstemp(dir=db_file.parent, suffix=".tmp")
-                os.close(tmp_fd)
-                shutil.copy2(str(old_file), tmp_path)
-                os.replace(tmp_path, str(db_file))
-                logging.getLogger(__name__).info(
-                    "Migrated database from %s to %s", old_file, db_file
-                )
+                logger = logging.getLogger(__name__)
+                tmp_path = None
+                try:
+                    tmp_fd, tmp_path = tempfile.mkstemp(dir=db_file.parent, suffix=".tmp")
+                    os.close(tmp_fd)
+                    shutil.copy2(str(old_file), tmp_path)
+                    os.replace(tmp_path, str(db_file))
+                    tmp_path = None
+                except OSError as exc:
+                    logger.error(
+                        "Failed to migrate database from %s: %s", old_file, exc
+                    )
+                    if tmp_path and Path(tmp_path).exists():
+                        os.unlink(tmp_path)
+                else:
+                    # Validate the migrated file is a well-formed SQLite database
+                    try:
+                        conn = sqlite3.connect(str(db_file))
+                        result = conn.execute("PRAGMA integrity_check").fetchone()
+                        conn.close()
+                        if result[0] != "ok":
+                            raise sqlite3.DatabaseError(
+                                f"integrity_check returned: {result[0]}"
+                            )
+                        logger.info(
+                            "Migrated database from %s to %s", old_file, db_file
+                        )
+                    except (sqlite3.DatabaseError, sqlite3.OperationalError) as exc:
+                        logger.warning(
+                            "Migrated database failed integrity check, "
+                            "removing corrupt file: %s", exc
+                        )
+                        db_file.unlink(missing_ok=True)
 
         self.engine = create_async_engine(
             f"sqlite+aiosqlite:///{self.database_path}",
