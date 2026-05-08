@@ -24,8 +24,13 @@ logger = logging.getLogger(__name__)
 class WorkWeekMigration:
     """Handle work week settings migration."""
     
-    def __init__(self, database_path: str = "web/journal_index.db"):
-        self.database_path = database_path
+    def __init__(self, database_path: str = None):
+        if database_path is None:
+            from web.database import DatabaseManager
+            dm = DatabaseManager()
+            self.database_path = dm.database_path
+        else:
+            self.database_path = database_path
         self.engine = None
         self.SessionLocal = None
     
@@ -175,8 +180,8 @@ async def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Work Week Settings Migration")
-    parser.add_argument("--database", default="web/journal_index.db", 
-                       help="Database file path")
+    parser.add_argument("--database", default=None,
+                       help="Database file path (defaults to OS-standard location)")
     parser.add_argument("--rollback", action="store_true", 
                        help="Rollback the migration")
     parser.add_argument("--validate", action="store_true", 
