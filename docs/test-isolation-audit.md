@@ -46,7 +46,7 @@ a test run.
 |------|-----------------|-------|
 | `test_dashboard_implementation.py` | UNCHANGED | Live HTTP to `localhost:8000` via `requests.post()` — writes real entries. No skip decorator, only function-level guard |
 | `test_settings_persistence.py` | PARTIALLY FIXED | `TestSettingsIntegration` (line 166) manually swaps `app.state.settings_service` to temp DB, but `TestClient(app)` lifespan still touches production DB path. `TestEndToEndTests` (line 436) now uses `isolated_app_client` — SAFE |
-| `test_ui_functionality.py` | NEW FINDING | Playwright tests hit `localhost:8000` — requires live server. Has `pytest.skip` on connection failure, but writes if server is running |
+| `test_ui_functionality.py` | NEW FINDING → RISKY | Playwright tests hit `localhost:8000` — requires live server. Double-guarded: `@pytest.mark.skipif` for Playwright + per-test `pytest.skip` on connection failure. Only runs if both Playwright is installed AND server is live |
 
 ### Debug/Validate Scripts (pytest-collectable)
 
