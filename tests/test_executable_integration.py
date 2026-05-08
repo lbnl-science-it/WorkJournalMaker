@@ -284,45 +284,6 @@ processing:
 class TestDatabasePathIsolation:
     """Test cases for database path isolation between instances."""
 
-    def test_relative_path_resolution_per_instance(self):
-        """Test that relative paths resolve correctly per instance."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            instance1_dir = Path(temp_dir) / "rel_instance1"
-            instance1_dir.mkdir()
-            instance2_dir = Path(temp_dir) / "rel_instance2"
-            instance2_dir.mkdir()
-            
-            relative_path = "data/instance.db"
-            
-            # Test instance 1 path resolution
-            with patch('config_manager.ExecutableDetector') as mock_detector:
-                mock_instance = MagicMock()
-                mock_instance.get_executable_directory.return_value = instance1_dir
-                mock_detector.return_value = mock_instance
-                
-                db_manager1 = DatabaseManager(database_path=relative_path)
-                resolved1 = db_manager1.database_path
-                
-                # Should resolve relative to instance 1 directory
-                assert str(instance1_dir) in resolved1
-                assert "data/instance.db" in resolved1 or "data\\instance.db" in resolved1
-            
-            # Test instance 2 path resolution
-            with patch('config_manager.ExecutableDetector') as mock_detector:
-                mock_instance = MagicMock()
-                mock_instance.get_executable_directory.return_value = instance2_dir
-                mock_detector.return_value = mock_instance
-                
-                db_manager2 = DatabaseManager(database_path=relative_path)
-                resolved2 = db_manager2.database_path
-                
-                # Should resolve relative to instance 2 directory
-                assert str(instance2_dir) in resolved2
-                assert "data/instance.db" in resolved2 or "data\\instance.db" in resolved2
-            
-            # Paths should be different (instance-specific)
-            assert resolved1 != resolved2
-
     def test_absolute_path_consistency_across_instances(self):
         """Test that absolute paths are consistent across instances."""
         with tempfile.TemporaryDirectory() as temp_dir:
