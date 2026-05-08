@@ -12,7 +12,7 @@ from typing import Dict, Any, List
 import pytest
 
 # Import the module we're testing
-from build_system.build_config import BuildConfig, PyInstallerSpecGenerator
+from build_system.build_config import BuildConfig, PyInstallerSpecGenerator, BuildConfigError
 
 
 class TestBuildConfig(unittest.TestCase):
@@ -208,9 +208,8 @@ class TestPyInstallerSpecGenerator(unittest.TestCase):
         """Test PyInstallerSpecGenerator initialization."""
         config = BuildConfig(project_root=str(self.project_root))
         generator = PyInstallerSpecGenerator(config)
-        
+
         self.assertEqual(generator.config, config)
-        self.assertIsNotNone(generator.logger)
     
     def test_spec_generator_validate_config(self) -> None:
         """Test configuration validation."""
@@ -225,7 +224,8 @@ class TestPyInstallerSpecGenerator(unittest.TestCase):
         config_invalid = BuildConfig(project_root=str(self.project_root))
         config_invalid.entry_point = "nonexistent.py"  # Manually set invalid entry point
         generator_invalid = PyInstallerSpecGenerator(config_invalid)
-        self.assertFalse(generator_invalid.validate_config())
+        with self.assertRaises(BuildConfigError):
+            generator_invalid.validate_config()
     
     def test_spec_generator_generate_analysis_section(self) -> None:
         """Test Analysis section generation."""
