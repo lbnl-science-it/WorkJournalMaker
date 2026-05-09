@@ -41,7 +41,8 @@ class JournalEntryIndex(Base):
     character_count = Column(Integer, default=0)
     line_count = Column(Integer, default=0)
     has_content = Column(Boolean, default=False, index=True)
-    
+    user_id = Column(String, nullable=False, default="default", index=True)
+
     # File system metadata
     file_size_bytes = Column(Integer, default=0)
     file_modified_at = Column(DateTime)

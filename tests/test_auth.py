@@ -6,7 +6,8 @@ import os
 import pytest
 from unittest.mock import patch
 from config_manager import AppConfig, AuthConfig, ConfigManager
-from web.database import DatabaseManager, UserAccount, RefreshToken
+from datetime import date
+from web.database import DatabaseManager, JournalEntryIndex, UserAccount, RefreshToken
 
 
 class TestAuthConfig:
@@ -254,3 +255,44 @@ class TestAuthConfigLoading:
             manager = ConfigManager(config_path=config_file)
             assert manager.config.auth.secret_key == "test-secret-key-12345"
             assert manager.config.auth.enabled is True
+
+
+class TestJournalEntryUserScoping:
+    """Tests for user_id column on journal entries."""
+
+    @pytest.fixture
+    def db(self, tmp_path):
+        db = DatabaseManager(str(tmp_path / "test_scoping.db"))
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(db.initialize())
+        yield db
+        if db.engine:
+            loop.run_until_complete(db.engine.dispose())
+        loop.close()
+
+    def test_entry_has_user_id_column(self):
+        assert hasattr(JournalEntryIndex, "user_id")
+
+    def test_entry_default_user_id(self, db):
+        from sqlalchemy import select
+
+        async def _test():
+            async with db.get_session() as session:
+                entry = JournalEntryIndex(
+                    date=date(2026, 5, 1),
+                    file_path="/tmp/test.txt",
+                    week_ending_date=date(2026, 5, 2),
+                )
+                session.add(entry)
+                await session.commit()
+
+                stmt = select(JournalEntryIndex).where(
+                    JournalEntryIndex.date == date(2026, 5, 1)
+                )
+                result = await session.execute(stmt)
+                found = result.scalar_one()
+                assert found.user_id == "default"
+
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(_test())
+        loop.close()
