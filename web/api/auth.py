@@ -37,6 +37,11 @@ class UserProfile(BaseModel):
 async def login(body: LoginRequest, request: Request):
     """Authenticate with username/password and receive a token pair."""
     provider = request.app.state.auth_provider
+    if provider is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication is not configured",
+        )
     try:
         pair = await provider.authenticate({
             "username": body.username,
@@ -54,6 +59,11 @@ async def login(body: LoginRequest, request: Request):
 async def refresh(body: RefreshRequest, request: Request):
     """Exchange a refresh token for a new token pair."""
     provider = request.app.state.auth_provider
+    if provider is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication is not configured",
+        )
     try:
         pair = await provider.refresh_token(body.refresh_token)
     except Exception:
@@ -72,6 +82,11 @@ async def logout(
 ):
     """Revoke a refresh token (logout)."""
     provider = request.app.state.auth_provider
+    if provider is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication is not configured",
+        )
     await provider.revoke_token(body.refresh_token)
     return {"detail": "Logged out"}
 

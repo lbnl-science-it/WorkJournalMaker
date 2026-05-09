@@ -15,7 +15,7 @@ from pathlib import Path
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory
-from web.auth import get_current_user, User
+from web.auth import get_current_user, require_admin, User
 from web.services.entry_manager import EntryManager
 from web.models.journal import (
     JournalEntryCreate, JournalEntryUpDate, JournalEntryResponse,
@@ -199,7 +199,7 @@ async def update_entry(
 async def delete_entry(
     entry_date: date,
     entry_manager: EntryManager = Depends(get_entry_manager),
-    user: User = Depends(get_current_user)
+    user: User = Depends(require_admin)
 ):
     """
     Delete a journal entry.

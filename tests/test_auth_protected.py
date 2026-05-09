@@ -11,13 +11,16 @@ from config_manager import AuthConfig
 from web.auth import User, encode_access_token
 
 
-SECRET = "protected-endpoint-test-secret"
+SECRET = "protected-endpoint-test-secret!!"
 
 
 @pytest.fixture
 def protected_client(tmp_path):
     """TestClient with auth ENABLED."""
     with TestClient(app) as client:
+        orig_auth_config = getattr(app.state, 'auth_config', None)
+        orig_auth_provider = getattr(app.state, 'auth_provider', None)
+
         auth_config = AuthConfig(enabled=True, secret_key=SECRET)
         app.state.auth_config = auth_config
         app.state.auth_provider = None
@@ -35,6 +38,8 @@ def protected_client(tmp_path):
 
         yield client
 
+        app.state.auth_config = orig_auth_config
+        app.state.auth_provider = orig_auth_provider
         app.state.db_manager = orig_db
         if db.engine:
             loop.run_until_complete(db.engine.dispose())
@@ -59,6 +64,13 @@ class TestEntriesAuth:
             headers={"Authorization": f"Bearer {_token()}"},
         )
         assert resp.status_code == 200
+
+    def test_delete_entry_user_role_403(self, protected_client):
+        resp = protected_client.delete(
+            "/api/entries/2026-01-01",
+            headers={"Authorization": f"Bearer {_token('user')}"},
+        )
+        assert resp.status_code == 403
 
 
 class TestSettingsAuth:
@@ -142,3 +154,48 @@ class TestAuthDisabled:
         app.state.auth_config = AuthConfig(enabled=False)
         resp = isolated_app_client.get("/api/settings/")
         assert resp.status_code == 200
+
+
+class TestCalendarAuth:
+    """Calendar endpoints require user-level auth."""
+
+    def test_today_no_token_401(self, protected_client):
+        resp = protected_client.get("/api/calendar/today")
+        assert resp.status_code == 401
+
+    def test_today_with_token_200(self, protected_client):
+        resp = protected_client.get(
+            "/api/calendar/today",
+            headers={"Authorization": f"Bearer {_token()}"},
+        )
+        assert resp.status_code == 200
+
+
+class TestSummarizationAuth:
+    """Summarization endpoints enforce appropriate auth levels."""
+
+    def test_get_tasks_no_token_401(self, protected_client):
+        resp = protected_client.get("/api/summarization/tasks")
+        assert resp.status_code == 401
+
+    def test_get_tasks_with_token_200(self, protected_client):
+        resp = protected_client.get(
+            "/api/summarization/tasks",
+            headers={"Authorization": f"Bearer {_token()}"},
+        )
+        assert resp.status_code == 200
+
+    def test_create_task_user_role_403(self, protected_client):
+        resp = protected_client.post(
+            "/api/summarization/tasks",
+            json={"summary_type": "weekly", "start_date": "2026-01-01", "end_date": "2026-01-07"},
+            headers={"Authorization": f"Bearer {_token('user')}"},
+        )
+        assert resp.status_code == 403
+
+    def test_cleanup_user_role_403(self, protected_client):
+        resp = protected_client.post(
+            "/api/summarization/cleanup",
+            headers={"Authorization": f"Bearer {_token('user')}"},
+        )
+        assert resp.status_code == 403
