@@ -1,4 +1,4 @@
-# ABOUTME: Authentication protocol, user model, JWT utilities, and FastAPI dependencies.
+# ABOUTME: Authentication types, provider protocol, and JWT encode/decode utilities.
 # ABOUTME: Provides the pluggable auth provider interface and token validation.
 
 from dataclasses import dataclass

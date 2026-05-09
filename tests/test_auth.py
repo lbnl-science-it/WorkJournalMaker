@@ -137,22 +137,25 @@ class TestJWTUtilities:
         assert "exp" in decoded
 
     def test_decode_expired_token_raises(self):
+        import jwt as pyjwt
         from web.auth import User, encode_access_token, decode_access_token
         user = User(id="u1", username="alice", role="user")
         token = encode_access_token(user, self.SECRET, ttl_seconds=-1)
-        with pytest.raises(Exception):
+        with pytest.raises(pyjwt.ExpiredSignatureError):
             decode_access_token(token, self.SECRET)
 
     def test_decode_invalid_token_raises(self):
+        import jwt as pyjwt
         from web.auth import decode_access_token
-        with pytest.raises(Exception):
+        with pytest.raises(pyjwt.DecodeError):
             decode_access_token("not.a.valid.token", self.SECRET)
 
     def test_decode_wrong_secret_raises(self):
+        import jwt as pyjwt
         from web.auth import User, encode_access_token, decode_access_token
         user = User(id="u1", username="alice", role="user")
         token = encode_access_token(user, self.SECRET, ttl_seconds=300)
-        with pytest.raises(Exception):
+        with pytest.raises(pyjwt.InvalidSignatureError):
             decode_access_token(token, "wrong-secret")
 
 
