@@ -38,7 +38,7 @@
 
 ---
 
-## Task 1: Add Dependencies
+## Task 1: Add Dependencies ✅ DONE
 
 **Files:**
 - Modify: `requirements.txt`
@@ -66,7 +66,7 @@ git commit -m "feat(auth): add PyJWT and bcrypt dependencies for #87"
 
 ---
 
-## Task 2: Add AuthConfig to Configuration
+## Task 2: Add AuthConfig to Configuration ✅ DONE
 
 **Files:**
 - Modify: `config_manager.py:117-124` (AppConfig dataclass)
@@ -201,7 +201,7 @@ git commit -m "feat(auth): add AuthConfig dataclass with env var override for #8
 
 ---
 
-## Task 3: Add Database Models (UserAccount, RefreshToken)
+## Task 3: Add Database Models (UserAccount, RefreshToken) ✅ DONE
 
 **Files:**
 - Modify: `web/database.py:27-108` (add models after existing ones)
@@ -350,7 +350,7 @@ git commit -m "feat(auth): add UserAccount and RefreshToken database models for 
 
 ---
 
-## Task 4: Implement JWT Utilities and Core Auth Types
+## Task 4: Implement JWT Utilities and Core Auth Types ✅ DONE
 
 **Files:**
 - Create: `web/auth.py`
@@ -500,7 +500,7 @@ git commit -m "feat(auth): add User/TokenPair types, JWT encode/decode, AuthProv
 
 ---
 
-## Task 5: Implement FastAPI Auth Dependencies
+## Task 5: Implement FastAPI Auth Dependencies ✅ DONE
 
 **Files:**
 - Modify: `web/auth.py`
