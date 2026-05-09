@@ -21,10 +21,11 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from config_manager import ConfigManager, AppConfig
+from config_manager import ConfigManager, AppConfig, AuthConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, db_manager
-from web.api import health, entries, sync, calendar, summarization, settings
+from web.api import health, entries, sync, calendar, summarization, settings, auth as auth_api
+from web.providers.local import LocalAuthProvider
 from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
@@ -156,7 +157,12 @@ async def lifespan(app: FastAPI):
     app.state.sync_service = web_app.sync_service
     app.state.summarization_service = web_app.summarization_service
     app.state.scheduler = web_app.scheduler
-    
+    app.state.auth_config = web_app.config.auth
+    if web_app.config.auth.enabled:
+        app.state.auth_provider = LocalAuthProvider(web_app.db_manager, web_app.config.auth)
+    else:
+        app.state.auth_provider = None
+
     yield
     
     # Shutdown
@@ -199,6 +205,7 @@ app.include_router(sync.router)
 app.include_router(calendar.router)
 app.include_router(summarization.router)
 app.include_router(settings.router)
+app.include_router(auth_api.router)
 
 # Static files and templates
 static_dir = Path(__file__).parent / "static"
