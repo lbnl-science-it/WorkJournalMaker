@@ -267,6 +267,7 @@ class ConfigManager:
             'WJS_MAX_FILE_SIZE_MB': ['processing', 'max_file_size_mb'],
             'WJS_LOG_LEVEL': ['logging', 'level'],
             'WJS_LOG_DIR': ['logging', 'log_dir'],
+            'WJS_AUTH_SECRET_KEY': ['auth', 'secret_key'],
         }
         
         for env_var, config_path in env_mappings.items():
@@ -287,12 +288,6 @@ class ConfigManager:
                     current[final_key] = value.upper()
                 else:
                     current[final_key] = value
-
-        auth_secret = os.getenv('WJM_AUTH_SECRET_KEY')
-        if auth_secret:
-            if 'auth' not in config_dict:
-                config_dict['auth'] = {}
-            config_dict['auth']['secret_key'] = auth_secret
 
         return config_dict
     
@@ -562,6 +557,13 @@ class ConfigManager:
                 'include_module_names': True,
                 'max_file_size_mb': 10,
                 'backup_count': 5
+            },
+            'auth': {
+                'enabled': False,
+                'provider': 'local',
+                'secret_key': '',
+                'access_token_ttl': 1800,
+                'refresh_token_ttl': 604800,
             }
         }
         

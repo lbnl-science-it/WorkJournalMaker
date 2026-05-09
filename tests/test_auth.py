@@ -31,7 +31,7 @@ class TestAuthConfigLoading:
     def test_secret_key_from_env_var(self, tmp_path):
         config_file = tmp_path / "config.yaml"
         config_file.write_text("auth:\n  enabled: true\n")
-        with patch.dict(os.environ, {"WJM_AUTH_SECRET_KEY": "test-secret-key-12345"}):
+        with patch.dict(os.environ, {"WJS_AUTH_SECRET_KEY": "test-secret-key-12345"}):
             manager = ConfigManager(config_path=config_file)
             assert manager.config.auth.secret_key == "test-secret-key-12345"
             assert manager.config.auth.enabled is True
