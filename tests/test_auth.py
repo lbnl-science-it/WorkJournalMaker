@@ -204,6 +204,18 @@ class TestGetCurrentUser:
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
+    async def test_expired_token_raises_401(self):
+        from fastapi import HTTPException
+        from web.auth import User, encode_access_token, get_current_user
+        user = User(id="u1", username="alice", role="user")
+        token = encode_access_token(user, self.SECRET, ttl_seconds=-1)
+        request = self._make_request(token)
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(request)
+        assert exc_info.value.status_code == 401
+        assert "expired" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
     async def test_auth_disabled_returns_default_admin(self):
         from web.auth import get_current_user
         request = self._make_request(enabled=False)
