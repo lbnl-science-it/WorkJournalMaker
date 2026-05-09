@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional, Dict, Any
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger
+from web.auth import get_current_user, require_admin, User
 from web.database import DatabaseManager
 from web.services.sync_service import DatabaseSyncService, SyncType
 from web.services.scheduler import SyncScheduler
@@ -31,7 +32,10 @@ def get_scheduler(request: Request) -> SyncScheduler:
 
 
 @router.get("/status")
-async def get_sync_status(sync_service: DatabaseSyncService = Depends(get_sync_service)):
+async def get_sync_status(
+    sync_service: DatabaseSyncService = Depends(get_sync_service),
+    user: User = Depends(get_current_user)
+):
     """
     Get current synchronization status and recent sync history.
     
@@ -52,7 +56,10 @@ async def get_sync_status(sync_service: DatabaseSyncService = Depends(get_sync_s
 
 
 @router.get("/scheduler/status")
-async def get_scheduler_status(scheduler: SyncScheduler = Depends(get_scheduler)):
+async def get_scheduler_status(
+    scheduler: SyncScheduler = Depends(get_scheduler),
+    user: User = Depends(get_current_user)
+):
     """
     Get scheduler status and configuration.
     
@@ -72,7 +79,8 @@ async def get_scheduler_status(scheduler: SyncScheduler = Depends(get_scheduler)
 async def trigger_full_sync(
     background_tasks: BackgroundTasks,
     date_range_days: Optional[int] = None,
-    sync_service: DatabaseSyncService = Depends(get_sync_service)
+    sync_service: DatabaseSyncService = Depends(get_sync_service),
+    user: User = Depends(require_admin)
 ):
     """
     Trigger a full synchronization between file system and database.
@@ -108,7 +116,8 @@ async def trigger_full_sync(
 async def trigger_incremental_sync(
     request: Request,
     background_tasks: BackgroundTasks,
-    sync_service: DatabaseSyncService = Depends(get_sync_service)
+    sync_service: DatabaseSyncService = Depends(get_sync_service),
+    user: User = Depends(require_admin)
 ):
     """
     Trigger an incremental synchronization for recent changes.
@@ -147,7 +156,8 @@ async def trigger_incremental_sync(
 async def sync_single_entry(
     entry_date: date,
     background_tasks: BackgroundTasks,
-    sync_service: DatabaseSyncService = Depends(get_sync_service)
+    sync_service: DatabaseSyncService = Depends(get_sync_service),
+    user: User = Depends(require_admin)
 ):
     """
     Synchronize a specific entry by date.
@@ -173,7 +183,10 @@ async def sync_single_entry(
 
 
 @router.post("/scheduler/start")
-async def start_scheduler(scheduler: SyncScheduler = Depends(get_scheduler)):
+async def start_scheduler(
+    scheduler: SyncScheduler = Depends(get_scheduler),
+    user: User = Depends(require_admin)
+):
     """
     Start the sync scheduler.
     
@@ -194,7 +207,10 @@ async def start_scheduler(scheduler: SyncScheduler = Depends(get_scheduler)):
 
 
 @router.post("/scheduler/stop")
-async def stop_scheduler(scheduler: SyncScheduler = Depends(get_scheduler)):
+async def stop_scheduler(
+    scheduler: SyncScheduler = Depends(get_scheduler),
+    user: User = Depends(require_admin)
+):
     """
     Stop the sync scheduler.
     
@@ -215,7 +231,10 @@ async def stop_scheduler(scheduler: SyncScheduler = Depends(get_scheduler)):
 
 
 @router.post("/scheduler/trigger/incremental")
-async def trigger_scheduler_incremental(scheduler: SyncScheduler = Depends(get_scheduler)):
+async def trigger_scheduler_incremental(
+    scheduler: SyncScheduler = Depends(get_scheduler),
+    user: User = Depends(require_admin)
+):
     """
     Manually trigger an incremental sync via scheduler.
     
@@ -237,7 +256,10 @@ async def trigger_scheduler_incremental(scheduler: SyncScheduler = Depends(get_s
 
 
 @router.post("/scheduler/trigger/full")
-async def trigger_scheduler_full(scheduler: SyncScheduler = Depends(get_scheduler)):
+async def trigger_scheduler_full(
+    scheduler: SyncScheduler = Depends(get_scheduler),
+    user: User = Depends(require_admin)
+):
     """
     Manually trigger a full sync via scheduler.
     
@@ -262,7 +284,8 @@ async def trigger_scheduler_full(scheduler: SyncScheduler = Depends(get_schedule
 async def update_scheduler_config(
     incremental_seconds: Optional[int] = None,
     full_hours: Optional[int] = None,
-    scheduler: SyncScheduler = Depends(get_scheduler)
+    scheduler: SyncScheduler = Depends(get_scheduler),
+    user: User = Depends(require_admin)
 ):
     """
     Update scheduler configuration.
@@ -295,7 +318,8 @@ async def update_scheduler_config(
 async def get_sync_history(
     limit: int = 10,
     sync_type: Optional[str] = None,
-    sync_service: DatabaseSyncService = Depends(get_sync_service)
+    sync_service: DatabaseSyncService = Depends(get_sync_service),
+    user: User = Depends(get_current_user)
 ):
     """
     Get synchronization history.

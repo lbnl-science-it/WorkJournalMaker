@@ -15,6 +15,7 @@ from pathlib import Path
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory
+from web.auth import get_current_user, User
 from web.services.entry_manager import EntryManager
 from web.models.journal import (
     JournalEntryCreate, JournalEntryUpDate, JournalEntryResponse,
@@ -38,7 +39,8 @@ async def list_entries(
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     sort_by: str = Query("date", description="Sort field"),
     sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    entry_manager: EntryManager = Depends(get_entry_manager),
+    user: User = Depends(get_current_user)
 ):
     """
     List journal entries with filtering and pagination.
@@ -71,7 +73,8 @@ async def list_entries(
 @router.get("/recent", response_model=RecentEntriesResponse)
 async def get_recent_entries(
     limit: int = Query(10, ge=1, le=50, description="Number of recent entries to return"),
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    entry_manager: EntryManager = Depends(get_entry_manager),
+    user: User = Depends(get_current_user)
 ):
     """
     Get recent journal entries.
@@ -90,7 +93,8 @@ async def get_recent_entries(
 async def get_entry(
     entry_date: date,
     include_content: bool = Query(False, description="Include entry content"),
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    entry_manager: EntryManager = Depends(get_entry_manager),
+    user: User = Depends(get_current_user)
 ):
     """
     Get a specific journal entry by date.
@@ -115,7 +119,8 @@ async def get_entry(
 async def create_or_update_entry(
     entry_date: date,
     entry_data: JournalEntryCreate,
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    entry_manager: EntryManager = Depends(get_entry_manager),
+    user: User = Depends(get_current_user)
 ):
     """
     Create or update a journal entry.
@@ -156,7 +161,8 @@ async def create_or_update_entry(
 async def update_entry(
     entry_date: date,
     entry_data: JournalEntryUpDate,
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    entry_manager: EntryManager = Depends(get_entry_manager),
+    user: User = Depends(get_current_user)
 ):
     """
     Update an existing journal entry.
@@ -192,7 +198,8 @@ async def update_entry(
 @router.delete("/{entry_date}")
 async def delete_entry(
     entry_date: date,
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    entry_manager: EntryManager = Depends(get_entry_manager),
+    user: User = Depends(get_current_user)
 ):
     """
     Delete a journal entry.
@@ -223,7 +230,8 @@ async def delete_entry(
 @router.get("/{entry_date}/content")
 async def get_entry_content(
     entry_date: date,
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    entry_manager: EntryManager = Depends(get_entry_manager),
+    user: User = Depends(get_current_user)
 ):
     """
     Get the raw content of a journal entry.
@@ -248,7 +256,8 @@ async def get_entry_content(
 async def update_entry_content(
     entry_date: date,
     content: str,
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    entry_manager: EntryManager = Depends(get_entry_manager),
+    user: User = Depends(get_current_user)
 ):
     """
     Update just the content of a journal entry.
@@ -270,7 +279,8 @@ async def update_entry_content(
 @router.get("/stats/database", response_model=DatabaseStats)
 async def get_database_stats(
     request: Request,
-    entry_manager: EntryManager = Depends(get_entry_manager)
+    entry_manager: EntryManager = Depends(get_entry_manager),
+    user: User = Depends(get_current_user)
 ):
     """
     Get database statistics.

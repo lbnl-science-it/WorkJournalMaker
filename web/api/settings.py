@@ -13,6 +13,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from web.auth import get_current_user, require_admin, User
 from web.services.settings_service import SettingsService
 from web.models.settings import (
     WebSettingResponse, WebSettingCreate, WebSettingUpdate,
@@ -32,7 +33,8 @@ def get_settings_service(request: Request) -> SettingsService:
 
 @router.get("/", response_model=Dict[str, WebSettingResponse])
 async def get_all_settings(
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(get_current_user)
 ):
     """Get all web settings with their current values."""
     try:
@@ -47,7 +49,8 @@ async def get_all_settings(
 
 @router.get("/categories", response_model=SettingsCategoryResponse)
 async def get_settings_categories(
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(get_current_user)
 ):
     """Get settings organized by category."""
     try:
@@ -62,7 +65,8 @@ async def get_settings_categories(
 
 @router.get("/health")
 async def settings_health_check(
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(get_current_user)
 ):
     """Health check for settings service."""
     try:
@@ -127,7 +131,8 @@ async def _build_work_week_config_response(settings: Dict[str, Any]) -> WorkWeek
 
 @router.get("/work-week", response_model=WorkWeekConfigResponse)
 async def get_work_week_configuration(
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(get_current_user)
 ):
     """Get current work week configuration."""
     try:
@@ -143,7 +148,8 @@ async def get_work_week_configuration(
 @router.post("/work-week", response_model=WorkWeekUpdateResponse)
 async def update_work_week_configuration(
     config_request: WorkWeekConfigRequest,
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(require_admin)
 ):
     """Update work week configuration."""
     try:
@@ -180,7 +186,8 @@ async def update_work_week_configuration(
 
 @router.get("/work-week/presets", response_model=WorkWeekPresetsResponse)
 async def get_work_week_presets(
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(get_current_user)
 ):
     """Get available work week presets."""
     try:
@@ -214,7 +221,8 @@ async def get_work_week_presets(
 @router.post("/work-week/validate", response_model=WorkWeekValidationResponse)
 async def validate_work_week_configuration(
     validation_request: WorkWeekValidationRequest,
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(get_current_user)
 ):
     """Validate work week configuration without saving."""
     try:
@@ -273,7 +281,8 @@ async def validate_work_week_configuration(
 @router.get("/{key}", response_model=WebSettingResponse)
 async def get_setting(
     key: str,
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(get_current_user)
 ):
     """Get a specific setting by key."""
     try:
@@ -297,7 +306,8 @@ async def get_setting(
 async def update_setting(
     key: str,
     setting_update: WebSettingUpdate,
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(require_admin)
 ):
     """Update a specific setting."""
     try:
@@ -323,7 +333,8 @@ async def update_setting(
 @router.post("/bulk-update", response_model=SettingsBulkUpdateResponse)
 async def bulk_update_settings(
     bulk_request: SettingsBulkUpdateRequest,
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(require_admin)
 ):
     """Update multiple settings at once with enhanced error handling and logging."""
     operation_start = datetime.now()
@@ -484,7 +495,8 @@ async def bulk_update_settings(
 @router.post("/{key}/reset", response_model=WebSettingResponse)
 async def reset_setting(
     key: str,
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(require_admin)
 ):
     """Reset a setting to its default value."""
     try:
@@ -509,7 +521,8 @@ async def reset_setting(
 
 @router.post("/reset-all", response_model=Dict[str, WebSettingResponse])
 async def reset_all_settings(
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(require_admin)
 ):
     """Reset all settings to their default values."""
     try:
@@ -524,7 +537,8 @@ async def reset_all_settings(
 
 @router.get("/export/current", response_model=SettingsExport)
 async def export_settings(
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(get_current_user)
 ):
     """Export all current settings for backup or transfer."""
     try:
@@ -540,7 +554,8 @@ async def export_settings(
 @router.post("/import", response_model=Dict[str, WebSettingResponse])
 async def import_settings(
     import_data: SettingsImport,
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(require_admin)
 ):
     """Import settings from exported data."""
     try:
@@ -562,7 +577,8 @@ async def import_settings(
 async def validate_filesystem_path(
     path: str,
     create_if_missing: bool = False,
-    settings_service: SettingsService = Depends(get_settings_service)
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(get_current_user)
 ):
     """Validate a filesystem path and optionally create it."""
     try:

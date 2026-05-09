@@ -14,6 +14,7 @@ from datetime import datetime
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger
+from web.auth import require_admin, User
 from web.database import DatabaseManager
 from web.models.responses import HealthResponse
 
@@ -59,7 +60,7 @@ async def health_check(request: Request):
 
 
 @router.get("/config")
-async def config_status(request: Request):
+async def config_status(request: Request, user: User = Depends(require_admin)):
     """Detailed configuration status endpoint."""
     config: AppConfig = request.app.state.config
     
@@ -85,7 +86,7 @@ async def config_status(request: Request):
 
 
 @router.get("/metrics")
-async def system_metrics(request: Request):
+async def system_metrics(request: Request, user: User = Depends(require_admin)):
     """System metrics endpoint."""
     db_manager: DatabaseManager = request.app.state.db_manager
     

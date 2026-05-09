@@ -53,9 +53,9 @@ def decode_access_token(token: str, secret: str) -> dict:
 
 async def get_current_user(request: Request) -> User:
     """FastAPI dependency: extract and validate the Bearer token, return User."""
-    auth_config = request.app.state.auth_config
+    auth_config = getattr(request.app.state, "auth_config", None)
 
-    if not auth_config.enabled:
+    if auth_config is None or not auth_config.enabled:
         return User(id="default", username="default", role="admin")
 
     auth_header = request.headers.get("authorization", "")
