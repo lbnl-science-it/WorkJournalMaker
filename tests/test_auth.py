@@ -125,7 +125,7 @@ class TestAuthTypes:
 class TestJWTUtilities:
     """Tests for JWT token encoding and decoding."""
 
-    SECRET = "test-secret-key-for-jwt-testing"
+    SECRET = "test-secret-key-for-jwt-testing!!"
 
     def test_encode_decode_roundtrip(self):
         from web.auth import User, encode_access_token, decode_access_token
