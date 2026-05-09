@@ -32,7 +32,10 @@ async def create_admin(db: DatabaseManager, username: str, password: str) -> str
             role="admin",
             is_active=True,
         ))
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError:
+            raise ValueError(f"Username '{username}' already exists")
 
     return user_id
 

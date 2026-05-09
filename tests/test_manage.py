@@ -45,7 +45,7 @@ class TestCreateAdmin:
     def test_create_duplicate_username_raises(self, db):
         async def _test():
             await create_admin(db, "dup", "pass1")
-            with pytest.raises(Exception):
+            with pytest.raises(ValueError):
                 await create_admin(db, "dup", "pass2")
 
         loop = asyncio.new_event_loop()
