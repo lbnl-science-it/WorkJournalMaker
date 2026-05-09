@@ -199,3 +199,32 @@ class TestSummarizationAuth:
             headers={"Authorization": f"Bearer {_token('user')}"},
         )
         assert resp.status_code == 403
+
+
+class TestWebSocketAuth:
+    """WebSocket connections require a valid token in the query string."""
+
+    def test_ws_no_token_rejected(self, protected_client):
+        with pytest.raises(Exception):
+            with protected_client.websocket_connect("/ws") as ws:
+                pass
+
+    def test_ws_invalid_token_rejected(self, protected_client):
+        with pytest.raises(Exception):
+            with protected_client.websocket_connect("/ws?token=garbage") as ws:
+                pass
+
+    def test_ws_valid_token_accepted(self, protected_client):
+        token = _token("user")
+        with protected_client.websocket_connect(f"/ws?token={token}") as ws:
+            data = ws.receive_json()
+            assert data["type"] == "connection_status"
+            assert data["status"] == "connected"
+
+    def test_ws_auth_disabled_no_token_accepted(self, isolated_app_client):
+        from web.app import app
+        from config_manager import AuthConfig
+        app.state.auth_config = AuthConfig(enabled=False)
+        with isolated_app_client.websocket_connect("/ws") as ws:
+            data = ws.receive_json()
+            assert data["status"] == "connected"

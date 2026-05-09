@@ -26,6 +26,7 @@ from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, db_manager
 from web.api import health, entries, sync, calendar, summarization, settings, auth as auth_api
 from web.providers.local import LocalAuthProvider
+from web.auth import decode_access_token
 from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
@@ -274,6 +275,19 @@ async def test_page(request: Request):
 @app.websocket("/ws")
 async def general_websocket_endpoint(websocket: WebSocket):
     """General WebSocket endpoint for system-wide updates."""
+    auth_config = getattr(websocket.app.state, "auth_config", None)
+
+    if auth_config and auth_config.enabled:
+        token = websocket.query_params.get("token")
+        if not token:
+            await websocket.close(code=4001, reason="Missing token")
+            return
+        try:
+            decode_access_token(token, auth_config.secret_key)
+        except Exception:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+
     await websocket.accept()
     try:
         # Send initial connection status
@@ -283,13 +297,13 @@ async def general_websocket_endpoint(websocket: WebSocket):
             "message": "WebSocket connection established",
             "service": "general"
         }))
-        
+
         while True:
             # Keep connection alive and handle any incoming messages
             data = await websocket.receive_text()
             # Echo back for connection testing
             await websocket.send_text(json.dumps({
-                "type": "connection_status", 
+                "type": "connection_status",
                 "status": "connected",
                 "message": "WebSocket connection established"
             }))
