@@ -131,8 +131,6 @@ Index('idx_journal_entries_week_ending', JournalEntryIndex.week_ending_date)
 Index('idx_sync_status_type_started', SyncStatus.sync_type, SyncStatus.started_at)
 Index('idx_work_week_settings_user', WorkWeekSettings.user_id)
 Index('idx_work_week_settings_preset', WorkWeekSettings.work_week_preset)
-Index('idx_users_username', UserAccount.username)
-Index('idx_refresh_tokens_user', RefreshToken.user_id)
 Index('idx_refresh_tokens_hash', RefreshToken.token_hash)
 
 
