@@ -100,12 +100,40 @@ class SyncStatus(Base):
     sync_metadata = Column(Text)  # JSON metadata
 
 
+class UserAccount(Base):
+    """User account for authentication (local provider)."""
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="user")
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=now_utc)
+    modified_at = Column(DateTime, default=now_utc, onupdate=now_utc)
+
+
+class RefreshToken(Base):
+    """Revocable refresh token (stores hash, not raw token)."""
+    __tablename__ = "refresh_tokens"
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, index=True)
+    token_hash = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    revoked = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=now_utc)
+
+
 # Add database indexes for performance
 Index('idx_journal_entries_date_content', JournalEntryIndex.date, JournalEntryIndex.has_content)
 Index('idx_journal_entries_week_ending', JournalEntryIndex.week_ending_date)
 Index('idx_sync_status_type_started', SyncStatus.sync_type, SyncStatus.started_at)
 Index('idx_work_week_settings_user', WorkWeekSettings.user_id)
 Index('idx_work_week_settings_preset', WorkWeekSettings.work_week_preset)
+Index('idx_users_username', UserAccount.username)
+Index('idx_refresh_tokens_user', RefreshToken.user_id)
+Index('idx_refresh_tokens_hash', RefreshToken.token_hash)
 
 
 class DatabaseManager:
