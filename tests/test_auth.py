@@ -104,6 +104,58 @@ class TestAuthDatabaseModels:
         loop.close()
 
 
+class TestAuthTypes:
+    """Tests for User and TokenPair dataclasses."""
+
+    def test_user_creation(self):
+        from web.auth import User
+        user = User(id="u1", username="alice", role="user")
+        assert user.id == "u1"
+        assert user.username == "alice"
+        assert user.role == "user"
+
+    def test_token_pair_creation(self):
+        from web.auth import TokenPair
+        pair = TokenPair(access_token="acc", refresh_token="ref")
+        assert pair.access_token == "acc"
+        assert pair.refresh_token == "ref"
+
+
+class TestJWTUtilities:
+    """Tests for JWT token encoding and decoding."""
+
+    SECRET = "test-secret-key-for-jwt-testing"
+
+    def test_encode_decode_roundtrip(self):
+        from web.auth import User, encode_access_token, decode_access_token
+        user = User(id="u1", username="alice", role="user")
+        token = encode_access_token(user, self.SECRET, ttl_seconds=300)
+        decoded = decode_access_token(token, self.SECRET)
+        assert decoded["user_id"] == "u1"
+        assert decoded["username"] == "alice"
+        assert decoded["role"] == "user"
+        assert "exp" in decoded
+
+    def test_decode_expired_token_raises(self):
+        from web.auth import User, encode_access_token, decode_access_token
+        user = User(id="u1", username="alice", role="user")
+        token = encode_access_token(user, self.SECRET, ttl_seconds=-1)
+        with pytest.raises(Exception):
+            decode_access_token(token, self.SECRET)
+
+    def test_decode_invalid_token_raises(self):
+        from web.auth import decode_access_token
+        with pytest.raises(Exception):
+            decode_access_token("not.a.valid.token", self.SECRET)
+
+    def test_decode_wrong_secret_raises(self):
+        from web.auth import User, encode_access_token, decode_access_token
+        user = User(id="u1", username="alice", role="user")
+        token = encode_access_token(user, self.SECRET, ttl_seconds=300)
+        with pytest.raises(Exception):
+            decode_access_token(token, "wrong-secret")
+
+
 class TestAuthConfigLoading:
     """Tests for loading auth config from files and environment."""
 
