@@ -18,6 +18,11 @@ class AuthenticationError(Exception):
     pass
 
 
+# Computed once at import time; used to keep response time consistent when a
+# username does not exist (prevents timing-based user enumeration).
+_DUMMY_HASH = bcrypt.hashpw(b"dummy", bcrypt.gensalt()).decode()
+
+
 class LocalAuthProvider:
     """Authenticates users against local database with bcrypt-hashed passwords."""
 
@@ -36,6 +41,7 @@ class LocalAuthProvider:
             account = result.scalar_one_or_none()
 
         if account is None:
+            bcrypt.checkpw(password.encode(), _DUMMY_HASH.encode())
             raise AuthenticationError("Invalid username or password")
 
         if not account.is_active:
@@ -74,20 +80,21 @@ class LocalAuthProvider:
             if stored.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
                 raise AuthenticationError("Refresh token has expired")
 
-            # Revoke the old token (rotation)
+            # Fetch the user in the same session before revoking the token.
+            user_stmt = select(UserAccount).where(UserAccount.id == stored.user_id)
+            user_result = await session.execute(user_stmt)
+            account = user_result.scalar_one_or_none()
+
+            if account is None or not account.is_active:
+                raise AuthenticationError("User account not found or disabled")
+
+            # Capture values before closing the session.
+            user = User(id=account.id, username=account.username, role=account.role)
+
+            # Revoke the old token (rotation).
             stored.revoked = True
             await session.commit()
 
-        # Look up user to build new tokens
-        async with self.db.get_session() as session:
-            stmt = select(UserAccount).where(UserAccount.id == stored.user_id)
-            result = await session.execute(stmt)
-            account = result.scalar_one_or_none()
-
-        if account is None or not account.is_active:
-            raise AuthenticationError("User account not found or disabled")
-
-        user = User(id=account.id, username=account.username, role=account.role)
         return await self._issue_token_pair(user)
 
     async def revoke_token(self, raw_refresh_token: str) -> None:

@@ -5,9 +5,10 @@ import asyncio
 import uuid
 import pytest
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import select
 
-from web.database import DatabaseManager, UserAccount
-from web.providers.local import LocalAuthProvider
+from web.database import DatabaseManager, UserAccount, RefreshToken
+from web.providers.local import LocalAuthProvider, AuthenticationError
 from web.auth import User, TokenPair, decode_access_token
 from config_manager import AuthConfig
 
@@ -82,7 +83,7 @@ class TestLocalAuthProvider:
 
     def test_authenticate_wrong_password(self, provider, seeded_user):
         async def _test():
-            with pytest.raises(Exception):
+            with pytest.raises(AuthenticationError):
                 await provider.authenticate({
                     "username": "testuser",
                     "password": "wrong-password",
@@ -94,7 +95,7 @@ class TestLocalAuthProvider:
 
     def test_authenticate_unknown_user(self, provider):
         async def _test():
-            with pytest.raises(Exception):
+            with pytest.raises(AuthenticationError):
                 await provider.authenticate({
                     "username": "nonexistent",
                     "password": "anything",
@@ -119,7 +120,7 @@ class TestLocalAuthProvider:
                 ))
                 await session.commit()
 
-            with pytest.raises(Exception):
+            with pytest.raises(AuthenticationError):
                 await provider.authenticate({
                     "username": "inactive",
                     "password": "pass",
@@ -166,7 +167,30 @@ class TestLocalAuthProvider:
                 "password": "correct-password",
             })
             await provider.revoke_token(pair.refresh_token)
-            with pytest.raises(Exception):
+            with pytest.raises(AuthenticationError):
+                await provider.refresh_token(pair.refresh_token)
+
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(_test())
+        loop.close()
+
+    def test_refresh_expired_token(self, provider, db, seeded_user):
+        async def _test():
+            pair = await provider.authenticate({
+                "username": "testuser",
+                "password": "correct-password",
+            })
+
+            # Back-date the stored refresh token so it appears expired.
+            token_hash = provider._hash_refresh_token(pair.refresh_token)
+            async with db.get_session() as session:
+                stmt = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+                result = await session.execute(stmt)
+                stored = result.scalar_one()
+                stored.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+                await session.commit()
+
+            with pytest.raises(AuthenticationError):
                 await provider.refresh_token(pair.refresh_token)
 
         loop = asyncio.new_event_loop()
