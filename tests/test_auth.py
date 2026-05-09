@@ -159,6 +159,79 @@ class TestJWTUtilities:
             decode_access_token(token, "wrong-secret")
 
 
+class TestGetCurrentUser:
+    """Tests for the get_current_user FastAPI dependency."""
+
+    SECRET = "test-secret-key-for-dependency-testing-32b"
+
+    def _make_request(self, token=None, enabled=True):
+        from unittest.mock import MagicMock
+        request = MagicMock()
+        request.app.state.auth_config = AuthConfig(enabled=enabled, secret_key=self.SECRET)
+        request.app.state.auth_provider = None
+        if token:
+            request.headers = {"authorization": f"Bearer {token}"}
+        else:
+            request.headers = {}
+        return request
+
+    @pytest.mark.asyncio
+    async def test_valid_token_returns_user(self):
+        from web.auth import User, encode_access_token, get_current_user
+        user = User(id="u1", username="alice", role="user")
+        token = encode_access_token(user, self.SECRET, ttl_seconds=300)
+        request = self._make_request(token)
+        result = await get_current_user(request)
+        assert result.id == "u1"
+        assert result.username == "alice"
+
+    @pytest.mark.asyncio
+    async def test_missing_header_raises_401(self):
+        from fastapi import HTTPException
+        from web.auth import get_current_user
+        request = self._make_request(token=None)
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(request)
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_invalid_token_raises_401(self):
+        from fastapi import HTTPException
+        from web.auth import get_current_user
+        request = self._make_request(token="garbage.token.here")
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(request)
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_auth_disabled_returns_default_admin(self):
+        from web.auth import get_current_user
+        request = self._make_request(enabled=False)
+        result = await get_current_user(request)
+        assert result.id == "default"
+        assert result.role == "admin"
+
+
+class TestRequireAdmin:
+    """Tests for the require_admin FastAPI dependency."""
+
+    @pytest.mark.asyncio
+    async def test_admin_user_passes(self):
+        from web.auth import User, require_admin
+        user = User(id="u1", username="admin", role="admin")
+        result = await require_admin(user)
+        assert result.role == "admin"
+
+    @pytest.mark.asyncio
+    async def test_non_admin_raises_403(self):
+        from fastapi import HTTPException
+        from web.auth import User, require_admin
+        user = User(id="u2", username="viewer", role="user")
+        with pytest.raises(HTTPException) as exc_info:
+            await require_admin(user)
+        assert exc_info.value.status_code == 403
+
+
 class TestAuthConfigLoading:
     """Tests for loading auth config from files and environment."""
 

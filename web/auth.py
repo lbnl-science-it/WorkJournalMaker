@@ -1,11 +1,12 @@
-# ABOUTME: Authentication types, provider protocol, and JWT encode/decode utilities.
-# ABOUTME: Provides the pluggable auth provider interface and token validation.
+# ABOUTME: Authentication types, provider protocol, JWT utilities, and FastAPI dependencies.
+# ABOUTME: Provides the pluggable auth provider interface, token validation, and route guards.
 
 from dataclasses import dataclass
 from typing import Protocol
 from datetime import datetime, timedelta, timezone
 
 import jwt
+from fastapi import Request, Depends, HTTPException, status
 
 
 @dataclass
@@ -48,3 +49,54 @@ def encode_access_token(user: User, secret: str, ttl_seconds: int = 1800) -> str
 def decode_access_token(token: str, secret: str) -> dict:
     """Decode and validate a JWT access token. Raises on expiry or bad signature."""
     return jwt.decode(token, secret, algorithms=["HS256"])
+
+
+_DEFAULT_USER = User(id="default", username="default", role="admin")
+
+
+async def get_current_user(request: Request) -> User:
+    """FastAPI dependency: extract and validate the Bearer token, return User."""
+    auth_config = request.app.state.auth_config
+
+    if not auth_config.enabled:
+        return _DEFAULT_USER
+
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = auth_header[len("Bearer "):]
+    try:
+        payload = decode_access_token(token, auth_config.secret_key)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return User(
+        id=payload["user_id"],
+        username=payload["username"],
+        role=payload["role"],
+    )
+
+
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """FastAPI dependency: require the current user to be an admin."""
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user
