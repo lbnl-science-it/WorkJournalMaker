@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "private-journal-mcp": "github:obra/private-journal-mcp"
+  },
+  "overrides": {
+    "protobufjs": "^7.5.5"
   }
 }
