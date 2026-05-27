@@ -67,9 +67,19 @@ def isolated_app_client(tmp_path):
         orig_app_db = app.state.db_manager
         app.state.db_manager = temp_db
 
+        # Disable auth so existing tests work without tokens.
+        from config_manager import AuthConfig
+        orig_auth_config = getattr(app.state, 'auth_config', None)
+        orig_auth_provider = getattr(app.state, 'auth_provider', None)
+        app.state.auth_config = AuthConfig(enabled=False)
+        app.state.auth_provider = None
+
         yield client
 
         # Restore originals so the module-level singletons aren't permanently mutated
+        app.state.auth_config = orig_auth_config
+        app.state.auth_provider = orig_auth_provider
+
         em.file_discovery = orig_file_discovery
         em._current_base_path = orig_base_path
         em._settings_cache = orig_settings_cache

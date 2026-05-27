@@ -17,6 +17,7 @@ import asyncio
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory
+from web.auth import get_current_user, require_admin, User
 from web.services.web_summarizer import WebSummarizationService, SummaryType, SummaryTaskStatus
 from web.models.journal import SummaryRequest, SummaryTaskResponse, ProgressResponse
 
@@ -133,7 +134,8 @@ def get_summarization_service(request: Request) -> WebSummarizationService:
 async def create_summarization_task(
     request: SummaryRequest,
     background_tasks: BackgroundTasks,
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(require_admin)
 ):
     """Create a new summarization task."""
     try:
@@ -177,7 +179,8 @@ async def create_summarization_task(
 
 @router.get("/tasks", response_model=List[SummaryTaskResponse])
 async def get_all_tasks(
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(get_current_user)
 ):
     """Get all summarization tasks."""
     try:
@@ -209,7 +212,8 @@ async def get_all_tasks(
 @router.get("/tasks/{task_id}", response_model=SummaryTaskResponse)
 async def get_task_status(
     task_id: str,
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(get_current_user)
 ):
     """Get the status of a specific summarization task."""
     try:
@@ -242,7 +246,8 @@ async def get_task_status(
 @router.get("/tasks/{task_id}/progress", response_model=ProgressResponse)
 async def get_task_progress(
     task_id: str,
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(get_current_user)
 ):
     """Get the progress of a specific summarization task."""
     try:
@@ -280,7 +285,8 @@ async def get_task_progress(
 @router.post("/tasks/{task_id}/cancel")
 async def cancel_task(
     task_id: str,
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(require_admin)
 ):
     """Cancel a running summarization task."""
     try:
@@ -299,7 +305,8 @@ async def cancel_task(
 @router.get("/tasks/{task_id}/result")
 async def get_task_result(
     task_id: str,
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(get_current_user)
 ):
     """Get the result of a completed summarization task."""
     try:
@@ -331,7 +338,8 @@ async def get_task_result(
 @router.get("/tasks/{task_id}/download")
 async def download_task_result(
     task_id: str,
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(get_current_user)
 ):
     """Download the result file of a completed summarization task."""
     try:
@@ -363,7 +371,8 @@ async def download_task_result(
 @router.delete("/tasks/{task_id}")
 async def delete_task(
     task_id: str,
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(require_admin)
 ):
     """Delete a summarization task."""
     try:
@@ -393,7 +402,8 @@ async def delete_task(
 @router.post("/cleanup")
 async def cleanup_completed_tasks(
     older_than_hours: int = 24,
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(require_admin)
 ):
     """Clean up completed tasks older than specified hours."""
     try:
@@ -416,7 +426,8 @@ async def cleanup_completed_tasks(
 
 @router.get("/stats")
 async def get_summarization_stats(
-    summarization_service: WebSummarizationService = Depends(get_summarization_service)
+    summarization_service: WebSummarizationService = Depends(get_summarization_service),
+    user: User = Depends(get_current_user)
 ):
     """Get summarization service statistics."""
     try:

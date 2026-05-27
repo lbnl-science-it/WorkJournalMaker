@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional, List
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory
+from web.auth import get_current_user, User
 from web.services.calendar_service import CalendarService
 from web.models.journal import CalendarMonth, CalendarEntry, TodayResponse
 
@@ -26,7 +27,8 @@ def get_calendar_service(request: Request) -> CalendarService:
 
 @router.get("/today", response_model=TodayResponse)
 async def get_today_info(
-    calendar_service: CalendarService = Depends(get_calendar_service)
+    calendar_service: CalendarService = Depends(get_calendar_service),
+    user: User = Depends(get_current_user)
 ):
     """Get information about today's date and entry status."""
     try:
@@ -54,7 +56,8 @@ async def get_today_info(
 
 @router.get("/current")
 async def get_current_month(
-    calendar_service: CalendarService = Depends(get_calendar_service)
+    calendar_service: CalendarService = Depends(get_calendar_service),
+    user: User = Depends(get_current_user)
 ):
     """Get current month calendar data."""
     try:
@@ -72,7 +75,8 @@ async def get_current_month(
 @router.get("/week/{entry_date}")
 async def get_week_info(
     entry_date: date,
-    calendar_service: CalendarService = Depends(get_calendar_service)
+    calendar_service: CalendarService = Depends(get_calendar_service),
+    user: User = Depends(get_current_user)
 ):
     """Get week information for a specific date."""
     try:
@@ -103,7 +107,8 @@ async def get_week_info(
 async def get_calendar_stats(
     year: Optional[int] = Query(None, description="Year for stats (default: current year)"),
     month: Optional[int] = Query(None, description="Month for stats (default: all months)"),
-    calendar_service: CalendarService = Depends(get_calendar_service)
+    calendar_service: CalendarService = Depends(get_calendar_service),
+    user: User = Depends(get_current_user)
 ):
     """Get calendar statistics for a specific year or month."""
     try:
@@ -182,7 +187,8 @@ async def get_calendar_stats(
 @router.get("/months/{year}")
 async def get_year_overview(
     year: int,
-    calendar_service: CalendarService = Depends(get_calendar_service)
+    calendar_service: CalendarService = Depends(get_calendar_service),
+    user: User = Depends(get_current_user)
 ):
     """Get overview of all months in a year with entry counts."""
     try:
@@ -234,7 +240,8 @@ async def get_year_overview(
 @router.get("/date/{entry_date}/exists")
 async def check_entry_exists(
     entry_date: date,
-    calendar_service: CalendarService = Depends(get_calendar_service)
+    calendar_service: CalendarService = Depends(get_calendar_service),
+    user: User = Depends(get_current_user)
 ):
     """Check if an entry exists for a specific date."""
     try:
@@ -258,7 +265,8 @@ async def check_entry_exists(
 async def get_entries_in_range(
     start_date: date,
     end_date: date,
-    calendar_service: CalendarService = Depends(get_calendar_service)
+    calendar_service: CalendarService = Depends(get_calendar_service),
+    user: User = Depends(get_current_user)
 ):
     """Get all entries within a date range."""
     try:
@@ -292,7 +300,8 @@ async def get_entries_in_range(
 async def get_calendar_month(
     year: int,
     month: int,
-    calendar_service: CalendarService = Depends(get_calendar_service)
+    calendar_service: CalendarService = Depends(get_calendar_service),
+    user: User = Depends(get_current_user)
 ):
     """Get calendar data for a specific month and year."""
     try:
@@ -326,7 +335,8 @@ async def get_calendar_month(
 async def get_calendar_navigation(
     year: int,
     month: int,
-    calendar_service: CalendarService = Depends(get_calendar_service)
+    calendar_service: CalendarService = Depends(get_calendar_service),
+    user: User = Depends(get_current_user)
 ):
     """Get navigation information for calendar month view."""
     try:

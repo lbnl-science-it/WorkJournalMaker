@@ -114,6 +114,16 @@ class ProcessingConfig:
 
 
 @dataclass
+class AuthConfig:
+    """Configuration for authentication and authorization."""
+    enabled: bool = False
+    provider: str = "local"
+    secret_key: str = ""
+    access_token_ttl: int = 1800
+    refresh_token_ttl: int = 604800
+
+
+@dataclass
 class AppConfig:
     """Complete application configuration."""
     bedrock: BedrockConfig = field(default_factory=BedrockConfig)
@@ -122,6 +132,7 @@ class AppConfig:
     llm: LLMConfig = field(default_factory=LLMConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     logging: LogConfig = field(default_factory=LogConfig)
+    auth: AuthConfig = field(default_factory=AuthConfig)
 
 
 class ConfigManager:
@@ -256,6 +267,7 @@ class ConfigManager:
             'WJS_MAX_FILE_SIZE_MB': ['processing', 'max_file_size_mb'],
             'WJS_LOG_LEVEL': ['logging', 'level'],
             'WJS_LOG_DIR': ['logging', 'log_dir'],
+            'WJS_AUTH_SECRET_KEY': ['auth', 'secret_key'],
         }
         
         for env_var, config_path in env_mappings.items():
@@ -267,7 +279,7 @@ class ConfigManager:
                     if key not in current:
                         current[key] = {}
                     current = current[key]
-                
+
                 # Convert value to appropriate type
                 final_key = config_path[-1]
                 if final_key == 'max_file_size_mb':
@@ -276,7 +288,7 @@ class ConfigManager:
                     current[final_key] = value.upper()
                 else:
                     current[final_key] = value
-        
+
         return config_dict
     
     def _dict_to_config(self, config_dict: Dict[str, Any]) -> AppConfig:
@@ -358,13 +370,24 @@ class ConfigManager:
             backup_count=logging_dict.get('backup_count', LogConfig.backup_count)
         )
         
+        # Extract auth configuration
+        auth_dict = config_dict.get('auth', {})
+        auth_config = AuthConfig(
+            enabled=auth_dict.get('enabled', AuthConfig.enabled),
+            provider=auth_dict.get('provider', AuthConfig.provider),
+            secret_key=auth_dict.get('secret_key', AuthConfig.secret_key),
+            access_token_ttl=auth_dict.get('access_token_ttl', AuthConfig.access_token_ttl),
+            refresh_token_ttl=auth_dict.get('refresh_token_ttl', AuthConfig.refresh_token_ttl),
+        )
+
         return AppConfig(
             bedrock=bedrock_config,
             google_genai=google_genai_config,
             cborg=cborg_config,
             llm=llm_config,
             processing=processing_config,
-            logging=logging_config
+            logging=logging_config,
+            auth=auth_config,
         )
     
     def _validate_config(self, config: AppConfig) -> None:
@@ -534,6 +557,13 @@ class ConfigManager:
                 'include_module_names': True,
                 'max_file_size_mb': 10,
                 'backup_count': 5
+            },
+            'auth': {
+                'enabled': False,
+                'provider': 'local',
+                'secret_key': '',
+                'access_token_ttl': 1800,
+                'refresh_token_ttl': 604800,
             }
         }
         
