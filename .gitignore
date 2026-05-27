@@ -138,8 +138,9 @@ web/journal_index.db
 failure_images/
 build/
 
-# Node.js
+# Node.js (MCP tooling only, not part of the Python application)
 node_modules/
+package.json
 package-lock.json
 
 # Debug and test artifacts
