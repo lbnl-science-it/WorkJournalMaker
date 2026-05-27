@@ -178,8 +178,8 @@ class SettingsManager {
       <div class="setting-item" data-key="${setting.key}">
         <div class="setting-header">
           <div class="setting-info">
-            <h3 class="setting-label">${this.formatSettingLabel(setting.key)}</h3>
-            <p class="setting-description">${setting.description || ''}</p>
+            <h3 class="setting-label">${Utils.escapeHtml(this.formatSettingLabel(setting.key))}</h3>
+            <p class="setting-description">${Utils.escapeHtml(setting.description || '')}</p>
           </div>
           <div class="setting-actions">
             ${!isReadonly ? `
@@ -864,8 +864,8 @@ class SettingsManager {
                     </div>
                     ${this.workWeekValidationErrors.map(error => 
                         `<div class="validation-error">
-                            <span class="error-message">${error.message}</span>
-                            ${error.suggestion ? `<span class="error-suggestion">${error.suggestion}</span>` : ''}
+                            <span class="error-message">${Utils.escapeHtml(error.message)}</span>
+                            ${error.suggestion ? `<span class="error-suggestion">${Utils.escapeHtml(error.suggestion)}</span>` : ''}
                         </div>`
                     ).join('')}
                 </div>
@@ -1731,12 +1731,12 @@ class SyncManager {
                 <div class="sync-history-item">
                     <div class="history-status ${statusClass}"></div>
                     <div class="history-info">
-                        <div class="history-type">${this.formatSyncType(record.sync_type)}</div>
+                        <div class="history-type">${Utils.escapeHtml(this.formatSyncType(record.sync_type))}</div>
                         <div class="history-details">
-                            ${record.entries_processed || 0} processed, 
-                            ${record.entries_added || 0} added, 
-                            ${record.entries_updated || 0} updated
-                            ${record.error_message ? ` - ${record.error_message}` : ''}
+                            ${Utils.escapeHtml(record.entries_processed || 0)} processed,
+                            ${Utils.escapeHtml(record.entries_added || 0)} added,
+                            ${Utils.escapeHtml(record.entries_updated || 0)} updated
+                            ${record.error_message ? ` - ${Utils.escapeHtml(record.error_message)}` : ''}
                         </div>
                     </div>
                     <div class="history-timestamp">

@@ -120,15 +120,15 @@ class Dashboard {
         }
 
         container.innerHTML = this.recentEntries.map(entry => `
-      <div class="entry-item" data-date="${entry.date}" onclick="Dashboard.openEntry('${entry.date}')">
+      <div class="entry-item" data-date="${Utils.escapeHtml(entry.date)}" onclick="Dashboard.openEntry('${Utils.escapeHtml(entry.date)}')">
         <div class="entry-info">
-          <div class="entry-date">${Utils.formatDate(Utils.parseDate(entry.date), 'short')}</div>
-          <div class="entry-preview">${this.getEntryPreview(entry)}</div>
+          <div class="entry-date">${Utils.escapeHtml(Utils.formatDate(Utils.parseDate(entry.date), 'short'))}</div>
+          <div class="entry-preview">${Utils.escapeHtml(this.getEntryPreview(entry))}</div>
         </div>
         <div class="entry-meta">
-          <span>${entry.metadata?.word_count || 0} words</span>
+          <span>${Utils.escapeHtml(entry.metadata?.word_count || 0)} words</span>
           <span>•</span>
-          <span>${Utils.formatDate(new Date(entry.modified_at || entry.created_at), 'short')}</span>
+          <span>${Utils.escapeHtml(Utils.formatDate(new Date(entry.modified_at || entry.created_at), 'short'))}</span>
         </div>
       </div>
     `).join('');
