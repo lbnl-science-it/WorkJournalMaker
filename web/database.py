@@ -9,7 +9,7 @@ while maintaining the file system as the primary data store.
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text, Float, Index, update
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text, Float, Index, update, text
 from datetime import datetime
 from .utils.timezone_utils import now_utc, now_local
 import aiosqlite
@@ -261,13 +261,35 @@ class DatabaseManager:
         # Create tables
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            
+
+        # Apply schema migrations for columns added after initial release
+        await self._apply_schema_migrations()
+
         # Initialize default settings
         await self._initialize_default_settings()
-        
+
         # Initialize default work week settings
         await self._initialize_default_work_week_settings()
     
+    async def _apply_schema_migrations(self):
+        """Add columns that were introduced after the initial schema release."""
+        log = logging.getLogger(__name__)
+        async with self.engine.begin() as conn:
+            result = await conn.execute(text("PRAGMA table_info(journal_entries)"))
+            columns = [row[1] for row in result.fetchall()]
+
+            if "user_id" not in columns:
+                log.info("Migrating journal_entries: adding user_id column")
+                await conn.execute(text(
+                    "ALTER TABLE journal_entries "
+                    "ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'"
+                ))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_journal_entries_user_id "
+                    "ON journal_entries(user_id)"
+                ))
+                log.info("Migration complete: user_id column added")
+
     async def _initialize_default_settings(self):
         """Initialize default web settings."""
         default_settings = [
