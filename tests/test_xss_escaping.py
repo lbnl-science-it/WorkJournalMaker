@@ -95,6 +95,22 @@ class TestSettingsEscaping:
         assert "Utils.escapeHtml(error.message" in settings_js, \
             "updateWorkWeekValidationDisplay must escape error.message with Utils.escapeHtml"
 
+    def test_settings_sync_status_uses_escape(self):
+        """renderSyncStatus must escape dbStats and syncStatus values."""
+        settings_js = pathlib.Path("web/static/js/settings.js").read_text()
+        assert "Utils.escapeHtml(String(dbStats.total_entries" in settings_js, \
+            "renderSyncStatus must escape dbStats.total_entries with Utils.escapeHtml"
+        assert "Utils.escapeHtml(new Date(syncStatus.last_sync).toLocaleString())" in settings_js, \
+            "renderSyncStatus must escape last_sync date with Utils.escapeHtml"
+        assert "Utils.escapeHtml(this.formatFileSize(" in settings_js, \
+            "renderSyncStatus must escape formatFileSize output with Utils.escapeHtml"
+
+    def test_settings_data_key_attributes_use_escape(self):
+        """renderSettingItem must escape setting.key in data-key attributes."""
+        settings_js = pathlib.Path("web/static/js/settings.js").read_text()
+        assert 'data-key="${Utils.escapeHtml(setting.key)}"' in settings_js, \
+            "renderSettingItem must escape setting.key in data-key attributes"
+
 
 class TestSummarizationEscaping:
     """Verify summarization.js escapes dynamic summary data in innerHTML."""
@@ -130,12 +146,13 @@ class TestXSSIntegration:
         assert '<script>' in data['content'], \
             "API should return raw content; escaping is the frontend's responsibility"
 
-    def test_dashboard_page_does_not_contain_raw_script_tag(self, isolated_app_client):
-        """Dashboard HTML response must not contain unescaped script from entry content."""
+    def test_dashboard_page_does_not_render_entry_content_server_side(self, isolated_app_client):
+        """Dashboard loads entries via JS, so the template must never inline entry content."""
         isolated_app_client.post(
             "/api/entries/2025-01-15",
-            json={"date": "2025-01-15", "content": '<script>alert("xss")</script>'}
+            json={"date": "2025-01-15", "content": '<img src=x onerror=alert(1)>'}
         )
         response = isolated_app_client.get("/")
         assert response.status_code == 200
-        assert '<script>alert("xss")</script>' not in response.text
+        assert 'onerror=alert(1)' not in response.text, \
+            "Dashboard template must not inline entry content server-side"
