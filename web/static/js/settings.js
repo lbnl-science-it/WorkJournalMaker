@@ -175,7 +175,7 @@ class SettingsManager {
         const inputHtml = this.renderSettingInput(setting, isReadonly);
 
         return `
-      <div class="setting-item" data-key="${setting.key}">
+      <div class="setting-item" data-key="${Utils.escapeHtml(setting.key)}">
         <div class="setting-header">
           <div class="setting-info">
             <h3 class="setting-label">${Utils.escapeHtml(this.formatSettingLabel(setting.key))}</h3>
@@ -183,7 +183,7 @@ class SettingsManager {
           </div>
           <div class="setting-actions">
             ${!isReadonly ? `
-              <button class="btn-icon reset-setting-btn" title="Reset to default" data-key="${setting.key}">
+              <button class="btn-icon reset-setting-btn" title="Reset to default" data-key="${Utils.escapeHtml(setting.key)}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                   <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2"/>
                   <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2"/>
@@ -192,17 +192,17 @@ class SettingsManager {
             ` : ''}
           </div>
         </div>
-        
+
         <div class="setting-control">
           ${inputHtml}
         </div>
-        
+
         <div class="setting-status">
-          <div class="status-indicator ${isReadonly ? 'readonly' : ''}" data-key="${setting.key}"></div>
+          <div class="status-indicator ${isReadonly ? 'readonly' : ''}" data-key="${Utils.escapeHtml(setting.key)}"></div>
           <span class="status-text">${isReadonly ? 'Read-only' : 'Default'}</span>
         </div>
-        
-        ${setting.key.includes('_path') ? '<div class="path-validation" data-key="' + setting.key + '"></div>' : ''}
+
+        ${setting.key.includes('_path') ? '<div class="path-validation" data-key="' + Utils.escapeHtml(setting.key) + '"></div>' : ''}
       </div>
     `;
     }
@@ -1681,24 +1681,24 @@ class SyncManager {
                     ${syncStatus.sync_in_progress ? 'In Progress' : 'Idle'}
                 </span>
             </div>
-            
+
             <div class="sync-status-item">
                 <span class="status-label">Total Entries</span>
-                <span class="status-value">${dbStats.total_entries || 0}</span>
+                <span class="status-value">${Utils.escapeHtml(String(dbStats.total_entries || 0))}</span>
             </div>
-            
+
             <div class="sync-status-item">
                 <span class="status-label">Last Sync</span>
                 <span class="status-value">
-                    ${syncStatus.last_sync ? new Date(syncStatus.last_sync).toLocaleString() : 'Never'}
+                    ${syncStatus.last_sync ? Utils.escapeHtml(new Date(syncStatus.last_sync).toLocaleString()) : 'Never'}
                 </span>
             </div>
-            
+
             <div class="sync-status-item">
                 <span class="status-label">Database Size</span>
-                <span class="status-value">${this.formatFileSize(dbStats.database_size_bytes || 0)}</span>
+                <span class="status-value">${Utils.escapeHtml(this.formatFileSize(dbStats.database_size_bytes || 0))}</span>
             </div>
-            
+
             ${syncStatus.sync_in_progress ? `
                 <div class="sync-progress">
                     <div class="sync-progress-spinner"></div>
