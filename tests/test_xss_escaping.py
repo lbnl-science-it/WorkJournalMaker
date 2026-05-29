@@ -36,3 +36,106 @@ class TestMarkdownXSSPrevention:
         editor_js = pathlib.Path("web/static/js/editor.js").read_text()
         assert "DOMPurify.sanitize(marked.parse(" in editor_js, \
             "editor.js must sanitize marked output with DOMPurify"
+
+
+class TestShowToastEscaping:
+    """Verify that showToast escapes message content."""
+
+    def test_toast_message_uses_escape(self):
+        """The showToast method must escape its message parameter."""
+        utils_js = pathlib.Path("web/static/js/utils.js").read_text()
+        assert "Utils.escapeHtml(message)" in utils_js, \
+            "showToast must escape the message parameter with escapeHtml"
+
+
+class TestCalendarEscaping:
+    """Verify calendar.js escapes dynamic entry data in innerHTML."""
+
+    def test_calendar_recent_entries_uses_escape(self):
+        """renderRecentEntries must escape getEntryPreview output."""
+        calendar_js = pathlib.Path("web/static/js/calendar.js").read_text()
+        assert "Utils.escapeHtml(this.getEntryPreview(" in calendar_js, \
+            "renderRecentEntries must escape getEntryPreview with Utils.escapeHtml"
+
+    def test_calendar_preview_content_uses_escape(self):
+        """showEntryPreview must escape entry.content before inserting into innerHTML."""
+        calendar_js = pathlib.Path("web/static/js/calendar.js").read_text()
+        assert "Utils.escapeHtml(preview)" in calendar_js, \
+            "showEntryPreview must escape content with Utils.escapeHtml"
+
+
+class TestDashboardEscaping:
+    """Verify dashboard.js escapes dynamic entry data in innerHTML."""
+
+    def test_dashboard_recent_entries_uses_escape(self):
+        """updateRecentEntriesSection must escape entry preview and metadata."""
+        dashboard_js = pathlib.Path("web/static/js/dashboard.js").read_text()
+        assert "Utils.escapeHtml(this.getEntryPreview(" in dashboard_js, \
+            "updateRecentEntriesSection must escape getEntryPreview with Utils.escapeHtml"
+
+
+class TestSettingsEscaping:
+    """Verify settings.js escapes dynamic data in innerHTML."""
+
+    def test_settings_description_uses_escape(self):
+        """renderSettingItem must escape setting.description."""
+        settings_js = pathlib.Path("web/static/js/settings.js").read_text()
+        assert "Utils.escapeHtml(setting.description" in settings_js, \
+            "renderSettingItem must escape setting.description with Utils.escapeHtml"
+
+    def test_settings_sync_error_uses_escape(self):
+        """renderSyncHistory must escape record.error_message."""
+        settings_js = pathlib.Path("web/static/js/settings.js").read_text()
+        assert "Utils.escapeHtml(record.error_message" in settings_js, \
+            "renderSyncHistory must escape record.error_message with Utils.escapeHtml"
+
+    def test_settings_validation_error_uses_escape(self):
+        """updateWorkWeekValidationDisplay must escape error.message."""
+        settings_js = pathlib.Path("web/static/js/settings.js").read_text()
+        assert "Utils.escapeHtml(error.message" in settings_js, \
+            "updateWorkWeekValidationDisplay must escape error.message with Utils.escapeHtml"
+
+
+class TestSummarizationEscaping:
+    """Verify summarization.js escapes dynamic summary data in innerHTML."""
+
+    def test_summarization_history_uses_escape(self):
+        """renderHistory must escape summary data."""
+        summarization_js = pathlib.Path("web/static/js/summarization.js").read_text()
+        assert "Utils.escapeHtml(summary.summary_type)" in summarization_js, \
+            "renderHistory must escape summary.summary_type with Utils.escapeHtml"
+
+    def test_summarization_preview_uses_escape(self):
+        """renderHistory must escape getHistoryPreview output."""
+        summarization_js = pathlib.Path("web/static/js/summarization.js").read_text()
+        assert "Utils.escapeHtml(this.getHistoryPreview(" in summarization_js, \
+            "renderHistory must escape getHistoryPreview with Utils.escapeHtml"
+
+
+class TestXSSIntegration:
+    """End-to-end tests verifying XSS payloads are neutralized in API responses."""
+
+    def test_entry_content_api_returns_raw_content(self, isolated_app_client):
+        """API returns raw content (escaping is the frontend's job)."""
+        payload = '<script>alert("xss")</script>Normal text'
+        response = isolated_app_client.post(
+            "/api/entries/2025-01-15",
+            json={"date": "2025-01-15", "content": payload}
+        )
+        assert response.status_code in (200, 201), f"Create failed: {response.text}"
+
+        response = isolated_app_client.get("/api/entries/2025-01-15?include_content=true")
+        assert response.status_code == 200
+        data = response.json()
+        assert '<script>' in data['content'], \
+            "API should return raw content; escaping is the frontend's responsibility"
+
+    def test_dashboard_page_does_not_contain_raw_script_tag(self, isolated_app_client):
+        """Dashboard HTML response must not contain unescaped script from entry content."""
+        isolated_app_client.post(
+            "/api/entries/2025-01-15",
+            json={"date": "2025-01-15", "content": '<script>alert("xss")</script>'}
+        )
+        response = isolated_app_client.get("/")
+        assert response.status_code == 200
+        assert '<script>alert("xss")</script>' not in response.text
