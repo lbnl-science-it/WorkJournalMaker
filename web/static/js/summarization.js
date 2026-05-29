@@ -507,21 +507,21 @@ class SummarizationInterface {
         container.innerHTML = this.summaryHistory.map(summary => `
       <div class="history-item">
         <div class="history-header">
-          <h3 class="history-title">${summary.summary_type} Summary</h3>
-          <span class="history-status ${summary.status}">${summary.status}</span>
+          <h3 class="history-title">${Utils.escapeHtml(summary.summary_type)} Summary</h3>
+          <span class="history-status ${Utils.escapeHtml(summary.status)}">${Utils.escapeHtml(summary.status)}</span>
         </div>
         <div class="history-meta">
-          ${summary.start_date} to ${summary.end_date} • ${new Date(summary.created_at).toLocaleDateString()}
+          ${Utils.escapeHtml(summary.start_date)} to ${Utils.escapeHtml(summary.end_date)} • ${Utils.escapeHtml(new Date(summary.created_at).toLocaleDateString())}
         </div>
         <div class="history-preview">
-          ${this.getHistoryPreview(summary)}
+          ${Utils.escapeHtml(this.getHistoryPreview(summary))}
         </div>
         <div class="history-actions">
-          <button class="btn btn-secondary btn-sm" onclick="summarizationInterface.viewHistoryItem('${summary.task_id}')">
+          <button class="btn btn-secondary btn-sm" onclick="summarizationInterface.viewHistoryItem('${Utils.escapeHtml(summary.task_id)}')">
             View
           </button>
           ${summary.status === 'completed' ? `
-            <button class="btn btn-secondary btn-sm" onclick="summarizationInterface.downloadHistoryItem('${summary.task_id}')">
+            <button class="btn btn-secondary btn-sm" onclick="summarizationInterface.downloadHistoryItem('${Utils.escapeHtml(summary.task_id)}')">
               Download
             </button>
           ` : ''}
