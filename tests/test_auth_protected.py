@@ -17,7 +17,7 @@ SECRET = "protected-endpoint-test-secret!!"
 @pytest.fixture
 def protected_client(tmp_path):
     """TestClient with auth ENABLED."""
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"}) as client:
         orig_auth_config = getattr(app.state, 'auth_config', None)
         orig_auth_provider = getattr(app.state, 'auth_provider', None)
 

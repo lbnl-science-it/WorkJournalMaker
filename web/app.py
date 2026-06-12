@@ -27,7 +27,7 @@ from web.database import DatabaseManager, db_manager
 from web.api import health, entries, sync, calendar, summarization, settings, auth as auth_api
 from web.providers.local import LocalAuthProvider
 from web.auth import decode_access_token
-from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware
+from web.middleware import LoggingMiddleware, ErrorHandlingMiddleware, CSRFMiddleware
 from web.services.entry_manager import EntryManager
 from web.services.calendar_service import CalendarService
 from web.services.web_summarizer import WebSummarizationService
@@ -198,6 +198,7 @@ app.add_middleware(
 # Custom middleware
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ErrorHandlingMiddleware)
+app.add_middleware(CSRFMiddleware)
 
 # Include API routers
 app.include_router(health.router)
