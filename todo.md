@@ -21,7 +21,7 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 ### Critical
 - [x] [#87](https://github.com/lbnl-science-it/WorkJournalMaker/issues/87) — No authentication on any web API endpoint
 - [x] [#88](https://github.com/lbnl-science-it/WorkJournalMaker/issues/88) — Multiple XSS vectors via innerHTML
-- [ ] [#89](https://github.com/lbnl-science-it/WorkJournalMaker/issues/89) — No CSRF protection on state-changing API calls
+- [x] [#89](https://github.com/lbnl-science-it/WorkJournalMaker/issues/89) — No CSRF protection on state-changing API calls
 
 ### High
 - [ ] [#90](https://github.com/lbnl-science-it/WorkJournalMaker/issues/90) — Path traversal via validate-path endpoint
