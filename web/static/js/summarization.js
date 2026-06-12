@@ -56,6 +56,15 @@ class SummarizationInterface {
             this.loadSummaryHistory();
         });
 
+        // Delegate clicks on history action buttons
+        document.getElementById('history-container')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const taskId = btn.dataset.taskId;
+            if (btn.dataset.action === 'view') this.viewHistoryItem(taskId);
+            else if (btn.dataset.action === 'download') this.downloadHistoryItem(taskId);
+        });
+
         // Close modals on overlay click
         document.getElementById('progress-modal').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
@@ -517,11 +526,11 @@ class SummarizationInterface {
           ${Utils.escapeHtml(this.getHistoryPreview(summary))}
         </div>
         <div class="history-actions">
-          <button class="btn btn-secondary btn-sm" onclick="summarizationInterface.viewHistoryItem('${Utils.escapeHtml(summary.task_id)}')">
+          <button class="btn btn-secondary btn-sm" data-action="view" data-task-id="${Utils.escapeHtml(summary.task_id)}">
             View
           </button>
           ${summary.status === 'completed' ? `
-            <button class="btn btn-secondary btn-sm" onclick="summarizationInterface.downloadHistoryItem('${Utils.escapeHtml(summary.task_id)}')">
+            <button class="btn btn-secondary btn-sm" data-action="download" data-task-id="${Utils.escapeHtml(summary.task_id)}">
               Download
             </button>
           ` : ''}

@@ -68,7 +68,7 @@ class Utils {
         toast.innerHTML = `
       <div class="toast-icon">${icon}</div>
       <div class="toast-content">${Utils.escapeHtml(message)}</div>
-      <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Close notification">
+      <button class="toast-close" aria-label="Close notification">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
           <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2"/>
           <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/>
@@ -77,6 +77,8 @@ class Utils {
     `;
 
         container.appendChild(toast);
+
+        toast.querySelector('.toast-close')?.addEventListener('click', () => toast.remove());
 
         // Auto-remove after duration
         if (duration > 0) {

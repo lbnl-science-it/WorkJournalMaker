@@ -115,10 +115,9 @@ class CalendarView {
                 }
 
                 html += `
-                    <div class="${cssClasses.join(' ')}" 
+                    <div class="${cssClasses.join(' ')}"
                          data-date="${dateStr}"
-                         data-day="${dayNumber}"
-                         onclick="calendar.selectDate('${dateStr}')">
+                         data-day="${dayNumber}">
                         ${dayNumber}
                     </div>
                 `;
@@ -153,7 +152,7 @@ class CalendarView {
         }
 
         container.innerHTML = this.recentEntries.map(entry => `
-            <div class="recent-item" onclick="calendar.selectDate('${Utils.escapeHtml(entry.date)}')">
+            <div class="recent-item" data-date="${Utils.escapeHtml(entry.date)}">
                 <div class="recent-date">${Utils.escapeHtml(Utils.formatDate(Utils.parseDate(entry.date), 'short'))}</div>
                 <div class="recent-preview">${Utils.escapeHtml(this.getEntryPreview(entry))}</div>
             </div>
@@ -236,6 +235,18 @@ class CalendarView {
         // Close preview button
         document.getElementById('close-preview-btn').addEventListener('click', () => {
             this.closePreview();
+        });
+
+        // Delegate clicks on calendar day cells
+        document.getElementById('calendar-grid')?.addEventListener('click', (e) => {
+            const cell = e.target.closest('[data-date]');
+            if (cell) this.selectDate(cell.dataset.date);
+        });
+
+        // Delegate clicks on recent entry items
+        document.getElementById('recent-list')?.addEventListener('click', (e) => {
+            const item = e.target.closest('.recent-item[data-date]');
+            if (item) this.selectDate(item.dataset.date);
         });
 
         // Edit entry button
