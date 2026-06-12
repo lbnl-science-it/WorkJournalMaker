@@ -120,7 +120,7 @@ class Dashboard {
         }
 
         container.innerHTML = this.recentEntries.map(entry => `
-      <div class="entry-item" data-date="${Utils.escapeHtml(entry.date)}" onclick="Dashboard.openEntry('${Utils.escapeHtml(entry.date)}')">
+      <div class="entry-item" data-date="${Utils.escapeHtml(entry.date)}">
         <div class="entry-info">
           <div class="entry-date">${Utils.escapeHtml(Utils.formatDate(Utils.parseDate(entry.date), 'short'))}</div>
           <div class="entry-preview">${Utils.escapeHtml(this.getEntryPreview(entry))}</div>
@@ -218,6 +218,12 @@ class Dashboard {
         document.getElementById('search-action')?.addEventListener('click', () => {
             // Implement search functionality
             Utils.showToast('Search functionality coming soon!', 'info');
+        });
+
+        // Delegate clicks on recent entry items
+        document.getElementById('recent-entries')?.addEventListener('click', (e) => {
+            const item = e.target.closest('.entry-item[data-date]');
+            if (item) Dashboard.openEntry(item.dataset.date);
         });
     }
 

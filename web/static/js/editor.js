@@ -154,6 +154,11 @@ class JournalEditor {
                 this.showKeyboardShortcuts();
             }
         });
+
+        // Close shortcuts help panel
+        document.getElementById('close-shortcuts-btn')?.addEventListener('click', () => {
+            document.getElementById('shortcuts-help').style.display = 'none';
+        });
     }
 
     setupAutoSave() {

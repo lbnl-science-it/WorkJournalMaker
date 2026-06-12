@@ -26,8 +26,8 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 ### High
 - [x] [#90](https://github.com/lbnl-science-it/WorkJournalMaker/issues/90) — Path traversal via validate-path endpoint
 - [x] [#91](https://github.com/lbnl-science-it/WorkJournalMaker/issues/91) — No security response headers
-- [ ] [#92](https://github.com/lbnl-science-it/WorkJournalMaker/issues/92) — CDN script without Subresource Integrity
-- [ ] [#93](https://github.com/lbnl-science-it/WorkJournalMaker/issues/93) — Unescaped data in inline onclick attributes
+- [x] [#92](https://github.com/lbnl-science-it/WorkJournalMaker/issues/92) — CDN script without Subresource Integrity
+- [x] [#93](https://github.com/lbnl-science-it/WorkJournalMaker/issues/93) — Unescaped data in inline onclick attributes
 
 ### Medium
 - [ ] [#94](https://github.com/lbnl-science-it/WorkJournalMaker/issues/94) — Prompt injection via unsanitized journal content

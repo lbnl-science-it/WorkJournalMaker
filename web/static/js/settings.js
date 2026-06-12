@@ -1565,6 +1565,16 @@ class SyncManager {
         document.getElementById('full-sync-days')?.addEventListener('input', (e) => {
             this.validateDaysInput(e.target, 30, 3650);
         });
+
+        // Delegate clicks on scheduler control buttons
+        document.getElementById('sync-scheduler-content')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            if (action === 'start-scheduler') this.startScheduler();
+            else if (action === 'stop-scheduler') this.stopScheduler();
+            else if (action === 'trigger-sync') this.triggerSchedulerSync(btn.dataset.syncType);
+        });
     }
 
     validateDaysInput(input, min, max) {
@@ -1769,15 +1779,15 @@ class SyncManager {
                     </div>
                 </div>
                 <div class="scheduler-controls">
-                    <button class="btn btn-${isRunning ? 'secondary' : 'primary'} btn-small" 
-                            onclick="syncManager.${isRunning ? 'stopScheduler' : 'startScheduler'}()">
+                    <button class="btn btn-${isRunning ? 'secondary' : 'primary'} btn-small"
+                            data-action="${isRunning ? 'stop-scheduler' : 'start-scheduler'}">
                         ${isRunning ? 'Stop' : 'Start'} Scheduler
                     </button>
                     ${isRunning ? `
-                        <button class="btn btn-secondary btn-small" onclick="syncManager.triggerSchedulerSync('incremental')">
+                        <button class="btn btn-secondary btn-small" data-action="trigger-sync" data-sync-type="incremental">
                             Trigger Incremental
                         </button>
-                        <button class="btn btn-secondary btn-small" onclick="syncManager.triggerSchedulerSync('full')">
+                        <button class="btn btn-secondary btn-small" data-action="trigger-sync" data-sync-type="full">
                             Trigger Full
                         </button>
                     ` : ''}

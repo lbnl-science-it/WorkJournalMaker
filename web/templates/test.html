@@ -11,10 +11,10 @@
 
         <!-- Theme Toggle Test -->
         <div class="d-flex gap-4 mb-6">
-            <button class="btn btn-primary" onclick="testToast('success')">Test Success Toast</button>
-            <button class="btn btn-secondary" onclick="testToast('error')">Test Error Toast</button>
-            <button class="btn btn-ghost" onclick="testToast('warning')">Test Warning Toast</button>
-            <button class="btn btn-primary btn-sm" onclick="testToast('info')">Test Info Toast</button>
+            <button class="btn btn-primary" data-toast="success">Test Success Toast</button>
+            <button class="btn btn-secondary" data-toast="error">Test Error Toast</button>
+            <button class="btn btn-ghost" data-toast="warning">Test Warning Toast</button>
+            <button class="btn btn-primary btn-sm" data-toast="info">Test Info Toast</button>
         </div>
     </section>
 
@@ -89,7 +89,7 @@ function hello() {
 
                 <div class="d-flex gap-3">
                     <button class="btn btn-primary" disabled>Disabled Button</button>
-                    <button class="btn btn-primary loading" id="loading-btn" onclick="testLoading()">Test
+                    <button class="btn btn-primary loading" id="loading-btn">Test
                         Loading</button>
                 </div>
             </div>
@@ -285,39 +285,5 @@ function hello() {
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    function testToast(type) {
-        const messages = {
-            success: 'Operation completed successfully!',
-            error: 'Something went wrong. Please try again.',
-            warning: 'Please review your input before proceeding.',
-            info: 'Here is some helpful information.'
-        };
-
-        Utils.showToast(messages[type] || 'Test message', type);
-    }
-
-    function testLoading() {
-        const btn = document.getElementById('loading-btn');
-        Utils.setLoading(btn, true);
-
-        setTimeout(() => {
-            Utils.setLoading(btn, false);
-            Utils.showToast('Loading test completed!', 'success');
-        }, 3000);
-    }
-
-    // Test keyboard shortcuts
-    document.addEventListener('keydown', function (e) {
-        if (Utils.keyboard.isCombo(e, 'ctrl+k')) {
-            e.preventDefault();
-            Utils.showToast('Keyboard shortcut Ctrl+K detected!', 'info');
-        }
-    });
-
-    // Test theme change event
-    window.addEventListener('themechange', function (e) {
-        Utils.showToast(`Theme changed to ${e.detail.theme}`, 'info', 2000);
-    });
-</script>
+<script src="/static/js/test-page.js"></script>
 {% endblock %}
