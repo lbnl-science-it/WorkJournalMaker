@@ -1,4 +1,4 @@
-# ABOUTME: Request/response middleware for logging, error handling, and CORS.
+# ABOUTME: Request/response middleware for logging, error handling, and CSRF.
 # ABOUTME: Provides cross-cutting concerns for all API and page requests.
 """
 Custom Middleware for Work Journal Maker Web Interface
@@ -14,6 +14,37 @@ import time
 import traceback
 from typing import Callable
 from logger import JournalSummarizerLogger, ErrorCategory
+
+
+# Paths exempt from CSRF header requirement (pre-auth endpoints)
+CSRF_EXEMPT_PATHS = frozenset({
+    "/api/auth/login",
+    "/api/auth/refresh",
+})
+
+# HTTP methods that never modify state
+CSRF_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """Reject state-changing requests that lack the X-Requested-With header.
+
+    Cross-origin requests with custom headers trigger a CORS preflight, so
+    requiring this header prevents cross-site form submissions and simple
+    cross-origin fetches from mutating data.
+    """
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        if (
+            request.method not in CSRF_SAFE_METHODS
+            and request.url.path not in CSRF_EXEMPT_PATHS
+        ):
+            if not request.headers.get("x-requested-with"):
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF validation failed: missing X-Requested-With header"},
+                )
+        return await call_next(request)
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):

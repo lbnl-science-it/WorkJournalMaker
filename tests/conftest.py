@@ -31,7 +31,7 @@ def isolated_app_client(tmp_path):
     and restores them on teardown. It is not compatible with pytest-xdist parallel
     execution, which runs tests in separate workers sharing the same process state.
     """
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"}) as client:
         em = app.state.entry_manager
 
         # Save originals for restoration

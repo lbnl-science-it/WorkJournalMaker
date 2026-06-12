@@ -4,7 +4,8 @@ class ApiClient {
         this.baseUrl = '';
         this.defaultHeaders = {
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
         };
     }
 
