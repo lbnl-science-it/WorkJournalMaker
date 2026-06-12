@@ -573,6 +573,16 @@ async def import_settings(
             detail=f"Failed to import settings: {str(e)}"
         )
 
+def _is_path_within_allowed_roots(resolved_path: Path, allowed_roots: list) -> bool:
+    """Check whether resolved_path falls under at least one allowed root."""
+    resolved_str = str(resolved_path)
+    for root in allowed_roots:
+        root_str = str(root)
+        if resolved_str == root_str or resolved_str.startswith(root_str + "/"):
+            return True
+    return False
+
+
 @router.get("/filesystem/validate-path")
 async def validate_filesystem_path(
     path: str,
@@ -580,20 +590,32 @@ async def validate_filesystem_path(
     settings_service: SettingsService = Depends(get_settings_service),
     user: User = Depends(get_current_user)
 ):
-    """Validate a filesystem path and optionally create it."""
+    """Validate a filesystem path and optionally create it.
+
+    Restricted to paths under the user's home directory to prevent
+    arbitrary filesystem probing or directory creation.
+    """
     try:
         from pathlib import Path
-        
-        path_obj = Path(path)
-        
-        # Check if path is absolute or make it relative to current working directory
+
+        # Expand ~ and resolve to canonical absolute path
+        path_obj = Path(path).expanduser()
         if not path_obj.is_absolute():
-            path_obj = Path.cwd() / path_obj
-        
+            path_obj = Path.home() / path_obj
+        path_obj = path_obj.resolve()
+
+        # Restrict to allowed roots (user's home directory)
+        allowed_roots = [Path.home().resolve()]
+        if not _is_path_within_allowed_roots(path_obj, allowed_roots):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Path is outside the allowed directory"
+            )
+
         exists = path_obj.exists()
         is_directory = path_obj.is_dir() if exists else None
         is_writable = None
-        
+
         if exists:
             try:
                 # Test write permissions
@@ -601,7 +623,7 @@ async def validate_filesystem_path(
                 test_file.touch()
                 test_file.unlink()
                 is_writable = True
-            except:
+            except Exception:
                 is_writable = False
         elif create_if_missing:
             try:
@@ -611,27 +633,26 @@ async def validate_filesystem_path(
                 is_writable = True
                 settings_service.logger.logger.info(f"Created directory: {path_obj}")
             except Exception as e:
-                settings_service.logger.logger.error(f"Failed to create directory {path_obj}: {str(e)}")
+                settings_service.logger.logger.error(f"Failed to create directory: {str(e)}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Cannot create directory: {str(e)}"
+                    detail="Cannot create directory at the specified path"
                 )
-        
+
         return {
             "path": str(path_obj),
             "exists": exists,
             "is_directory": is_directory,
             "is_writable": is_writable,
-            "absolute_path": str(path_obj.absolute())
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        settings_service.logger.logger.error(f"Failed to validate path {path}: {str(e)}")
+        settings_service.logger.logger.error(f"Failed to validate path: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid path: {str(e)}"
+            detail="Invalid path"
         )
 
 
