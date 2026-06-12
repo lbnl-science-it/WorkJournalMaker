@@ -227,7 +227,7 @@ class JournalEditor {
         const previewContent = document.getElementById('preview-content');
 
         if (this.content.trim()) {
-            previewContent.innerHTML = marked.parse(this.content);
+            previewContent.innerHTML = DOMPurify.sanitize(marked.parse(this.content));
         } else {
             previewContent.innerHTML = '<p class="preview-placeholder">Start writing to see preview...</p>';
         }

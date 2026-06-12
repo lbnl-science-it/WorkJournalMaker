@@ -153,9 +153,9 @@ class CalendarView {
         }
 
         container.innerHTML = this.recentEntries.map(entry => `
-            <div class="recent-item" onclick="calendar.selectDate('${entry.date}')">
-                <div class="recent-date">${Utils.formatDate(Utils.parseDate(entry.date), 'short')}</div>
-                <div class="recent-preview">${this.getEntryPreview(entry)}</div>
+            <div class="recent-item" onclick="calendar.selectDate('${Utils.escapeHtml(entry.date)}')">
+                <div class="recent-date">${Utils.escapeHtml(Utils.formatDate(Utils.parseDate(entry.date), 'short'))}</div>
+                <div class="recent-preview">${Utils.escapeHtml(this.getEntryPreview(entry))}</div>
             </div>
         `).join('');
     }
@@ -353,9 +353,9 @@ class CalendarView {
 
                     content.innerHTML = `
                         <div class="entry-meta">
-                            <small>${entry.metadata.word_count} words • ${Utils.formatDate(Utils.parseDate(entry.modified_at || entry.created_at), 'short')}</small>
+                            <small>${Utils.escapeHtml(entry.metadata.word_count)} words • ${Utils.escapeHtml(Utils.formatDate(Utils.parseDate(entry.modified_at || entry.created_at), 'short'))}</small>
                         </div>
-                        <div class="entry-text">${preview.replace(/\n/g, '<br>')}</div>
+                        <div class="entry-text">${Utils.escapeHtml(preview).replace(/\n/g, '<br>')}</div>
                     `;
                 } else {
                     content.innerHTML = '<p><em>This entry is empty. Click "Edit Entry" to add content.</em></p>';
