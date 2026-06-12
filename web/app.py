@@ -218,7 +218,7 @@ templates = Jinja2Templates(directory=str(templates_dir))
 @app.get("/")
 async def dashboard(request: Request):
     """Dashboard - main entry point for the web interface."""
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    return templates.TemplateResponse(request, "dashboard.html")
 
 
 @app.get("/entry/{entry_date}")
@@ -231,8 +231,7 @@ async def entry_editor(request: Request, entry_date: str):
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
-    return templates.TemplateResponse("entry_editor.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "entry_editor.html", {
         "entry_date": entry_date
     })
 
@@ -240,19 +239,19 @@ async def entry_editor(request: Request, entry_date: str):
 @app.get("/calendar")
 async def calendar_view(request: Request):
     """Calendar view interface for browsing journal entries."""
-    return templates.TemplateResponse("calendar.html", {"request": request})
+    return templates.TemplateResponse(request, "calendar.html")
 
 
 @app.get("/summarize")
 async def summarization_page(request: Request):
     """Summarization interface for generating journal summaries."""
-    return templates.TemplateResponse("summarization.html", {"request": request})
+    return templates.TemplateResponse(request, "summarization.html")
 
 
 @app.get("/settings")
 async def settings_page(request: Request):
     """Settings management interface."""
-    return templates.TemplateResponse("settings.html", {"request": request})
+    return templates.TemplateResponse(request, "settings.html")
 
 
 @app.get("/api")
@@ -269,7 +268,7 @@ async def api_root():
 @app.get("/test")
 async def test_page(request: Request):
     """Test page for base templates and styling."""
-    return templates.TemplateResponse("test.html", {"request": request})
+    return templates.TemplateResponse(request, "test.html")
 
 
 @app.websocket("/ws")
