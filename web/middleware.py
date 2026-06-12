@@ -26,6 +26,36 @@ CSRF_EXEMPT_PATHS = frozenset({
 CSRF_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add standard security headers to every HTTP response.
+
+    Provides defense-in-depth against clickjacking, MIME sniffing, XSS,
+    and unwanted browser feature access.
+    """
+
+    SECURITY_HEADERS = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Content-Security-Policy": (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self'; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'"
+        ),
+    }
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+        for header, value in self.SECURITY_HEADERS.items():
+            response.headers[header] = value
+        return response
+
+
 class CSRFMiddleware(BaseHTTPMiddleware):
     """Reject state-changing requests that lack the X-Requested-With header.
 
