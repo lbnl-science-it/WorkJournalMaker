@@ -21,6 +21,7 @@ from file_discovery import FileDiscovery, FileDiscoveryResult
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory
 from web.database import DatabaseManager, JournalEntryIndex, SyncStatus
+from web.utils.error_utils import sanitize_error_message
 from sqlalchemy import select, update, delete, and_, or_, func
 from sqlalchemy.exc import IntegrityError
 
@@ -155,7 +156,7 @@ class DatabaseSyncService:
         except Exception as e:
             sync_result.errors.append(str(e))
             self.logger.log_error_with_category(ErrorCategory.DATABASE_ERROR, f"Full sync failed: {str(e)}")
-            await self._record_sync_failure(sync_id, str(e))
+            await self._record_sync_failure(sync_id, "Sync failed")
             
         finally:
             self._sync_in_progress = False
@@ -223,7 +224,7 @@ class DatabaseSyncService:
         except Exception as e:
             sync_result.errors.append(str(e))
             self.logger.log_error_with_category(ErrorCategory.DATABASE_ERROR, f"Incremental sync failed: {str(e)}")
-            await self._record_sync_failure(sync_id, str(e))
+            await self._record_sync_failure(sync_id, "Sync failed")
             
         finally:
             self._sync_in_progress = False
@@ -286,7 +287,7 @@ class DatabaseSyncService:
         except Exception as e:
             sync_result.errors.append(str(e))
             self.logger.log_error_with_category(ErrorCategory.DATABASE_ERROR, f"Single entry sync failed for {entry_date}: {str(e)}")
-            await self._record_sync_failure(sync_id, str(e))
+            await self._record_sync_failure(sync_id, "Sync failed")
             
         finally:
             self._sync_in_progress = False
@@ -533,7 +534,7 @@ class DatabaseSyncService:
                         "entries_added": sync.entries_added,
                         "entries_updated": sync.entries_updated,
                         "entries_removed": sync.entries_removed,
-                        "error_message": sync.error_message
+                        "error_message": sanitize_error_message(sync.error_message, generic="Sync failed")
                     }
                     for sync in recent_syncs
                 ]

@@ -7,8 +7,9 @@ This module provides REST API endpoints for managing and monitoring
 database synchronization operations.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from datetime import date, datetime, timedelta
 from typing import Optional, Dict, Any
 from config_manager import AppConfig
@@ -17,6 +18,12 @@ from web.auth import get_current_user, require_admin, User
 from web.database import DatabaseManager
 from web.services.sync_service import DatabaseSyncService, SyncType
 from web.services.scheduler import SyncScheduler
+from web.utils.error_utils import sanitize_error_message
+
+
+class IncrementalSyncRequest(BaseModel):
+    """Request body for incremental sync with validated bounds."""
+    since_days: int = Field(default=7, ge=1, le=365)
 
 router = APIRouter(prefix="/api/sync", tags=["synchronization"])
 
@@ -52,7 +59,7 @@ async def get_sync_status(
             "timestamp": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get sync status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get sync status")
 
 
 @router.get("/scheduler/status")
@@ -72,7 +79,7 @@ async def get_scheduler_status(
     try:
         return scheduler.get_scheduler_status()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get scheduler status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get scheduler status")
 
 
 @router.post("/full")
@@ -109,38 +116,36 @@ async def trigger_full_sync(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start full sync: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to start full sync")
 
 
 @router.post("/incremental")
 async def trigger_incremental_sync(
-    request: Request,
     background_tasks: BackgroundTasks,
+    body: IncrementalSyncRequest = Body(default_factory=IncrementalSyncRequest),
     sync_service: DatabaseSyncService = Depends(get_sync_service),
     user: User = Depends(require_admin)
 ):
     """
     Trigger an incremental synchronization for recent changes.
-    
+
     Args:
-        request: FastAPI request object
-        
+        body: Request body with since_days (1-365, default 7)
+
     Returns:
         Dict with sync operation details
     """
     try:
-        # Parse request body
-        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
-        since_days = body.get("since_days", 7)
-        
+        since_days = body.since_days
+
         # Log for debugging
         sync_service.logger.logger.info(f"API triggered incremental sync with since_days: {since_days}")
-        
+
         since_date = date.today() - timedelta(days=since_days)
-        
+
         # Start sync in background
         background_tasks.add_task(_run_incremental_sync, sync_service, since_date)
-        
+
         return {
             "message": "Incremental sync started",
             "sync_type": "incremental",
@@ -149,7 +154,7 @@ async def trigger_incremental_sync(
             "started_at": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start incremental sync: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to start incremental sync")
 
 
 @router.post("/entry/{entry_date}")
@@ -179,7 +184,7 @@ async def sync_single_entry(
             "started_at": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start entry sync: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to start entry sync")
 
 
 @router.post("/scheduler/start")
@@ -203,7 +208,7 @@ async def start_scheduler(
             "started_at": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start scheduler: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to start scheduler")
 
 
 @router.post("/scheduler/stop")
@@ -227,7 +232,7 @@ async def stop_scheduler(
             "stopped_at": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to stop scheduler: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to stop scheduler")
 
 
 @router.post("/scheduler/trigger/incremental")
@@ -252,7 +257,7 @@ async def trigger_scheduler_incremental(
             "triggered_at": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to trigger incremental sync: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to trigger incremental sync")
 
 
 @router.post("/scheduler/trigger/full")
@@ -277,7 +282,7 @@ async def trigger_scheduler_full(
             "triggered_at": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to trigger full sync: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to trigger full sync")
 
 
 @router.put("/scheduler/config")
@@ -311,7 +316,7 @@ async def update_scheduler_config(
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update scheduler config: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update scheduler config")
 
 
 @router.get("/history")
@@ -356,7 +361,7 @@ async def get_sync_history(
                         "entries_added": record.entries_added,
                         "entries_updated": record.entries_updated,
                         "entries_removed": record.entries_removed,
-                        "error_message": record.error_message,
+                        "error_message": sanitize_error_message(record.error_message, generic="Sync failed"),
                         "duration_seconds": (
                             (record.completed_at - record.started_at).total_seconds()
                             if record.completed_at else None
@@ -368,7 +373,7 @@ async def get_sync_history(
                 "retrieved_at": datetime.utcnow().isoformat()
             }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get sync history: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get sync history")
 
 
 # Background task functions
