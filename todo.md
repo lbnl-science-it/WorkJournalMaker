@@ -31,7 +31,7 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 
 ### Medium
 - [ ] [#94](https://github.com/lbnl-science-it/WorkJournalMaker/issues/94) — Prompt injection via unsanitized journal content
-- [ ] [#95](https://github.com/lbnl-science-it/WorkJournalMaker/issues/95) — Unrestricted base_path enables arbitrary file write
+- [x] [#95](https://github.com/lbnl-science-it/WorkJournalMaker/issues/95) — Unrestricted base_path enables arbitrary file write
 - [x] [#96](https://github.com/lbnl-science-it/WorkJournalMaker/issues/96) — Information disclosure via error messages
   - [x] Phase 1: Create `web/utils/error_utils.py` + tests
   - [x] Phase 2: Fix `web/api/health.py` public endpoint info leak + tests
@@ -39,7 +39,7 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
   - [x] Phase 4: Fix `web/api/settings.py` str(e) in 10+ endpoints + tests
   - [x] Phase 5: Fix `web/api/sync.py` + `web/services/sync_service.py` + tests
   - [x] Phase 6: Full regression verification
-- [ ] [#97](https://github.com/lbnl-science-it/WorkJournalMaker/issues/97) — CORS misconfiguration
+- [x] [#97](https://github.com/lbnl-science-it/WorkJournalMaker/issues/97) — CORS misconfiguration
 - [ ] [#98](https://github.com/lbnl-science-it/WorkJournalMaker/issues/98) — GCP project ID hardcoded in source code
 - [ ] [#99](https://github.com/lbnl-science-it/WorkJournalMaker/issues/99) — Client-only input validation
 - [ ] [#110](https://github.com/lbnl-science-it/WorkJournalMaker/issues/110) — Bulk update settings always returns HTTP 200
