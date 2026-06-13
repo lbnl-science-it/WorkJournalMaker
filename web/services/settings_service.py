@@ -475,19 +475,37 @@ class SettingsService(BaseService):
             self.logger.logger.error(f"Failed to update setting {key}: {str(e)}")
             raise
     
+    @staticmethod
+    def _is_path_within_allowed_roots(resolved_path: Path) -> bool:
+        """Check whether resolved_path falls under the user's home directory."""
+        allowed_root = str(Path.home().resolve())
+        resolved_str = str(resolved_path)
+        return resolved_str == allowed_root or resolved_str.startswith(allowed_root + "/")
+
     async def _validate_and_create_path(self, path_value: str, definition: SettingDefinition):
-        """Validate and optionally create filesystem paths."""
+        """Validate and optionally create filesystem paths.
+
+        Restricts paths to the user's home directory to prevent arbitrary
+        filesystem writes via the settings API.
+        """
         try:
             path = Path(path_value).expanduser()  # Handle ~ expansion
 
-            # Check if path is absolute or make it relative to current working directory
+            # Check if path is absolute or make it relative to home directory
             if not path.is_absolute():
-                path = Path.cwd() / path
+                path = Path.home() / path
+
+            # Canonicalize to resolve symlinks and ../ traversals
+            path = path.resolve()
 
             self.logger.logger.info(f"Validating path: {path}")
 
             if not str(path).strip():
                 raise ValueError("Path cannot be empty")
+
+            # Restrict to paths under the user's home directory
+            if not self._is_path_within_allowed_roots(path):
+                raise ValueError("Path is outside the allowed directory")
 
             # Reject paths whose parent directory does not exist.
             # This prevents saving unreachable paths like /invalid/...
