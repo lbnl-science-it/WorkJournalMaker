@@ -481,8 +481,7 @@ class DatabaseManager:
                 "entries_with_content": 0,
                 "date_range": None,
                 "last_sync": None,
-                "database_size_mb": 0.0,
-                "error": str(e)
+                "database_size_mb": 0.0
             }
     
     @asynccontextmanager
@@ -513,15 +512,12 @@ class DatabaseManager:
                 
                 return {
                     "status": "healthy",
-                    "database_path": self.database_path,
                     "entry_count": entry_count,
                     "connection": "active"
                 }
         except Exception as e:
             return {
-                "status": "unhealthy",
-                "error": str(e),
-                "database_path": self.database_path
+                "status": "unhealthy"
             }
     
     # Work Week Settings Methods
