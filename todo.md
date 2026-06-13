@@ -30,7 +30,7 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 - [x] [#93](https://github.com/lbnl-science-it/WorkJournalMaker/issues/93) — Unescaped data in inline onclick attributes
 
 ### Medium
-- [ ] [#94](https://github.com/lbnl-science-it/WorkJournalMaker/issues/94) — Prompt injection via unsanitized journal content
+- [x] [#94](https://github.com/lbnl-science-it/WorkJournalMaker/issues/94) — Prompt injection via unsanitized journal content (delimiter hardening; CL#33 and CL#34 track deeper layers)
 - [x] [#95](https://github.com/lbnl-science-it/WorkJournalMaker/issues/95) — Unrestricted base_path enables arbitrary file write
 - [x] [#96](https://github.com/lbnl-science-it/WorkJournalMaker/issues/96) — Information disclosure via error messages
   - [x] Phase 1: Create `web/utils/error_utils.py` + tests
