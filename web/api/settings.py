@@ -44,7 +44,7 @@ async def get_all_settings(
         settings_service.logger.logger.error(f"Failed to get all settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve settings: {str(e)}"
+            detail="Failed to retrieve settings"
         )
 
 @router.get("/categories", response_model=SettingsCategoryResponse)
@@ -60,7 +60,7 @@ async def get_settings_categories(
         settings_service.logger.logger.error(f"Failed to get settings categories: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve categories: {str(e)}"
+            detail="Failed to retrieve categories"
         )
 
 @router.get("/health")
@@ -83,7 +83,6 @@ async def settings_health_check(
         settings_service.logger.logger.error(f"Settings health check failed: {str(e)}")
         return {
             "status": "unhealthy",
-            "error": str(e),
             "database_connected": False
         }
 
@@ -142,7 +141,7 @@ async def get_work_week_configuration(
         settings_service.logger.logger.error(f"Failed to get work week configuration: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve work week configuration: {str(e)}"
+            detail="Failed to retrieve work week configuration"
         )
 
 @router.post("/work-week", response_model=WorkWeekUpdateResponse)
@@ -175,13 +174,13 @@ async def update_work_week_configuration(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Invalid work week configuration"
         )
     except Exception as e:
         settings_service.logger.logger.error(f"Failed to update work week configuration: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update work week configuration: {str(e)}"
+            detail="Failed to update work week configuration"
         )
 
 @router.get("/work-week/presets", response_model=WorkWeekPresetsResponse)
@@ -215,7 +214,7 @@ async def get_work_week_presets(
         settings_service.logger.logger.error(f"Failed to get work week presets: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve work week presets: {str(e)}"
+            detail="Failed to retrieve work week presets"
         )
 
 @router.post("/work-week/validate", response_model=WorkWeekValidationResponse)
@@ -275,7 +274,7 @@ async def validate_work_week_configuration(
         settings_service.logger.logger.error(f"Failed to validate work week configuration: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to validate work week configuration: {str(e)}"
+            detail="Failed to validate work week configuration"
         )
 
 @router.get("/{key}", response_model=WebSettingResponse)
@@ -299,7 +298,7 @@ async def get_setting(
         settings_service.logger.logger.error(f"Failed to get setting {key}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve setting: {str(e)}"
+            detail="Failed to retrieve setting"
         )
 
 @router.put("/{key}", response_model=WebSettingResponse)
@@ -321,13 +320,13 @@ async def update_setting(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Invalid setting value"
         )
     except Exception as e:
         settings_service.logger.logger.error(f"Failed to update setting {key}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update setting: {str(e)}"
+            detail="Failed to update setting"
         )
 
 @router.post("/bulk-update", response_model=SettingsBulkUpdateResponse)
@@ -424,7 +423,7 @@ async def bulk_update_settings(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 'error': 'Validation failed',
-                'message': str(ve),
+                'message': 'Validation failed',
                 'request_id': request_id,
                 'timestamp': datetime.now().isoformat()
             }
@@ -510,13 +509,13 @@ async def reset_setting(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Cannot reset setting"
         )
     except Exception as e:
         settings_service.logger.logger.error(f"Failed to reset setting {key}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to reset setting: {str(e)}"
+            detail="Failed to reset setting"
         )
 
 @router.post("/reset-all", response_model=Dict[str, WebSettingResponse])
@@ -532,7 +531,7 @@ async def reset_all_settings(
         settings_service.logger.logger.error(f"Failed to reset all settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to reset all settings: {str(e)}"
+            detail="Failed to reset all settings"
         )
 
 @router.get("/export/current", response_model=SettingsExport)
@@ -548,7 +547,7 @@ async def export_settings(
         settings_service.logger.logger.error(f"Failed to export settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to export settings: {str(e)}"
+            detail="Failed to export settings"
         )
 
 @router.post("/import", response_model=Dict[str, WebSettingResponse])
@@ -564,13 +563,13 @@ async def import_settings(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Invalid import data"
         )
     except Exception as e:
         settings_service.logger.logger.error(f"Failed to import settings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to import settings: {str(e)}"
+            detail="Failed to import settings"
         )
 
 def _is_path_within_allowed_roots(resolved_path: Path, allowed_roots: list) -> bool:

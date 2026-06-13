@@ -43,15 +43,12 @@ async def health_check(request: Request):
         version="1.0.0",
         timestamp=datetime.utcnow(),
         components={
-            "database": db_health,
+            "database": {"status": db_health["status"]},
             "filesystem": {
-                "status": "healthy" if fs_accessible else "unhealthy",
-                "base_path": str(base_path),
-                "accessible": fs_accessible
+                "status": "healthy" if fs_accessible else "unhealthy"
             },
             "configuration": {
-                "status": "healthy" if config else "unhealthy",
-                "llm_provider": config.llm.provider if config else None
+                "status": "healthy" if config else "unhealthy"
             }
         }
     )
