@@ -4,6 +4,7 @@
 Web utilities package for timezone handling and other common functions.
 """
 
+from .error_utils import sanitize_error_message
 from .timezone_utils import (
     TimezoneManager,
     get_timezone_manager,
@@ -16,6 +17,7 @@ from .timezone_utils import (
 )
 
 __all__ = [
+    'sanitize_error_message',
     'TimezoneManager',
     'get_timezone_manager',
     'now_local',
