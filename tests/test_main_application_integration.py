@@ -83,7 +83,7 @@ def google_genai_config():
     return AppConfig(
         bedrock=BedrockConfig(),  # Still needed for backward compatibility
         google_genai=GoogleGenAIConfig(
-            project="geminijournal-463220",
+            project="test-gcp-project",
             location="us-central1",
             model="gemini-2.0-flash-001"
         ),
@@ -330,7 +330,7 @@ class TestMainApplicationIntegration:
         mock_client_instance.test_connection.return_value = True
         mock_client_instance.get_provider_name.return_value = "google_genai"
         mock_client_instance.get_provider_info.return_value = {
-            "project": "geminijournal-463220",
+            "project": "test-gcp-project",
             "location": "us-central1",
             "model": "gemini-2.0-flash-001"
         }
@@ -353,7 +353,7 @@ class TestMainApplicationIntegration:
         # Verify output contains provider information
         captured = capsys.readouterr()
         assert "google_genai" in captured.out.lower()
-        assert "geminijournal-463220" in captured.out
+        assert "test-gcp-project" in captured.out
 
     @patch('work_journal_summarizer.ConfigManager')
     @patch('work_journal_summarizer.UnifiedLLMClient')

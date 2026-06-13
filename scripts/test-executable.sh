@@ -19,7 +19,7 @@ llm:
   provider: google_genai
 
 google_genai:
-  project: geminijournal-463220
+  project: your-gcp-project-id
   location: us-central1
   model: gemini-2.0-flash-001
 

@@ -651,7 +651,7 @@ class TestGoogleGenAIClient:
         """Test default configuration values."""
         config = GoogleGenAIConfig()
         
-        assert config.project == "geminijournal-463220"
+        assert config.project == "your-gcp-project-id"
         assert config.location == "us-central1"
         assert config.model == "gemini-2.0-flash-001"
     
