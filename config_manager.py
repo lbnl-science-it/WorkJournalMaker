@@ -80,7 +80,7 @@ class BedrockConfig:
 @dataclass
 class GoogleGenAIConfig:
     """Configuration for Google GenAI API integration."""
-    project: str = "geminijournal-463220"
+    project: str = "your-gcp-project-id"
     location: str = "us-central1"
     model: str = "gemini-2.0-flash-001"
 
@@ -529,7 +529,7 @@ class ConfigManager:
                 'rate_limit_delay': 1.0
             },
             'google_genai': {
-                'project': 'geminijournal-463220',
+                'project': 'your-gcp-project-id',
                 'location': 'us-central1',
                 'model': 'gemini-2.0-flash-001'
             },

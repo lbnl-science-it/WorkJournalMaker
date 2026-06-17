@@ -1,7 +1,7 @@
 from google import genai
 
 client = genai.Client(vertexai=True,
-                      project="geminijournal-463220",
+                      project="your-gcp-project-id",
                       location="us-central1")
 
 response = client.models.generate_content(
