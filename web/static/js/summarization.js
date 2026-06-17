@@ -164,7 +164,8 @@ class SummarizationInterface {
             const response = await fetch('/api/summarization/tasks', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify(formData)
             });
@@ -365,7 +366,10 @@ class SummarizationInterface {
             const taskId = taskIds[0]; // Cancel the first active task
 
             const response = await fetch(`/api/summarization/tasks/${taskId}/cancel`, {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             });
 
             if (response.ok) {

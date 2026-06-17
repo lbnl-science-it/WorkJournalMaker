@@ -142,3 +142,25 @@ class TestCSRFMiddleware:
         """POST to sync without header should be rejected."""
         response = bare_client.post("/api/sync/full")
         assert response.status_code == 403
+
+    def test_summarization_task_post_without_csrf_rejected(self, bare_client):
+        """POST to create summarization task without header should be rejected."""
+        response = bare_client.post(
+            "/api/summarization/tasks",
+            json={"start_date": "2024-01-01", "end_date": "2024-01-07", "summary_type": "weekly"},
+        )
+        assert response.status_code == 403
+
+    def test_summarization_cancel_post_without_csrf_rejected(self, bare_client):
+        """POST to cancel summarization task without header should be rejected."""
+        response = bare_client.post("/api/summarization/tasks/fake-id/cancel")
+        assert response.status_code == 403
+
+    def test_summarization_task_post_with_csrf_allowed(self, client):
+        """POST to create summarization task with header should pass CSRF check."""
+        response = client.post(
+            "/api/summarization/tasks",
+            json={"start_date": "2024-01-01", "end_date": "2024-01-07", "summary_type": "weekly"},
+        )
+        # Should not be 403 — CSRF passes; may fail for other reasons (e.g. no LLM configured)
+        assert response.status_code != 403
