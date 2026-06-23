@@ -190,22 +190,15 @@ class TestWorkWeekAPI:
         assert response.status_code == 422  # Validation error
     
     def test_update_work_week_configuration_same_days(self, client):
-        """Test updating work week configuration with same start/end days."""
+        """Test that same start/end days are rejected by validation."""
         request_data = {
             "preset": "custom",
             "start_day": 3,  # Wednesday
             "end_day": 3     # Wednesday (same day)
         }
-        
+
         response = client.post("/api/settings/work-week", json=request_data)
-        assert response.status_code == 200
-        
-        data = response.json()
-        # Should succeed but with auto-correction
-        assert data["success"] is True
-        # Auto-corrected to Monday-Friday
-        assert data["updated_settings"]["start_day"] == 1
-        assert data["updated_settings"]["end_day"] == 5
+        assert response.status_code == 422
     
     def test_validate_work_week_configuration_valid(self, client):
         """Test validating a valid work week configuration."""
