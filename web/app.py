@@ -15,11 +15,14 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
+import os
 import time
 import traceback
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+_DEBUG_MODE = os.getenv("WORK_JOURNAL_DEBUG", "").lower() in ("1", "true", "yes")
 
 from config_manager import ConfigManager, AppConfig, AuthConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
@@ -267,10 +270,11 @@ async def api_root():
     }
 
 
-@app.get("/test")
-async def test_page(request: Request):
-    """Test page for base templates and styling."""
-    return templates.TemplateResponse(request, "test.html")
+if _DEBUG_MODE:
+    @app.get("/test")
+    async def test_page(request: Request):
+        """Test page for base templates and styling."""
+        return templates.TemplateResponse(request, "test.html")
 
 
 @app.websocket("/ws")
