@@ -247,6 +247,8 @@ class SummaryRequest(BaseModel):
             raise ValueError('start_date must be before or equal to end_date')
         if self.start_date > Date.today():
             raise ValueError('start_date cannot be in the future')
+        if (self.end_date - self.start_date).days > 365:
+            raise ValueError('Date range cannot exceed 365 days')
         return self
 
 
