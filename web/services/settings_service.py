@@ -1324,8 +1324,14 @@ class SettingsService(BaseService):
             elif key in ['work_week.start_day', 'work_week.end_day']:
                 return isinstance(value, int) and 1 <= value <= 7
             elif key == 'work_week.timezone':
-                # Basic timezone validation - could be enhanced with pytz
-                return isinstance(value, str) and len(value.strip()) > 0
+                if not isinstance(value, str) or not value.strip():
+                    return False
+                try:
+                    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+                    ZoneInfo(value.strip())
+                    return True
+                except (ZoneInfoNotFoundError, KeyError):
+                    return False
             return True
         except Exception:
             return False

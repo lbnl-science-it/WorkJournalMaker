@@ -757,7 +757,8 @@ class WorkWeekService(BaseService):
             # Step 4: Validate timezone
             timezone_validation = self._validate_timezone(config)
             if not timezone_validation[0]:
-                result.add_warning(timezone_validation[1])
+                result.add_error(timezone_validation[1])
+                result.is_valid = False
             
             # Step 5: Validate work week length
             length_validation = self._validate_work_week_length(config)
@@ -834,17 +835,15 @@ class WorkWeekService(BaseService):
         return {'corrected': False}
     
     def _validate_timezone(self, config: WorkWeekConfig) -> Tuple[bool, str]:
-        """Validate timezone setting."""
-        if config.timezone:
-            try:
-                # Basic timezone validation
-                if not isinstance(config.timezone, str) or len(config.timezone.strip()) == 0:
-                    return False, "Timezone must be a non-empty string"
-                # Additional timezone format validation could be added here
-                return True, "Timezone valid"
-            except Exception:
-                return False, "Invalid timezone format"
-        return True, "No timezone specified (will use system default)"
+        """Validate timezone against the IANA timezone database."""
+        if not config.timezone or not config.timezone.strip():
+            return True, "No timezone specified (will use system default)"
+        try:
+            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+            ZoneInfo(config.timezone.strip())
+            return True, "Timezone valid"
+        except (ZoneInfoNotFoundError, KeyError):
+            return False, f"Unknown timezone: {config.timezone!r}"
     
     def _validate_work_week_length(self, config: WorkWeekConfig) -> Tuple[bool, str]:
         """Validate that work week has reasonable length."""
