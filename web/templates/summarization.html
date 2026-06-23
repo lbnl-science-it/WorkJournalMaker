@@ -3,7 +3,7 @@
 {% block title %}Summarization - Daily Work Journal{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/summarization.css">
+<link rel="stylesheet" href="{{ static_versioned('css/summarization.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -176,5 +176,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/summarization.js"></script>
+<script src="{{ static_versioned('js/summarization.js') }}"></script>
 {% endblock %}

@@ -285,5 +285,5 @@ function hello() {
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/test-page.js"></script>
+<script src="{{ static_versioned('js/test-page.js') }}"></script>
 {% endblock %}

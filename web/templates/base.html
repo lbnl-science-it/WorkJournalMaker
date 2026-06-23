@@ -12,11 +12,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/static/css/reset.css">
-    <link rel="stylesheet" href="/static/css/variables.css">
-    <link rel="stylesheet" href="/static/css/base.css">
-    <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/utilities.css">
+    <link rel="stylesheet" href="{{ static_versioned('css/reset.css') }}">
+    <link rel="stylesheet" href="{{ static_versioned('css/variables.css') }}">
+    <link rel="stylesheet" href="{{ static_versioned('css/base.css') }}">
+    <link rel="stylesheet" href="{{ static_versioned('css/components.css') }}">
+    <link rel="stylesheet" href="{{ static_versioned('css/utilities.css') }}">
     {% block extra_css %}{% endblock %}
 
     <!-- Favicon -->
@@ -83,9 +83,9 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Scripts -->
-    <script src="/static/js/theme.js"></script>
-    <script src="/static/js/utils.js"></script>
-    <script src="/static/js/api.js"></script>
+    <script src="{{ static_versioned('js/theme.js') }}"></script>
+    <script src="{{ static_versioned('js/utils.js') }}"></script>
+    <script src="{{ static_versioned('js/api.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 

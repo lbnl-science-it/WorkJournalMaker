@@ -3,7 +3,7 @@
 {% block title %}Dashboard - Daily Work Journal{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/dashboard.css">
+<link rel="stylesheet" href="{{ static_versioned('css/dashboard.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -156,5 +156,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/dashboard.js"></script>
+<script src="{{ static_versioned('js/dashboard.js') }}"></script>
 {% endblock %}
