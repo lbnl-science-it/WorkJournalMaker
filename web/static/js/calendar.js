@@ -401,7 +401,8 @@ class CalendarView {
             const response = await fetch(`/api/entries/${today}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify({
                     date: today,

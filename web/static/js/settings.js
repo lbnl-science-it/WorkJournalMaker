@@ -449,7 +449,8 @@ class SettingsManager {
             const response = await fetch('/api/settings/bulk-update', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify({
                     settings: settingsToSave
@@ -475,7 +476,10 @@ class SettingsManager {
     async resetSetting(key) {
         try {
             const response = await fetch(`/api/settings/${key}/reset`, {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             });
 
             if (!response.ok) throw new Error('Failed to reset setting');
@@ -576,7 +580,8 @@ class SettingsManager {
             const response = await fetch('/api/settings/import', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify({
                     settings: importData
@@ -617,7 +622,10 @@ class SettingsManager {
             this.showLoading('Resetting all settings...');
 
             const response = await fetch('/api/settings/reset-all', {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             });
 
             if (!response.ok) throw new Error('Failed to reset settings');
@@ -1121,7 +1129,8 @@ class SettingsManager {
             const response = await fetch('/api/settings/work-week', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify(this.workWeekConfig)
             });
@@ -1183,7 +1192,10 @@ class SettingsManager {
             this.showLoading('Resetting work week configuration...');
 
             const response = await fetch('/api/settings/work-week/reset', {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             });
 
             if (!response.ok) throw new Error('Failed to reset work week configuration');
@@ -1216,7 +1228,8 @@ class SettingsManager {
             const response = await fetch('/api/settings/work-week/validate', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify(configToValidate)
             });
