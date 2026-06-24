@@ -17,7 +17,7 @@ import asyncio
 
 from config_manager import AppConfig
 from logger import JournalSummarizerLogger, ErrorCategory
-from web.auth import get_current_user, require_admin, User
+from web.auth import get_current_user, require_admin, User, decode_access_token
 from web.services.web_summarizer import WebSummarizationService, SummaryType, SummaryTaskStatus
 from web.models.journal import SummaryRequest, SummaryTaskResponse, ProgressResponse
 
@@ -461,6 +461,18 @@ async def get_summarization_stats(
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for general progress updates."""
+    auth_config = getattr(websocket.app.state, "auth_config", None)
+    if auth_config and auth_config.enabled:
+        token = websocket.query_params.get("token")
+        if not token:
+            await websocket.close(code=4001, reason="Missing token")
+            return
+        try:
+            decode_access_token(token, auth_config.secret_key)
+        except Exception:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+
     # Check if summarization service is properly configured
     try:
         summarization_service = websocket.app.state.summarization_service
@@ -471,7 +483,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         await websocket.close(code=1011, reason=f"Service unavailable: {str(e)}")
         return
-    
+
     await connection_manager.connect(websocket)
     try:
         # Send initial connection status
@@ -498,6 +510,18 @@ async def websocket_endpoint(websocket: WebSocket):
 @router.websocket("/ws/{task_id}")
 async def websocket_task_endpoint(websocket: WebSocket, task_id: str):
     """WebSocket endpoint for specific task progress updates."""
+    auth_config = getattr(websocket.app.state, "auth_config", None)
+    if auth_config and auth_config.enabled:
+        token = websocket.query_params.get("token")
+        if not token:
+            await websocket.close(code=4001, reason="Missing token")
+            return
+        try:
+            decode_access_token(token, auth_config.secret_key)
+        except Exception:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+
     # Check if summarization service is properly configured
     try:
         summarization_service = websocket.app.state.summarization_service
@@ -508,7 +532,7 @@ async def websocket_task_endpoint(websocket: WebSocket, task_id: str):
     except Exception as e:
         await websocket.close(code=1011, reason=f"Service unavailable: {str(e)}")
         return
-    
+
     await connection_manager.connect(websocket, task_id)
     try:
         # Send initial task status
