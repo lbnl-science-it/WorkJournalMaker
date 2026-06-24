@@ -196,7 +196,6 @@ class CalendarService(BaseService):
                         entry_metadata = {
                             "word_count": entry.word_count,
                             "has_content": entry.has_content,
-                            "file_path": entry.file_path,
                             "modified_at": entry.modified_at
                         }
             
