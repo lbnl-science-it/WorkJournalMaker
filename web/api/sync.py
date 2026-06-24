@@ -25,6 +25,12 @@ class IncrementalSyncRequest(BaseModel):
     """Request body for incremental sync with validated bounds."""
     since_days: int = Field(default=7, ge=1, le=365)
 
+
+class SchedulerConfigRequest(BaseModel):
+    """Request body for scheduler config with validated bounds."""
+    incremental_seconds: Optional[int] = Field(None, ge=1, le=86400)
+    full_hours: Optional[int] = Field(None, ge=1, le=168)
+
 router = APIRouter(prefix="/api/sync", tags=["synchronization"])
 
 
@@ -287,32 +293,30 @@ async def trigger_scheduler_full(
 
 @router.put("/scheduler/config")
 async def update_scheduler_config(
-    incremental_seconds: Optional[int] = None,
-    full_hours: Optional[int] = None,
+    config: SchedulerConfigRequest,
     scheduler: SyncScheduler = Depends(get_scheduler),
     user: User = Depends(require_admin)
 ):
     """
     Update scheduler configuration.
-    
+
     Args:
-        incremental_seconds: New incremental sync interval in seconds
-        full_hours: New full sync interval in hours
-        
+        config: Validated scheduler configuration with bounded intervals
+
     Returns:
         Dict with updated configuration
     """
     if not scheduler:
         raise HTTPException(status_code=503, detail="Scheduler not available")
-    
+
     try:
-        scheduler.update_sync_intervals(incremental_seconds, full_hours)
+        scheduler.update_sync_intervals(config.incremental_seconds, config.full_hours)
         return {
             "message": "Scheduler configuration updated",
             "updated_at": datetime.utcnow().isoformat(),
             "new_config": {
-                "incremental_seconds": incremental_seconds,
-                "full_hours": full_hours
+                "incremental_seconds": config.incremental_seconds,
+                "full_hours": config.full_hours
             }
         }
     except Exception as e:

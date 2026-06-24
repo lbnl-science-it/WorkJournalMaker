@@ -7,7 +7,7 @@ This module defines Pydantic models for settings management,
 including validation, import/export, and response formatting.
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from datetime import datetime
 from typing import Any, Dict, Optional, Union, List
 
@@ -146,6 +146,14 @@ class WorkWeekConfigRequest(BaseModel):
         if v is not None and not (1 <= v <= 7):
             raise ValueError('End day must be between 1 (Monday) and 7 (Sunday)')
         return v
+
+    @model_validator(mode='after')
+    def validate_days_differ(self):
+        """Ensure start_day and end_day are not the same."""
+        if (self.start_day is not None and self.end_day is not None
+                and self.start_day == self.end_day):
+            raise ValueError('start_day and end_day must be different')
+        return self
 
 class WorkWeekConfigResponse(BaseModel):
     """Response model for work week configuration."""

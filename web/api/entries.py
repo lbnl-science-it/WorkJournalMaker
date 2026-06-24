@@ -255,17 +255,17 @@ async def get_entry_content(
 @router.post("/{entry_date}/content")
 async def update_entry_content(
     entry_date: date,
-    content: str,
+    body: JournalEntryUpDate,
     entry_manager: EntryManager = Depends(get_entry_manager),
     user: User = Depends(get_current_user)
 ):
     """
     Update just the content of a journal entry.
-    
+
     Updates only the text content without requiring full entry model.
     """
     try:
-        success = await entry_manager.save_entry_content(entry_date, content)
+        success = await entry_manager.save_entry_content(entry_date, body.content)
         
         if not success:
             raise HTTPException(status_code=500, detail="Failed to save entry content")
