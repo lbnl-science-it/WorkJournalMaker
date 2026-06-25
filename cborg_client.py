@@ -65,12 +65,13 @@ class CBORGClient(BaseLLMClient):
         self.logger.info(f"Initialized CBORG client with model: {config.model}")
         self.logger.info(f"Endpoint: {config.endpoint}")
 
-    def _make_api_call(self, prompt: str) -> str:
+    def _make_api_call(self, system: str, user: str) -> str:
         """
         Make CBORG API call with retry logic and return the response text.
 
         Args:
-            prompt: Analysis prompt
+            system: Trusted system instructions for the model.
+            user: Untrusted user content to analyze.
 
         Returns:
             str: Text content from the API response
@@ -82,7 +83,10 @@ class CBORGClient(BaseLLMClient):
             try:
                 response = self.client.chat.completions.create(
                     model=self.config.model,
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
                     temperature=0.1,
                     max_tokens=1000,
                 )
@@ -134,7 +138,10 @@ class CBORGClient(BaseLLMClient):
 
             self.client.chat.completions.create(
                 model=self.config.model,
-                messages=[{"role": "user", "content": 'Respond with: {"test":"ok"}'}],
+                messages=[
+                    {"role": "system", "content": "You are a test connection validator."},
+                    {"role": "user", "content": 'Respond with: {"test":"ok"}'},
+                ],
                 temperature=0.1,
                 max_tokens=50,
             )

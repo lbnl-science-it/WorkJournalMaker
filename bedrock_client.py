@@ -75,15 +75,17 @@ class BedrockClient(BaseLLMClient):
             self.logger.error(f"Failed to create Bedrock client: {e}")
             raise
 
-    def _make_api_call(self, prompt: str) -> str:
+    def _make_api_call(self, system: str, user: str) -> str:
         """
         Make Bedrock API call with retry logic and return the response text.
 
-        Formats the request, calls invoke_model with exponential backoff,
-        and extracts the text content from the Bedrock response format.
+        Formats the request with separate system and user fields, calls
+        invoke_model with exponential backoff, and extracts the text content
+        from the Bedrock response format.
 
         Args:
-            prompt: Analysis prompt for Claude
+            system: Trusted system instructions for Claude.
+            user: Untrusted user content to analyze.
 
         Returns:
             str: Text content from the API response
@@ -91,16 +93,17 @@ class BedrockClient(BaseLLMClient):
         Raises:
             Exception: If all retry attempts fail
         """
-        request_body = self._format_bedrock_request(prompt)
+        request_body = self._format_bedrock_request(system=system, user=user)
         response = self._make_api_call_with_retry(request_body)
         return self._extract_text_from_response(response)
 
-    def _format_bedrock_request(self, prompt: str) -> Dict[str, Any]:
+    def _format_bedrock_request(self, system: str, user: str) -> Dict[str, Any]:
         """
-        Format request for Bedrock API using current model configuration.
+        Format request for Bedrock API with separate system and user fields.
 
         Args:
-            prompt: Analysis prompt for Claude
+            system: Trusted system instructions for Claude.
+            user: Untrusted user content to analyze.
 
         Returns:
             Dict: Formatted request body for Bedrock
@@ -108,10 +111,11 @@ class BedrockClient(BaseLLMClient):
         return {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 1000,
+            "system": system,
             "messages": [
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": user
                 }
             ],
             "temperature": 0.1,  # Low temperature for consistent extraction
@@ -202,8 +206,10 @@ class BedrockClient(BaseLLMClient):
         """
         try:
             # Simple test prompt
-            test_prompt = "Respond with valid JSON: {\"test\": \"success\"}"
-            request_body = self._format_bedrock_request(test_prompt)
+            request_body = self._format_bedrock_request(
+                system="You are a test connection validator.",
+                user="Respond with valid JSON: {\"test\": \"success\"}"
+            )
 
             # Add diagnostic logging
             self.logger.info(f"Testing Bedrock connection with model: {self.config.model_id}")

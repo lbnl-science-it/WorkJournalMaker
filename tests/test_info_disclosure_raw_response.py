@@ -24,7 +24,7 @@ class StubLLMClient(BaseLLMClient):
         self._fail_error = fail_error or Exception("Stub API failure")
         super().__init__()
 
-    def _make_api_call(self, prompt: str) -> str:
+    def _make_api_call(self, system: str, user: str) -> str:
         raise self._fail_error
 
     def test_connection(self) -> bool:
@@ -110,7 +110,7 @@ class TestRawResponseInfoDisclosure:
         import json
 
         class SuccessClient(BaseLLMClient):
-            def _make_api_call(self, prompt):
+            def _make_api_call(self, system, user):
                 return json.dumps({
                     "projects": ["Alpha"],
                     "participants": [],
