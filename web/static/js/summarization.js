@@ -84,8 +84,8 @@ class SummarizationInterface {
         const weekAgo = new Date(today);
         weekAgo.setDate(today.getDate() - 7);
 
-        document.getElementById('start-date').value = weekAgo.toISOString().split('T')[0];
-        document.getElementById('end-date').value = today.toISOString().split('T')[0];
+        document.getElementById('start-date').value = Utils.formatDate(weekAgo, 'iso');
+        document.getElementById('end-date').value = Utils.formatDate(today, 'iso');
         document.getElementById('summary-type').value = 'weekly';
     }
 
