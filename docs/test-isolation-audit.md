@@ -44,23 +44,13 @@ a test run.
 
 | File | Status vs April | Issue |
 |------|-----------------|-------|
-| `test_dashboard_implementation.py` | UNCHANGED | Live HTTP to `localhost:8000` via `requests.post()` — writes real entries. No skip decorator, only function-level guard |
-| `test_ui_functionality.py` | NEW FINDING → RISKY | Playwright tests hit `localhost:8000` — requires live server. Double-guarded: `@pytest.mark.skipif` for Playwright + per-test `pytest.skip` on connection failure. Only runs if both Playwright is installed AND server is live |
+| `test_dashboard_implementation.py` | DELETED | POSTed test content to live server, corrupting worklog files |
+| `test_ui_functionality.py` | DELETED | Playwright tests hit live server; `test_entry_editor` wrote data via save button |
 
-### Debug/Validate Scripts (pytest-collectable)
+### Debug/Validate Scripts
 
-All 7 scripts below are collected by pytest (have `test_` functions or `Test` classes)
-and use `DatabaseManager()` with no args, writing to the app data directory:
-
-| File | Issue |
-|------|-------|
-| `debug_date_display_issues.py` | `DatabaseManager()` + `initialize()` on production path |
-| `debug_timezone_issue.py` | `DatabaseManager()` + `initialize()` + writes `timezone_test_data.json` |
-| `debug_settings_error.py` | Bare `TestClient(app)` — no DB isolation |
-| `debug_journal_access.py` | `DatabaseManager()` + `initialize()` |
-| `debug_database_sync.py` | `DatabaseManager()` + `initialize()` (two instances) |
-| `debug_date_mapping.py` | `DatabaseManager()` + `initialize()` + reads real worklogs |
-| `validate_rollback.py` | Spawns real subprocesses |
+All 7 scripts previously listed here have been removed from `tests/` (GH#126).
+5 were deleted (obsolete); 2 were moved to `debug_scripts/`.
 
 ---
 

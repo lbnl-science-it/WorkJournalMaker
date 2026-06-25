@@ -2,13 +2,8 @@
 # ABOUTME: Provides isolated_app_client that redirects file and DB writes to tmp_path.
 
 import asyncio
-import os
 import pytest
 from datetime import datetime, timedelta, timezone
-
-collect_ignore = [
-    os.path.join(os.path.dirname(__file__), "test_dashboard_implementation.py"),
-]
 
 from fastapi.testclient import TestClient
 
