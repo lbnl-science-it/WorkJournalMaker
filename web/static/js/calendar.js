@@ -103,7 +103,7 @@ class CalendarView {
                 }
 
                 // Check if it has an entry
-                const dateStr = cellDate.toISOString().split('T')[0];
+                const dateStr = Utils.formatDate(cellDate, 'iso');
                 const entry = entryLookup[dateStr];
                 if (entry && entry.has_content) {
                     cssClasses.push('has-entry');
@@ -308,7 +308,7 @@ class CalendarView {
         await this.loadCalendarData();
 
         // Select today's date
-        const todayStr = today.toISOString().split('T')[0];
+        const todayStr = Utils.formatDate(today, 'iso');
         this.selectDate(todayStr);
     }
 
@@ -395,7 +395,7 @@ class CalendarView {
     }
 
     async createNewEntry() {
-        const today = new Date().toISOString().split('T')[0];
+        const today = Utils.formatDate(new Date(), 'iso');
 
         try {
             const response = await fetch(`/api/entries/${today}`, {

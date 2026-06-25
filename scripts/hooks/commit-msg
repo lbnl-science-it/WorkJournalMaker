@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# ABOUTME: Git commit-msg hook that translates chainlink issue IDs to GitHub numbers.
+# ABOUTME: Delegates all logic to translate_issue_ids.py.
+
+set -e
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+    DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+HOOK_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+exec python3 "$HOOK_DIR/translate_issue_ids.py" "$1"
