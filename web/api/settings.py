@@ -217,6 +217,24 @@ async def get_work_week_presets(
             detail="Failed to retrieve work week presets"
         )
 
+@router.post("/work-week/reset", response_model=WorkWeekConfigResponse)
+async def reset_work_week_configuration(
+    settings_service: SettingsService = Depends(get_settings_service),
+    user: User = Depends(require_admin)
+):
+    """Reset work week configuration to defaults (Monday-Friday, UTC)."""
+    try:
+        await settings_service.update_work_week_preset('monday_friday')
+        await settings_service.update_setting('work_week.timezone', 'UTC')
+        settings = await settings_service.get_work_week_settings()
+        return await _build_work_week_config_response(settings)
+    except Exception as e:
+        settings_service.logger.logger.error(f"Failed to reset work week configuration: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to reset work week configuration"
+        )
+
 @router.post("/work-week/validate", response_model=WorkWeekValidationResponse)
 async def validate_work_week_configuration(
     validation_request: WorkWeekValidationRequest,

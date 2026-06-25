@@ -422,12 +422,36 @@ class TestSettingsAPI:
     def test_settings_health_check_endpoint(self, client):
         """Test GET /api/settings/health endpoint."""
         response = client.get("/api/settings/health")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert 'status' in data
         assert 'database_connected' in data
         assert 'settings_count' in data
+
+    def test_work_week_reset_endpoint(self, client):
+        """Test POST /api/settings/work-week/reset returns default config."""
+        # First change to non-default preset
+        client.post(
+            "/api/settings/work-week",
+            json={"preset": "sunday_thursday", "start_day": 7, "end_day": 4, "timezone": "US/Pacific"}
+        )
+
+        # Reset to defaults
+        response = client.post("/api/settings/work-week/reset")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['preset'] == 'monday_friday'
+        assert data['start_day'] == 1
+        assert data['end_day'] == 5
+        assert data['timezone'] == 'UTC'
+
+        # Verify the reset persisted
+        get_response = client.get("/api/settings/work-week")
+        assert get_response.status_code == 200
+        get_data = get_response.json()
+        assert get_data['preset'] == 'monday_friday'
 
 class TestSettingsIntegration:
     """Test integration between settings and other components."""

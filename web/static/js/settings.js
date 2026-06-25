@@ -11,6 +11,13 @@ class SettingsManager {
         this.categories = {};
         this.changedSettings = new Set();
         this.currentCategory = 'filesystem';
+        this.workWeekConfig = {
+            preset: 'monday_friday',
+            start_day: 1,
+            end_day: 5,
+            timezone: 'UTC'
+        };
+        this.workWeekValidationErrors = [];
         this.syncManager = new SyncManager();
         this.init();
     }
