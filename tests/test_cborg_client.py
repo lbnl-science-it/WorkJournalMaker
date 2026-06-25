@@ -148,7 +148,7 @@ class TestCBORGClientAPICall:
         mock_client.chat.completions.create.return_value = _make_chat_completion(json_response)
 
         client = CBORGClient(default_config)
-        result = client._make_api_call("test prompt")
+        result = client._make_api_call(system="system instructions", user="test prompt")
 
         assert result == json_response
         mock_client.chat.completions.create.assert_called_once()
@@ -156,8 +156,11 @@ class TestCBORGClientAPICall:
         # Verify the request structure
         call_kwargs = mock_client.chat.completions.create.call_args
         assert call_kwargs.kwargs["model"] == default_config.model
-        assert call_kwargs.kwargs["messages"][0]["role"] == "user"
-        assert call_kwargs.kwargs["messages"][0]["content"] == "test prompt"
+        messages = call_kwargs.kwargs["messages"]
+        assert messages[0]["role"] == "system"
+        assert messages[0]["content"] == "system instructions"
+        assert messages[1]["role"] == "user"
+        assert messages[1]["content"] == "test prompt"
         assert call_kwargs.kwargs["temperature"] == 0.1
 
     @patch.dict("os.environ", {"CBORG_API_KEY": "test-key"})
@@ -176,7 +179,7 @@ class TestCBORGClientAPICall:
         client = CBORGClient(default_config)
 
         with patch("time.sleep"):  # Skip actual sleep
-            result = client._make_api_call("test prompt")
+            result = client._make_api_call(system="sys", user="test prompt")
 
         assert result == '{"projects":[],"participants":[],"tasks":[],"themes":[]}'
         assert mock_client.chat.completions.create.call_count == 2
@@ -197,7 +200,7 @@ class TestCBORGClientAPICall:
 
         with patch("time.sleep"):
             with pytest.raises(Exception, match="rate limit"):
-                client._make_api_call("test prompt")
+                client._make_api_call(system="sys", user="test prompt")
 
         # max_retries=3 means 4 total attempts (initial + 3 retries)
         assert mock_client.chat.completions.create.call_count == default_config.max_retries + 1
@@ -216,7 +219,7 @@ class TestCBORGClientAPICall:
         client = CBORGClient(default_config)
 
         with pytest.raises(Exception, match="Unauthorized"):
-            client._make_api_call("test prompt")
+            client._make_api_call(system="sys", user="test prompt")
 
         # Authentication errors should not be retried
         assert mock_client.chat.completions.create.call_count == 1

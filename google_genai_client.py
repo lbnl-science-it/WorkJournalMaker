@@ -88,12 +88,13 @@ class GoogleGenAIClient(BaseLLMClient):
             logger.error(f"Failed to create Google GenAI client: {e}")
             raise ValueError(f"Failed to create Google GenAI client: {e}")
 
-    def _make_api_call(self, prompt: str) -> str:
+    def _make_api_call(self, system: str, user: str) -> str:
         """
         Make Google GenAI API call with retry logic and return response text.
 
         Args:
-            prompt: Analysis prompt for Gemini
+            system: Trusted system instructions for Gemini.
+            user: Untrusted user content to analyze.
 
         Returns:
             str: Text content from the API response
@@ -101,14 +102,16 @@ class GoogleGenAIClient(BaseLLMClient):
         Raises:
             Exception: If all retry attempts fail
         """
-        return self._make_api_call_with_retry(prompt)
+        return self._make_api_call_with_retry(system=system, user=user)
 
-    def _make_api_call_with_retry(self, prompt: str, max_retries: int = 3) -> str:
+    def _make_api_call_with_retry(self, system: str = "", user: str = "",
+                                   max_retries: int = 3) -> str:
         """
         Make API call to Google GenAI with exponential backoff retry logic.
 
         Args:
-            prompt: Analysis prompt for Gemini
+            system: Trusted system instructions for Gemini.
+            user: Untrusted user content to analyze.
             max_retries: Maximum number of retry attempts
 
         Returns:
@@ -120,14 +123,16 @@ class GoogleGenAIClient(BaseLLMClient):
         for attempt in range(max_retries + 1):
             try:
                 # Use the configured model to generate content with timeout
+                config = {
+                    'temperature': 0.1,  # Low temperature for consistent extraction
+                    'top_p': 0.9,
+                    'max_output_tokens': 8192,
+                    'system_instruction': system,
+                }
                 response = self.client.models.generate_content(
                     model=self.config.model,
-                    contents=prompt,
-                    config={
-                        'temperature': 0.1,  # Low temperature for consistent extraction
-                        'top_p': 0.9,
-                        'max_output_tokens': 8192
-                    }
+                    contents=user,
+                    config=config,
                 )
 
                 # Extract text from response, skipping thought parts
@@ -383,16 +388,17 @@ class GoogleGenAIClient(BaseLLMClient):
         self.stats.total_calls += 1
 
         try:
-            # Simple test prompt to minimize token usage
-            test_prompt = "Respond with valid JSON: {\"test\": \"success\"}"
-
             # Add diagnostic logging
             self.logger.info(f"Testing Google GenAI connection with model: {self.config.model}")
             self.logger.info(f"Project: {self.config.project}")
             self.logger.info(f"Location: {self.config.location}")
 
             # Make a simple API call with retry logic (but only 1 retry for connection test)
-            response_text = self._make_api_call_with_retry(test_prompt, max_retries=1)
+            response_text = self._make_api_call_with_retry(
+                system="You are a test connection validator.",
+                user="Respond with valid JSON: {\"test\": \"success\"}",
+                max_retries=1,
+            )
 
             # Update statistics for successful connection test
             call_time = time.time() - start_time

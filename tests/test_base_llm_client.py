@@ -25,7 +25,7 @@ class StubLLMClient(BaseLLMClient):
         self._fail_error = fail_error or Exception("Stub API failure")
         super().__init__()
 
-    def _make_api_call(self, prompt: str) -> str:
+    def _make_api_call(self, system: str, user: str) -> str:
         if self._should_fail:
             raise self._fail_error
         return self._api_response_text
@@ -38,40 +38,47 @@ class StubLLMClient(BaseLLMClient):
 
 
 class TestBaseLLMClientPrompt:
-    """Tests for ANALYSIS_PROMPT and _create_analysis_prompt."""
+    """Tests for SYSTEM_PROMPT, USER_PROMPT_TEMPLATE, and _create_analysis_prompt."""
 
-    def test_analysis_prompt_contains_required_fields(self):
-        """ANALYSIS_PROMPT template references all four entity categories."""
+    def test_system_prompt_contains_required_fields(self):
+        """SYSTEM_PROMPT references all four entity categories."""
         client = StubLLMClient()
-        prompt = client.ANALYSIS_PROMPT
+        prompt = client.SYSTEM_PROMPT
         assert "projects" in prompt
         assert "participants" in prompt
         assert "tasks" in prompt
         assert "themes" in prompt
         assert "JSON" in prompt
 
-    def test_create_analysis_prompt_includes_content(self):
-        """Content is embedded in the formatted prompt."""
+    def test_create_analysis_prompt_returns_tuple(self):
+        """_create_analysis_prompt returns a (system, user) tuple."""
         client = StubLLMClient()
-        prompt = client._create_analysis_prompt("Work on Project X with Alice")
-        assert "Work on Project X with Alice" in prompt
+        result = client._create_analysis_prompt("some content")
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_create_analysis_prompt_includes_content_in_user(self):
+        """Content is embedded in the user part of the prompt."""
+        client = StubLLMClient()
+        _system, user = client._create_analysis_prompt("Work on Project X with Alice")
+        assert "Work on Project X with Alice" in user
 
     def test_create_analysis_prompt_truncates_long_content(self):
         """Content longer than 8000 chars is truncated."""
         client = StubLLMClient()
         long_content = "A" * 9000
-        prompt = client._create_analysis_prompt(long_content)
-        assert "[Content truncated for analysis]" in prompt
+        _system, user = client._create_analysis_prompt(long_content)
+        assert "[Content truncated for analysis]" in user
         # The full 9000-char content should NOT appear
-        assert "A" * 9000 not in prompt
+        assert "A" * 9000 not in user
 
     def test_create_analysis_prompt_preserves_short_content(self):
         """Content under 8000 chars is not truncated."""
         client = StubLLMClient()
         short_content = "B" * 100
-        prompt = client._create_analysis_prompt(short_content)
-        assert short_content in prompt
-        assert "[Content truncated for analysis]" not in prompt
+        _system, user = client._create_analysis_prompt(short_content)
+        assert short_content in user
+        assert "[Content truncated for analysis]" not in user
 
 
 class TestBaseLLMClientJsonExtraction:

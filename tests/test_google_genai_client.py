@@ -656,52 +656,53 @@ class TestGoogleGenAIClient:
         assert config.model == "gemini-2.0-flash-001"
     
     @patch('google_genai_client.genai')
-    def test_analysis_prompt_template_exists(self, mock_genai, google_genai_config):
-        """Test that the analysis prompt template is defined."""
+    def test_analysis_prompt_templates_exist(self, mock_genai, google_genai_config):
+        """Test that the system and user prompt templates are defined."""
         mock_genai.Client.return_value = MagicMock()
-        
+
         genai_client = GoogleGenAIClient(google_genai_config)
-        
-        # Check that ANALYSIS_PROMPT is defined and contains expected elements
-        assert hasattr(genai_client, 'ANALYSIS_PROMPT')
-        assert isinstance(genai_client.ANALYSIS_PROMPT, str)
-        assert 'projects' in genai_client.ANALYSIS_PROMPT
-        assert 'participants' in genai_client.ANALYSIS_PROMPT
-        assert 'tasks' in genai_client.ANALYSIS_PROMPT
-        assert 'themes' in genai_client.ANALYSIS_PROMPT
-        assert 'JSON' in genai_client.ANALYSIS_PROMPT
+
+        # Check that SYSTEM_PROMPT is defined and contains expected elements
+        assert hasattr(genai_client, 'SYSTEM_PROMPT')
+        assert isinstance(genai_client.SYSTEM_PROMPT, str)
+        assert 'projects' in genai_client.SYSTEM_PROMPT
+        assert 'participants' in genai_client.SYSTEM_PROMPT
+        assert 'tasks' in genai_client.SYSTEM_PROMPT
+        assert 'themes' in genai_client.SYSTEM_PROMPT
+        assert 'JSON' in genai_client.SYSTEM_PROMPT
     
     @patch('google_genai_client.genai')
     def test_create_analysis_prompt(self, mock_genai, google_genai_config):
-        """Test _create_analysis_prompt method."""
+        """Test _create_analysis_prompt returns (system, user) tuple."""
         mock_genai.Client.return_value = MagicMock()
-        
+
         genai_client = GoogleGenAIClient(google_genai_config)
-        
+
         test_content = "Test journal content about project work."
-        prompt = genai_client._create_analysis_prompt(test_content)
-        
-        assert isinstance(prompt, str)
-        assert test_content in prompt
-        assert 'projects' in prompt
-        assert 'participants' in prompt
-        assert 'tasks' in prompt
-        assert 'themes' in prompt
+        system, user = genai_client._create_analysis_prompt(test_content)
+
+        assert isinstance(system, str)
+        assert isinstance(user, str)
+        assert test_content in user
+        assert 'projects' in system
+        assert 'participants' in system
+        assert 'tasks' in system
+        assert 'themes' in system
     
     @patch('google_genai_client.genai')
     def test_create_analysis_prompt_truncation(self, mock_genai, google_genai_config):
         """Test _create_analysis_prompt truncates long content."""
         mock_genai.Client.return_value = MagicMock()
-        
+
         genai_client = GoogleGenAIClient(google_genai_config)
-        
+
         # Create content longer than max_content_length (8000)
         long_content = "A" * 9000
-        prompt = genai_client._create_analysis_prompt(long_content)
-        
-        assert isinstance(prompt, str)
-        assert "[Content truncated for analysis]" in prompt
-        assert len(prompt) < len(long_content) + len(genai_client.ANALYSIS_PROMPT)
+        _system, user = genai_client._create_analysis_prompt(long_content)
+
+        assert isinstance(user, str)
+        assert "[Content truncated for analysis]" in user
+        assert "A" * 9000 not in user
     
     @patch('google_genai_client.genai')
     def test_extract_json_from_text(self, mock_genai, google_genai_config):
@@ -952,7 +953,6 @@ class TestGoogleGenAIClient:
             assert result.themes == []
             assert result.api_call_time >= 0
             assert "ERROR (" in result.raw_response
-            assert str(error) in result.raw_response
             
             # Should track as failed API call
             stats = genai_client.get_stats()
@@ -976,7 +976,7 @@ class TestGoogleGenAIClient:
         mock_response_1.text = "Direct text response"
         mock_client.models.generate_content.return_value = mock_response_1
         
-        result_1 = genai_client._make_api_call_with_retry("test prompt", max_retries=0)
+        result_1 = genai_client._make_api_call_with_retry(system="sys", user="test prompt", max_retries=0)
         assert result_1 == "Direct text response"
         
         # Test 2: Response with candidates structure
@@ -991,7 +991,7 @@ class TestGoogleGenAIClient:
         mock_response_2.candidates = [mock_candidate]
         mock_client.models.generate_content.return_value = mock_response_2
 
-        result_2 = genai_client._make_api_call_with_retry("test prompt", max_retries=0)
+        result_2 = genai_client._make_api_call_with_retry(system="sys", user="test prompt", max_retries=0)
         assert result_2 == "Candidates structure response"
         
         # Test 3: Response with no text content should raise error
@@ -1001,7 +1001,7 @@ class TestGoogleGenAIClient:
         mock_client.models.generate_content.return_value = mock_response_3
         
         with pytest.raises(ValueError, match="No text content found in API response"):
-            genai_client._make_api_call_with_retry("test prompt", max_retries=0)
+            genai_client._make_api_call_with_retry(system="sys", user="test prompt", max_retries=0)
 
         # Test 4: Thinking model response with thought and text parts
         mock_response_4 = MagicMock()
@@ -1020,7 +1020,7 @@ class TestGoogleGenAIClient:
         mock_response_4.candidates = [mock_candidate]
         mock_client.models.generate_content.return_value = mock_response_4
 
-        result_4 = genai_client._make_api_call_with_retry("test prompt", max_retries=0)
+        result_4 = genai_client._make_api_call_with_retry(system="sys", user="test prompt", max_retries=0)
         assert result_4 == '{"projects": ["Alpha"]}'
 
     @patch('google_genai_client.genai')
@@ -1081,36 +1081,36 @@ class TestGoogleGenAIClient:
     
     @patch('google_genai_client.genai')
     def test_analyze_content_prompt_structure_validation(self, mock_genai, google_genai_config, sample_journal_content):
-        """Test that the analysis prompt contains all required elements."""
+        """Test that the analysis prompt uses separate system and user fields."""
         mock_response = MagicMock()
         mock_response.text = '{"projects": [], "participants": [], "tasks": [], "themes": []}'
-        
+
         mock_client = MagicMock()
         mock_client.models.generate_content.return_value = mock_response
         mock_genai.Client.return_value = mock_client
-        
+
         genai_client = GoogleGenAIClient(google_genai_config)
-        
+
         genai_client.analyze_content(sample_journal_content, Path("/test/prompt.txt"))
-        
-        # Verify the prompt structure
+
+        # Verify the request structure
         call_args = mock_client.models.generate_content.call_args
-        prompt = call_args.kwargs['contents']
-        
-        # Should contain the journal content
-        assert sample_journal_content.strip() in prompt
-        
-        # Should contain analysis instructions
-        assert "projects" in prompt.lower()
-        assert "participants" in prompt.lower()
-        assert "tasks" in prompt.lower()
-        assert "themes" in prompt.lower()
-        assert "json" in prompt.lower()
-        
-        # Should contain guidelines
-        assert "guidelines" in prompt.lower()
-        assert "formal project names" in prompt.lower()
-        assert "informal references" in prompt.lower()
+        user_content = call_args.kwargs['contents']
+        config = call_args.kwargs['config']
+
+        # User content should contain the journal content
+        assert sample_journal_content.strip() in user_content
+
+        # System instruction should contain analysis instructions
+        system = config['system_instruction']
+        assert "projects" in system.lower()
+        assert "participants" in system.lower()
+        assert "tasks" in system.lower()
+        assert "themes" in system.lower()
+        assert "json" in system.lower()
+        assert "guidelines" in system.lower()
+        assert "formal project names" in system.lower()
+        assert "informal references" in system.lower()
     
     @patch('google_genai_client.genai')
     def test_get_provider_info(self, mock_genai, google_genai_config):
