@@ -61,9 +61,10 @@ class TestErrorCategory:
         """Test all error categories are defined."""
         expected_categories = {
             "file_system", "api_failure", "processing_error",
-            "configuration_error", "network_error", "validation_error"
+            "configuration_error", "network_error", "validation_error",
+            "database_error", "file_access_error"
         }
-        
+
         actual_categories = {category.value for category in ErrorCategory}
         assert actual_categories == expected_categories
 
