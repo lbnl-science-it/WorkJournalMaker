@@ -96,7 +96,30 @@ Generate only the summary paragraph, no additional text.
         """
         self.llm_client = llm_client
         self.logger = logging.getLogger(__name__)
-        
+
+    @staticmethod
+    def _sanitize_entity_list(entities: List[str]) -> List[str]:
+        """
+        Strip curly braces from entity strings to prevent format-string injection.
+
+        Entity values extracted by the LLM may contain {braces} that would be
+        interpreted by str.format() when entities are interpolated into the
+        summary prompt template.
+
+        Args:
+            entities: Entity strings from LLM analysis.
+
+        Returns:
+            List[str]: Entity strings with curly braces removed.
+        """
+        sanitized = []
+        for item in entities:
+            cleaned = item.replace("{", "").replace("}", "")
+            cleaned = cleaned.strip()
+            if cleaned:
+                sanitized.append(cleaned)
+        return sanitized
+
     def generate_summaries(self, analysis_results: List[AnalysisResult], 
                           summary_type: str, start_date: date, end_date: date) -> Tuple[List[PeriodSummary], SummaryStats]:
         """
@@ -342,11 +365,17 @@ Generate only the summary paragraph, no additional text.
             Generated summary text
         """
         try:
+            # Sanitize entities to prevent format-string injection via {} braces
+            safe_projects = self._sanitize_entity_list(aggregated_entities.get('projects', []))
+            safe_participants = self._sanitize_entity_list(aggregated_entities.get('participants', []))
+            safe_tasks = self._sanitize_entity_list(aggregated_entities.get('tasks', []))
+            safe_themes = self._sanitize_entity_list(aggregated_entities.get('themes', []))
+
             # Format entities for prompt
-            projects_str = ", ".join(aggregated_entities['projects']) if aggregated_entities['projects'] else "None identified"
-            participants_str = ", ".join(aggregated_entities['participants']) if aggregated_entities['participants'] else "None identified"
-            tasks_str = ", ".join(aggregated_entities['tasks']) if aggregated_entities['tasks'] else "None identified"
-            themes_str = ", ".join(aggregated_entities['themes']) if aggregated_entities['themes'] else "None identified"
+            projects_str = ", ".join(safe_projects) if safe_projects else "None identified"
+            participants_str = ", ".join(safe_participants) if safe_participants else "None identified"
+            tasks_str = ", ".join(safe_tasks) if safe_tasks else "None identified"
+            themes_str = ", ".join(safe_themes) if safe_themes else "None identified"
             
             # Create summary prompt
             prompt = self.SUMMARY_PROMPT.format(
