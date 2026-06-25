@@ -9,8 +9,8 @@
 - [x] Phase 4 — #11, #13 (information disclosure) — branch: `security/info-disclosure-11-13`
 - [x] Phase 5 — #9 (WebSocket auth) — branch: `security/issue-9-websocket-auth`
 - [x] **SMOKE TEST CHECKPOINT 2** — pause here for live testing
-- [ ] Phase 6a — #33/#36 (LLM system/user separation)
-- [ ] Phase 6b — #34/#37 (LLM output schema validation)
+- [x] Phase 6a — #33/#36 (LLM system/user separation) — branch: `security/issue-33-system-user-separation`
+- [x] Phase 6b — #34/#37 (LLM output schema validation) — branch: `security/issue-34-llm-output-validation`
 
 ## Context
 
