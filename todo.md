@@ -7,9 +7,9 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 - [x] Re-run isolation audit against current codebase (post-DB-relocation)
 - [x] [#118](https://github.com/lbnl-science-it/WorkJournalMaker/issues/118) — Fix test_calendar_api_date_range: reads real production DB
 - [x] [#116](https://github.com/lbnl-science-it/WorkJournalMaker/issues/116) — Clean up stale DB files after migration verification (files already removed)
-- [x] [#113](https://github.com/lbnl-science-it/WorkJournalMaker/issues/113) — Rewrite live-server tests to use TestClient with isolation
+- [ ] [#113](https://github.com/lbnl-science-it/WorkJournalMaker/issues/113) — Rewrite live-server tests to use TestClient with isolation (skip marker applied as stopgap)
 - [x] Fix remaining DANGEROUS files identified by re-audit
-- [x] **GATE:** No test writes to production data or leaves side effects
+- [ ] **GATE:** No test writes to production data or leaves side effects (#113 skip marker prevents corruption but rewrite pending)
 
 ## Cluster T2: Test Coverage Rewrite
 
@@ -30,41 +30,47 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 - [x] [#93](https://github.com/lbnl-science-it/WorkJournalMaker/issues/93) — Unescaped data in inline onclick attributes
 
 ### Medium
-- [x] [#94](https://github.com/lbnl-science-it/WorkJournalMaker/issues/94) — Prompt injection via unsanitized journal content (delimiter hardening; CL#33 and CL#34 track deeper layers)
+- [x] [#94](https://github.com/lbnl-science-it/WorkJournalMaker/issues/94) — Prompt injection via unsanitized journal content
 - [x] [#95](https://github.com/lbnl-science-it/WorkJournalMaker/issues/95) — Unrestricted base_path enables arbitrary file write
 - [x] [#96](https://github.com/lbnl-science-it/WorkJournalMaker/issues/96) — Information disclosure via error messages
-  - [x] Phase 1: Create `web/utils/error_utils.py` + tests
-  - [x] Phase 2: Fix `web/api/health.py` public endpoint info leak + tests
-  - [x] Phase 3: Fix `web/database.py` health_check/get_database_stats + tests
-  - [x] Phase 4: Fix `web/api/settings.py` str(e) in 10+ endpoints + tests
-  - [x] Phase 5: Fix `web/api/sync.py` + `web/services/sync_service.py` + tests
-  - [x] Phase 6: Full regression verification
 - [x] [#97](https://github.com/lbnl-science-it/WorkJournalMaker/issues/97) — CORS misconfiguration
 - [x] [#98](https://github.com/lbnl-science-it/WorkJournalMaker/issues/98) — GCP project ID hardcoded in source code
-- [ ] [#99](https://github.com/lbnl-science-it/WorkJournalMaker/issues/99) — Client-only input validation
+- [x] [#99](https://github.com/lbnl-science-it/WorkJournalMaker/issues/99) — Client-only input validation
 - [ ] [#110](https://github.com/lbnl-science-it/WorkJournalMaker/issues/110) — Bulk update settings always returns HTTP 200
 
 ### Low
-- [ ] [#100](https://github.com/lbnl-science-it/WorkJournalMaker/issues/100) — Full file_path exposed in API responses
-- [ ] [#101](https://github.com/lbnl-science-it/WorkJournalMaker/issues/101) — Full LLM request body logged at DEBUG level
-- [ ] [#102](https://github.com/lbnl-science-it/WorkJournalMaker/issues/102) — raw_response stores full error strings
-- [ ] [#103](https://github.com/lbnl-science-it/WorkJournalMaker/issues/103) — Timezone accepts arbitrary strings
-- [ ] [#104](https://github.com/lbnl-science-it/WorkJournalMaker/issues/104) — WebSocket endpoints without auth/origin check
-- [ ] [#105](https://github.com/lbnl-science-it/WorkJournalMaker/issues/105) — showToast passes error_message via innerHTML
-- [ ] [#106](https://github.com/lbnl-science-it/WorkJournalMaker/issues/106) — Test/debug pages accessible in production
-- [ ] [#107](https://github.com/lbnl-science-it/WorkJournalMaker/issues/107) — No content size limit on entry POST
-- [ ] [#108](https://github.com/lbnl-science-it/WorkJournalMaker/issues/108) — Scheduler accepts zero/negative intervals
+- [x] [#100](https://github.com/lbnl-science-it/WorkJournalMaker/issues/100) — Full file_path exposed in API responses
+- [x] [#101](https://github.com/lbnl-science-it/WorkJournalMaker/issues/101) — Full LLM request body logged at DEBUG level
+- [x] [#102](https://github.com/lbnl-science-it/WorkJournalMaker/issues/102) — raw_response stores full error strings
+- [x] [#103](https://github.com/lbnl-science-it/WorkJournalMaker/issues/103) — Timezone accepts arbitrary strings
+- [x] [#104](https://github.com/lbnl-science-it/WorkJournalMaker/issues/104) — WebSocket endpoints without auth/origin check
+- [x] [#105](https://github.com/lbnl-science-it/WorkJournalMaker/issues/105) — showToast passes error_message via innerHTML
+- [x] [#106](https://github.com/lbnl-science-it/WorkJournalMaker/issues/106) — Test/debug pages accessible in production
+- [x] [#107](https://github.com/lbnl-science-it/WorkJournalMaker/issues/107) — No content size limit on entry POST
+- [x] [#108](https://github.com/lbnl-science-it/WorkJournalMaker/issues/108) — Scheduler accepts zero/negative intervals
 
-- [ ] **GATE:** Critical and high resolved; medium/low resolved or consciously accepted
+### Post-Triage Security Fixes
+- [x] [#146](https://github.com/lbnl-science-it/WorkJournalMaker/issues/146) — Validate LLM output schema for analyze_content responses
+- [x] [#147](https://github.com/lbnl-science-it/WorkJournalMaker/issues/147) — Separate system/user messages in LLM provider clients
+- [x] [#150](https://github.com/lbnl-science-it/WorkJournalMaker/issues/150) — Missing CSRF headers in calendar.js and settings.js fetch() calls
+- [x] [#152](https://github.com/lbnl-science-it/WorkJournalMaker/issues/152) — Add cache-busting for static JavaScript assets
+
+- [ ] **GATE:** Critical and high resolved; medium/low resolved or consciously accepted (#110 is the sole remaining item)
 
 ## Cluster U: UI Bugs
 
 - [ ] [#30](https://github.com/lbnl-science-it/WorkJournalMaker/issues/30) — Changing default work week fails
-- [ ] [#26](https://github.com/lbnl-science-it/WorkJournalMaker/issues/26) — Broken Today Button
+- [x] [#26](https://github.com/lbnl-science-it/WorkJournalMaker/issues/26) — Broken Today Button
+- [x] [#156](https://github.com/lbnl-science-it/WorkJournalMaker/issues/156) — Calendar 'Today' button navigates to wrong date after ~5pm (timezone fix)
 - [ ] [#27](https://github.com/lbnl-science-it/WorkJournalMaker/issues/27) — Calendar preview of journal entry cuts off
 - [ ] [#28](https://github.com/lbnl-science-it/WorkJournalMaker/issues/28) — Missized Calendar
 - [ ] [#32](https://github.com/lbnl-science-it/WorkJournalMaker/issues/32) — Save button hidden when editor window is at the bottom
 - [ ] **GATE:** Basic user workflow works end-to-end (verified via Playwright)
+
+## Housekeeping
+
+- [x] [#126](https://github.com/lbnl-science-it/WorkJournalMaker/issues/126) — Review and clean up debug/utility scripts in tests/
+- [ ] [#133](https://github.com/lbnl-science-it/WorkJournalMaker/issues/133) — ErrorCategory enum missing DATABASE_ERROR and FILE_ACCESS_ERROR members
 
 ## Cluster D: Desktop Packaging
 
@@ -74,5 +80,5 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 
 ## Cluster R: Package Restructure
 
-- [ ] Move 15 root-level core modules into `workjournalmaker/` package (gated on Cluster S completion)
+- [ ] Move 15 root-level core modules into `workjournalmaker/` package (gated on Clusters S and U completion)
 - [ ] Design spec: `docs/superpowers/specs/2026-05-08-root-cleanup-design.md` (Phase 2 section)

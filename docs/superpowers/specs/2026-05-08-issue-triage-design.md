@@ -209,8 +209,8 @@ before proceeding.
 
 | Cluster | Status | Gate Result |
 |---------|--------|-------------|
-| T1      | Not started | — |
-| T2      | Not started | — |
-| S       | Not started | — |
-| U       | Not started | — |
+| T1      | Near-complete | #113 skip marker prevents corruption; full rewrite pending |
+| T2      | Complete | Gate passed |
+| S       | Near-complete | All critical/high/low done; #110 (medium) remains |
+| U       | In progress | #26 and #156 fixed; #27, #28, #30, #32 remain |
 | D       | Not started | — |
