@@ -3,7 +3,7 @@
 {% block title %}{{ entry_date }} - Daily Work Journal{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/editor.css">
+<link rel="stylesheet" href="{{ static_versioned('css/editor.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -203,5 +203,5 @@
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.6/dist/purify.min.js"
         integrity="sha384-ANd4SA3BlDn2fYY4jl9gCPJyNidu+a/JUff2qJreRfrHHTJRXaDtfMyLPB81ymuI"
         crossorigin="anonymous"></script>
-<script src="/static/js/editor.js"></script>
+<script src="{{ static_versioned('js/editor.js') }}"></script>
 {% endblock %}

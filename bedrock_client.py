@@ -214,7 +214,10 @@ class BedrockClient(BaseLLMClient):
             # Add diagnostic logging
             self.logger.info(f"Testing Bedrock connection with model: {self.config.model_id}")
             self.logger.info(f"Region: {self.config.region}")
-            self.logger.debug(f"Request body: {json.dumps(request_body, indent=2)}")
+            self.logger.debug(
+                f"Request body structure: keys={list(request_body.keys())}, "
+                f"messages={len(request_body.get('messages', []))}"
+            )
 
             response = self.client.invoke_model(
                 modelId=self.config.model_id,

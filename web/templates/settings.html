@@ -3,7 +3,7 @@
 {% block title %}Settings - Daily Work Journal{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/settings.css">
+<link rel="stylesheet" href="{{ static_versioned('css/settings.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -487,5 +487,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/settings.js"></script>
+<script src="{{ static_versioned('js/settings.js') }}"></script>
 {% endblock %}

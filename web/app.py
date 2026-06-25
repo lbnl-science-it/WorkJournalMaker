@@ -15,11 +15,15 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
+import hashlib
+import os
 import time
 import traceback
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+_DEBUG_MODE = os.getenv("WORK_JOURNAL_DEBUG", "").lower() in ("1", "true", "yes")
 
 from config_manager import ConfigManager, AppConfig, AuthConfig
 from logger import LogConfig, JournalSummarizerLogger, ErrorCategory
@@ -216,6 +220,29 @@ templates_dir = Path(__file__).parent / "templates"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 templates = Jinja2Templates(directory=str(templates_dir))
 
+# Cache-busting: compute content hashes for static assets at startup
+_static_hashes: Dict[str, str] = {}
+
+
+def _get_static_hash(file_rel_path: str) -> str:
+    """Return a short MD5 hash of a static file's content for cache-busting."""
+    if file_rel_path not in _static_hashes:
+        file_path = static_dir / file_rel_path
+        if file_path.is_file():
+            content_hash = hashlib.md5(file_path.read_bytes()).hexdigest()[:10]
+            _static_hashes[file_rel_path] = content_hash
+        else:
+            _static_hashes[file_rel_path] = "0"
+    return _static_hashes[file_rel_path]
+
+
+def static_versioned(file_rel_path: str) -> str:
+    """Return a versioned static URL: /static/js/foo.js?v=<hash>."""
+    return f"/static/{file_rel_path}?v={_get_static_hash(file_rel_path)}"
+
+
+templates.env.globals["static_versioned"] = static_versioned
+
 
 @app.get("/")
 async def dashboard(request: Request):
@@ -267,10 +294,11 @@ async def api_root():
     }
 
 
-@app.get("/test")
-async def test_page(request: Request):
-    """Test page for base templates and styling."""
-    return templates.TemplateResponse(request, "test.html")
+if _DEBUG_MODE:
+    @app.get("/test")
+    async def test_page(request: Request):
+        """Test page for base templates and styling."""
+        return templates.TemplateResponse(request, "test.html")
 
 
 @app.websocket("/ws")

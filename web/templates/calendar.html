@@ -3,7 +3,7 @@
 {% block title %}Calendar - Daily Work Journal{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/calendar.css">
+<link rel="stylesheet" href="{{ static_versioned('css/calendar.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -156,5 +156,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/calendar.js"></script>
+<script src="{{ static_versioned('js/calendar.js') }}"></script>
 {% endblock %}
