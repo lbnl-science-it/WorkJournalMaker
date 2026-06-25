@@ -80,7 +80,7 @@ class TestWorkWeekConfig:
         
         config_dict = config.to_dict()
         expected = {
-            'preset': 'monday-friday',
+            'preset': 'monday_friday',
             'start_day': 1,
             'end_day': 5,
             'timezone': 'America/New_York'
@@ -90,7 +90,7 @@ class TestWorkWeekConfig:
     def test_config_from_dict(self):
         """Test configuration deserialization from dictionary."""
         data = {
-            'preset': 'sunday-thursday',
+            'preset': 'sunday_thursday',
             'start_day': 7,
             'end_day': 4,
             'timezone': 'UTC'
@@ -153,15 +153,15 @@ class TestWorkWeekService:
         """Test available presets are returned correctly."""
         presets = work_week_service.get_available_presets()
         
-        assert 'monday-friday' in presets
-        assert 'sunday-thursday' in presets
+        assert 'monday_friday' in presets
+        assert 'sunday_thursday' in presets
         assert 'custom' in presets
         
-        monday_friday = presets['monday-friday']
+        monday_friday = presets['monday_friday']
         assert monday_friday['start_day'] == 1
         assert monday_friday['end_day'] == 5
         
-        sunday_thursday = presets['sunday-thursday']
+        sunday_thursday = presets['sunday_thursday']
         assert sunday_thursday['start_day'] == 7
         assert sunday_thursday['end_day'] == 4
     
@@ -185,7 +185,7 @@ class TestWorkWeekService:
         # Test the validation logic directly instead of complex database mocking
         # Create a config that should be loaded from database
         config_data = {
-            'preset': 'sunday-thursday',
+            'preset': 'sunday_thursday',
             'start_day': 7,
             'end_day': 4,
             'timezone': None
@@ -660,7 +660,7 @@ class TestWorkWeekServiceMaintenance:
         # Test valid preset
         is_valid = work_week_service._validate_database_setting(
             work_week_service.WORK_WEEK_PRESET_KEY, 
-            "monday-friday"
+            "monday_friday"
         )
         assert is_valid == True
         
@@ -806,7 +806,7 @@ class TestWorkWeekValidationAndErrorHandling:
     def test_ui_validation_valid_input(self, work_week_service):
         """Test UI validation with valid input."""
         config_dict = {
-            'preset': 'monday-friday',
+            'preset': 'monday_friday',
             'start_day': 1,
             'end_day': 5,
             'timezone': 'UTC'
@@ -819,7 +819,7 @@ class TestWorkWeekValidationAndErrorHandling:
     def test_ui_validation_missing_fields(self, work_week_service):
         """Test UI validation with missing required fields."""
         config_dict = {
-            'preset': 'monday-friday',
+            'preset': 'monday_friday',
             # Missing start_day and end_day
             'timezone': 'UTC'
         }
@@ -833,7 +833,7 @@ class TestWorkWeekValidationAndErrorHandling:
     def test_ui_validation_invalid_types(self, work_week_service):
         """Test UI validation with invalid field types."""
         config_dict = {
-            'preset': 'monday-friday',
+            'preset': 'monday_friday',
             'start_day': 'invalid',  # Should be number
             'end_day': 5.5,         # Should be integer
             'timezone': 123         # Should be string

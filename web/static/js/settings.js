@@ -760,7 +760,7 @@ class SettingsManager {
 
         const customFields = document.getElementById('custom-work-week-fields');
         
-        if (preset === 'CUSTOM') {
+        if (preset === 'custom') {
             // Show custom fields
             if (customFields) {
                 customFields.style.display = 'block';
@@ -778,10 +778,10 @@ class SettingsManager {
             }
 
             // Set preset values
-            if (preset === 'MONDAY_FRIDAY') {
+            if (preset === 'monday_friday') {
                 this.workWeekConfig.start_day = 1;
                 this.workWeekConfig.end_day = 5;
-            } else if (preset === 'SUNDAY_THURSDAY') {
+            } else if (preset === 'sunday_thursday') {
                 this.workWeekConfig.start_day = 7;
                 this.workWeekConfig.end_day = 4;
             }
@@ -819,7 +819,7 @@ class SettingsManager {
         const { start_day, end_day, preset } = this.workWeekConfig;
 
         // Only validate custom configurations
-        if (preset !== 'CUSTOM') {
+        if (preset !== 'custom') {
             this.updateWorkWeekValidationDisplay();
             return true;
         }
@@ -915,7 +915,7 @@ class SettingsManager {
 
         let previewHtml = '';
 
-        if (preset === 'MONDAY_FRIDAY') {
+        if (preset === 'monday_friday') {
             previewHtml = `
                 <div class="preview-header">
                     <h4>Work Week: Monday - Friday</h4>
@@ -937,7 +937,7 @@ class SettingsManager {
                     <strong>Example:</strong> An entry created on Saturday Nov 16 will be saved to the Nov 8-15 work week directory.
                 </div>
             `;
-        } else if (preset === 'SUNDAY_THURSDAY') {
+        } else if (preset === 'sunday_thursday') {
             previewHtml = `
                 <div class="preview-header">
                     <h4>Work Week: Sunday - Thursday</h4>
@@ -959,7 +959,7 @@ class SettingsManager {
                     <strong>Example:</strong> An entry created on Friday Nov 15 will be saved to the Nov 17-21 work week directory.
                 </div>
             `;
-        } else if (preset === 'CUSTOM') {
+        } else if (preset === 'custom') {
             const startDayName = dayNames[start_day] || 'Invalid';
             const endDayName = dayNames[end_day] || 'Invalid';
             
@@ -1264,21 +1264,21 @@ class SettingsManager {
             return {
                 presets: [
                     { 
-                        value: 'MONDAY_FRIDAY', 
+                        value: 'monday_friday', 
                         label: 'Monday - Friday', 
                         description: 'Standard business week (5 days)',
                         start_day: 1,
                         end_day: 5
                     },
                     { 
-                        value: 'SUNDAY_THURSDAY', 
+                        value: 'sunday_thursday', 
                         label: 'Sunday - Thursday', 
                         description: 'Middle East business week (5 days)',
                         start_day: 7,
                         end_day: 4
                     },
                     { 
-                        value: 'CUSTOM', 
+                        value: 'custom', 
                         label: 'Custom', 
                         description: 'Define your own work week schedule',
                         start_day: null,
