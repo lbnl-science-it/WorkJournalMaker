@@ -325,6 +325,43 @@ class TestSettingsAPI:
         assert data['success_count'] == 2
         assert data['error_count'] == 0
     
+    def test_bulk_update_partial_failure_returns_207(self, client):
+        """Test POST /api/settings/bulk-update returns 207 on partial failure."""
+        response = client.post(
+            "/api/settings/bulk-update",
+            json={
+                "settings": {
+                    "ui.theme": "dark",
+                    "nonexistent.setting.key": "value"
+                }
+            }
+        )
+
+        data = response.json()
+        assert data['success_count'] > 0, "Expected at least one success"
+        assert data['error_count'] > 0, "Expected at least one error"
+        assert response.status_code == 207, (
+            f"Expected 207 Multi-Status for partial failure, got {response.status_code}"
+        )
+
+    def test_bulk_update_complete_failure_returns_400(self, client):
+        """Test POST /api/settings/bulk-update returns 400 when all fail."""
+        response = client.post(
+            "/api/settings/bulk-update",
+            json={
+                "settings": {
+                    "nonexistent.key.one": "value1",
+                    "nonexistent.key.two": "value2"
+                }
+            }
+        )
+
+        data = response.json()
+        if data['error_count'] > 0 and data['success_count'] == 0:
+            assert response.status_code == 400, (
+                f"Expected 400 for complete failure, got {response.status_code}"
+            )
+
     def test_reset_setting_endpoint(self, client):
         """Test POST /api/settings/{key}/reset endpoint."""
         # First change the setting

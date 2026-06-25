@@ -406,7 +406,7 @@ async def bulk_update_settings(
             status_code=status_code
         )
         
-        return result  # FastAPI will handle the serialization, but we've logged the status
+        return response
         
     except ValueError as ve:
         # Validation errors
