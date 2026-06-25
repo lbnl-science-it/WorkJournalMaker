@@ -55,7 +55,6 @@ class JournalEntryUpDate(BaseModel):
 class JournalEntryResponse(JournalEntryBase):
     """Model for journal entry API responses."""
     content: Optional[str] = Field(None, description="Entry content")
-    file_path: str = Field(..., description="File system path")
     week_ending_date: Date = Field(..., description="Week ending date")
     metadata: JournalEntryMetadata = Field(..., description="Entry metadata")
     

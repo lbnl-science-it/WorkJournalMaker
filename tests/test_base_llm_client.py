@@ -279,7 +279,7 @@ class TestBaseLLMClientAnalyzeContent:
         assert result.participants == []
         assert result.tasks == []
         assert result.themes == []
-        assert "ERROR (Exception):" in result.raw_response
+        assert result.raw_response == "ERROR (Exception)"
 
     def test_failed_analysis_updates_stats(self):
         """Failed call increments total_calls and failed_calls."""

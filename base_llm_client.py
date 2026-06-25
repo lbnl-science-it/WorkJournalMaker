@@ -158,7 +158,7 @@ Guidelines:
                 tasks=[],
                 themes=[],
                 api_call_time=call_time,
-                raw_response=f"ERROR ({error_type}): {str(e)}",
+                raw_response=f"ERROR ({error_type})",
             )
 
     def _create_analysis_prompt(self, content: str) -> str:

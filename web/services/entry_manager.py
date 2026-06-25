@@ -659,7 +659,6 @@ class EntryManager(BaseService):
             return JournalEntryResponse(
                 date=db_entry.date,
                 content=content,
-                file_path=db_entry.file_path,
                 week_ending_date=db_entry.week_ending_date,
                 metadata=metadata,
                 created_at=created_at_local,
