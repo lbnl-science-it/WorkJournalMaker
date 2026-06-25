@@ -7,9 +7,9 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 - [x] Re-run isolation audit against current codebase (post-DB-relocation)
 - [x] [#118](https://github.com/lbnl-science-it/WorkJournalMaker/issues/118) — Fix test_calendar_api_date_range: reads real production DB
 - [x] [#116](https://github.com/lbnl-science-it/WorkJournalMaker/issues/116) — Clean up stale DB files after migration verification (files already removed)
-- [ ] [#113](https://github.com/lbnl-science-it/WorkJournalMaker/issues/113) — Rewrite live-server tests to use TestClient with isolation (skip marker applied as stopgap)
+- [x] [#113](https://github.com/lbnl-science-it/WorkJournalMaker/issues/113) — Remove live-server tests that corrupt worklog files
 - [x] Fix remaining DANGEROUS files identified by re-audit
-- [ ] **GATE:** No test writes to production data or leaves side effects (#113 skip marker prevents corruption but rewrite pending)
+- [x] **GATE:** No test writes to production data or leaves side effects
 
 ## Cluster T2: Test Coverage Rewrite
 
@@ -36,7 +36,7 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 - [x] [#97](https://github.com/lbnl-science-it/WorkJournalMaker/issues/97) — CORS misconfiguration
 - [x] [#98](https://github.com/lbnl-science-it/WorkJournalMaker/issues/98) — GCP project ID hardcoded in source code
 - [x] [#99](https://github.com/lbnl-science-it/WorkJournalMaker/issues/99) — Client-only input validation
-- [ ] [#110](https://github.com/lbnl-science-it/WorkJournalMaker/issues/110) — Bulk update settings always returns HTTP 200
+- [x] [#110](https://github.com/lbnl-science-it/WorkJournalMaker/issues/110) — Bulk update settings always returns HTTP 200
 
 ### Low
 - [x] [#100](https://github.com/lbnl-science-it/WorkJournalMaker/issues/100) — Full file_path exposed in API responses
@@ -55,7 +55,7 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 - [x] [#150](https://github.com/lbnl-science-it/WorkJournalMaker/issues/150) — Missing CSRF headers in calendar.js and settings.js fetch() calls
 - [x] [#152](https://github.com/lbnl-science-it/WorkJournalMaker/issues/152) — Add cache-busting for static JavaScript assets
 
-- [ ] **GATE:** Critical and high resolved; medium/low resolved or consciously accepted (#110 is the sole remaining item)
+- [x] **GATE:** Critical and high resolved; medium/low resolved or consciously accepted
 
 ## Cluster U: UI Bugs
 
@@ -70,7 +70,7 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 ## Housekeeping
 
 - [x] [#126](https://github.com/lbnl-science-it/WorkJournalMaker/issues/126) — Review and clean up debug/utility scripts in tests/
-- [ ] [#133](https://github.com/lbnl-science-it/WorkJournalMaker/issues/133) — ErrorCategory enum missing DATABASE_ERROR and FILE_ACCESS_ERROR members
+- [x] [#133](https://github.com/lbnl-science-it/WorkJournalMaker/issues/133) — ErrorCategory enum missing DATABASE_ERROR and FILE_ACCESS_ERROR members
 
 ## Cluster D: Desktop Packaging
 

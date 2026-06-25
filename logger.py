@@ -42,6 +42,8 @@ class ErrorCategory(Enum):
     CONFIGURATION_ERROR = "configuration_error"
     NETWORK_ERROR = "network_error"
     VALIDATION_ERROR = "validation_error"
+    DATABASE_ERROR = "database_error"
+    FILE_ACCESS_ERROR = "file_access_error"
 
 
 @dataclass
