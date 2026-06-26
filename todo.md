@@ -59,7 +59,7 @@ Full design: [docs/superpowers/specs/2026-05-08-issue-triage-design.md](docs/sup
 
 ## Cluster U: UI Bugs
 
-- [ ] [#30](https://github.com/lbnl-science-it/WorkJournalMaker/issues/30) — Changing default work week fails
+- [x] [#30](https://github.com/lbnl-science-it/WorkJournalMaker/issues/30) — Changing default work week fails
 - [x] [#26](https://github.com/lbnl-science-it/WorkJournalMaker/issues/26) — Broken Today Button
 - [x] [#156](https://github.com/lbnl-science-it/WorkJournalMaker/issues/156) — Calendar 'Today' button navigates to wrong date after ~5pm (timezone fix)
 - [ ] [#27](https://github.com/lbnl-science-it/WorkJournalMaker/issues/27) — Calendar preview of journal entry cuts off
