@@ -360,6 +360,58 @@ async def test_work_week_settings_backward_compatibility():
         os.unlink(db_path)
 
 
+class TestWorkWeekPresetRoundTrip:
+    """Test that presets saved via SettingsService are read correctly by WorkWeekService."""
+
+    @pytest_asyncio.fixture
+    async def services(self):
+        """Create both SettingsService and WorkWeekService sharing a temp database."""
+        from web.services.work_week_service import WorkWeekService
+        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+            db_path = f.name
+
+        db_manager = DatabaseManager(db_path)
+        await db_manager.initialize()
+
+        config = AppConfig()
+        log_config = LogConfig()
+        logger = JournalSummarizerLogger(log_config)
+
+        settings_service = SettingsService(config, logger, db_manager)
+        work_week_service = WorkWeekService(config, logger, db_manager)
+
+        yield settings_service, work_week_service
+
+        await db_manager.engine.dispose()
+        os.unlink(db_path)
+
+    @pytest.mark.asyncio
+    async def test_sunday_thursday_preset_survives_round_trip(self, services):
+        """Save sunday_thursday via SettingsService, read via WorkWeekService.
+
+        This is the core bug from GH#30: the preset was stored as 'sunday_thursday'
+        but WorkWeekPreset enum expected 'sunday-thursday', causing a silent fallback
+        to MONDAY_FRIDAY.
+        """
+        settings_service, work_week_service = services
+
+        # Save non-default preset
+        success = await settings_service.update_work_week_preset('sunday_thursday')
+        assert success is True
+
+        # Clear WorkWeekService cache so it re-reads from DB
+        work_week_service._config_cache.clear()
+
+        # Read back through WorkWeekService
+        config = await work_week_service.get_user_work_week_config()
+
+        assert config.preset.value != "monday-friday", (
+            "Preset silently fell back to monday-friday — format mismatch between services"
+        )
+        assert config.start_day == 7, f"Expected start_day=7 (Sunday), got {config.start_day}"
+        assert config.end_day == 4, f"Expected end_day=4 (Thursday), got {config.end_day}"
+
+
 if __name__ == "__main__":
     # Run tests
     pytest.main([__file__, "-v"])

@@ -25,8 +25,8 @@ from sqlalchemy import select, update
 
 class WorkWeekPreset(Enum):
     """Predefined work week configurations."""
-    MONDAY_FRIDAY = "monday-friday"
-    SUNDAY_THURSDAY = "sunday-thursday"
+    MONDAY_FRIDAY = "monday_friday"
+    SUNDAY_THURSDAY = "sunday_thursday"
     CUSTOM = "custom"
 
 
@@ -107,7 +107,7 @@ class WorkWeekConfig:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'WorkWeekConfig':
         """Create from dictionary representation."""
-        preset = WorkWeekPreset(data.get('preset', 'monday-friday'))
+        preset = WorkWeekPreset(data.get('preset', 'monday_friday'))
         return cls(
             preset=preset,
             start_day=data.get('start_day', 1),
@@ -641,7 +641,7 @@ class WorkWeekService(BaseService):
             async with self.db_manager.get_session() as session:
                 # Check each work week setting
                 settings_to_check = [
-                    (self.WORK_WEEK_PRESET_KEY, 'monday-friday'),
+                    (self.WORK_WEEK_PRESET_KEY, 'monday_friday'),
                     (self.WORK_WEEK_START_DAY_KEY, '1'),
                     (self.WORK_WEEK_END_DAY_KEY, '5'),
                     (self.WORK_WEEK_TIMEZONE_KEY, None)

@@ -206,8 +206,8 @@
                             </span>
                         </label>
                         <select id="work-week-preset" class="setting-input work-week-preset-select" aria-describedby="work-week-preset-help">
-                            <option value="monday-friday">Monday - Friday</option>
-                            <option value="sunday-thursday">Sunday - Thursday</option>
+                            <option value="monday_friday">Monday - Friday</option>
+                            <option value="sunday_thursday">Sunday - Thursday</option>
                             <option value="custom">Custom Schedule</option>
                         </select>
                         <p class="setting-description" id="work-week-preset-help">
@@ -216,7 +216,7 @@
                     </div>
 
                     <!-- Custom Schedule Configuration (hidden by default) -->
-                    <div class="setting-group custom-schedule" id="custom-schedule-group" style="display: none;">
+                    <div class="setting-group custom-schedule" id="custom-work-week-fields" style="display: none;">
                         <label class="setting-label">Custom Work Week</label>
                         
                         <div class="custom-schedule-inputs">
@@ -275,8 +275,43 @@
                     </div>
 
                     <!-- Validation Messages -->
-                    <div class="validation-feedback" id="work-week-validation" style="display: none;">
-                        <div class="validation-message" id="work-week-validation-message"></div>
+                    <div class="validation-feedback" id="work-week-validation">
+                    </div>
+
+                    <!-- Change Warning -->
+                    <div class="setting-group work-week-warning">
+                        <div class="info-callout">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <line x1="12" y1="16" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+                                <line x1="12" y1="8" x2="12.01" y2="8" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <div class="info-callout-content">
+                                <strong>Note:</strong> Changing the work week schedule only affects
+                                future entries. Existing files stay in their current directories.
+                                To avoid splitting a week's entries across two folders, change this
+                                setting between weeks rather than mid-week.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Save / Reset Actions -->
+                    <div class="setting-group work-week-actions">
+                        <button class="btn btn-primary" id="save-work-week-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2"/>
+                                <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2"/>
+                                <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            Save Work Week
+                        </button>
+                        <button class="btn btn-secondary" id="reset-work-week-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            Reset to Default
+                        </button>
                     </div>
                 </div>
             </div>
