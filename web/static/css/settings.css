@@ -330,6 +330,32 @@
     border: 1px solid rgba(255, 149, 0, 0.2);
 }
 
+/* Info Callout */
+.info-callout {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background-color: rgba(0, 122, 255, 0.08);
+    border: 1px solid rgba(0, 122, 255, 0.2);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+.info-callout > svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: rgba(0, 122, 255, 0.7);
+}
+
+.work-week-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+}
+
 /* Setting Status Indicators */
 .setting-status {
     display: flex;
